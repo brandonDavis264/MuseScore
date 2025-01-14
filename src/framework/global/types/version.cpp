@@ -21,14 +21,18 @@
  */
 #include "version.h"
 
+#include <algorithm>
 #include <array>
+#include <utility>
+#include <vector>
+
 #include "log.h"
 
-static const mu::Char SUFFIX_DELIMITER = '-';
+static const muse::Char SUFFIX_DELIMITER = '-';
 
-using namespace mu::framework;
+using namespace muse;
 
-static std::array<int, 3> parseVersion(const mu::String& versionString, bool& ok)
+static std::array<int, 3> parseVersion(const muse::String& versionString, bool& ok)
 {
     std::array<int, 3> result { 0, 0, 0 };
 
@@ -59,14 +63,14 @@ static std::array<int, 3> parseVersion(const mu::String& versionString, bool& ok
     return result;
 }
 
-static std::pair<mu::String, int> parseVersionSuffix(const mu::String& suffix, bool& ok)
+static std::pair<String, int> parseVersionSuffix(const String& suffix, bool& ok)
 {
     if (suffix.isEmpty()) {
         ok = false;
-        return std::make_pair(mu::String(), 0);
+        return std::make_pair(String(), 0);
     }
 
-    mu::StringList suffixComponents = suffix.split('.');
+    StringList suffixComponents = suffix.split('.');
 
     ok = true;
     return std::make_pair(suffixComponents.front(), (suffixComponents.size() > 1 ? suffixComponents[1].toInt() : 0));
@@ -77,7 +81,7 @@ Version::Version(int major, int minor, int patch, const String& suffix, int suff
 {
 }
 
-Version::Version(const mu::String& versionStr)
+Version::Version(const String& versionStr)
 {
     String version = versionStr.left(versionStr.indexOf(SUFFIX_DELIMITER));
 
@@ -98,22 +102,27 @@ Version::Version(const mu::String& versionStr)
     setSuffix(versionStr.right(versionStr.size() - versionStr.indexOf(SUFFIX_DELIMITER) - 1));
 }
 
-int Version::majorVersion() const
+Version::Version(const std::string& versionStr)
+    : Version(String::fromStdString(versionStr))
+{
+}
+
+int Version::major() const
 {
     return m_major;
 }
 
-int Version::minorVersion() const
+int Version::minor() const
 {
     return m_minor;
 }
 
-int Version::patchVersion() const
+int Version::patch() const
 {
     return m_patch;
 }
 
-mu::String Version::suffix() const
+String Version::suffix() const
 {
     return m_suffix;
 }
@@ -140,7 +149,7 @@ bool Version::preRelease() const
     return !suffix().isEmpty();
 }
 
-mu::String Version::toString()
+String Version::toString() const
 {
     String res = String(u"%1.%2.%3").arg(m_major, m_minor, m_patch);
 
@@ -152,17 +161,22 @@ mu::String Version::toString()
     return res;
 }
 
+std::string Version::toStdString() const
+{
+    return toString().toStdString();
+}
+
 bool Version::operator <(const Version& other) const
 {
-    if (m_major > other.majorVersion()) {
+    if (m_major > other.major()) {
         return false;
-    } else if (m_major == other.majorVersion()) {
-        if (m_minor > other.minorVersion()) {
+    } else if (m_major == other.major()) {
+        if (m_minor > other.minor()) {
             return false;
-        } else if (m_minor == other.minorVersion()) {
-            if (m_patch > other.patchVersion()) {
+        } else if (m_minor == other.minor()) {
+            if (m_patch > other.patch()) {
                 return false;
-            } else if (m_patch == other.patchVersion()) {
+            } else if (m_patch == other.patch()) {
                 if (m_suffix.isEmpty()) {
                     return false;
                 }
@@ -171,7 +185,7 @@ bool Version::operator <(const Version& other) const
                     return true;
                 }
 
-                static mu::StringList suffixes {
+                static StringList suffixes {
                     u"dev",
                     u"alpha",
                     u"beta",
@@ -209,9 +223,9 @@ bool Version::operator <(const Version& other) const
 
 bool Version::operator ==(const Version& other) const
 {
-    return m_major == other.majorVersion()
-           && m_minor == other.minorVersion()
-           && m_patch == other.patchVersion()
+    return m_major == other.major()
+           && m_minor == other.minor()
+           && m_patch == other.patch()
            && m_suffix == other.suffix()
            && m_suffixVersion == other.suffixVersion();
 }

@@ -20,18 +20,18 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_AUDIO_ICLOCK_H
-#define MU_AUDIO_ICLOCK_H
+#ifndef MUSE_AUDIO_ICLOCK_H
+#define MUSE_AUDIO_ICLOCK_H
 
 #include <memory>
 
-#include "types/ret.h"
-#include "async/channel.h"
-#include "async/notification.h"
+#include "global/types/ret.h"
+#include "global/async/channel.h"
+#include "global/async/notification.h"
 
 #include "../../audiotypes.h"
 
-namespace mu::audio {
+namespace muse::audio {
 class IClock
 {
 public:
@@ -47,20 +47,21 @@ public:
     virtual void pause() = 0;
     virtual void resume() = 0;
     virtual void seek(const msecs_t msecs) = 0;
+    virtual async::Notification seekOccurred() const = 0;
+    virtual bool isRunning() const = 0;
+
+    virtual PlaybackStatus status() const = 0;
+    virtual async::Channel<PlaybackStatus> statusChanged() const = 0;
 
     virtual msecs_t timeDuration() const = 0;
     virtual void setTimeDuration(const msecs_t duration) = 0;
     virtual Ret setTimeLoop(const msecs_t fromMsec, const msecs_t toMsec) = 0;
     virtual void resetTimeLoop() = 0;
 
-    virtual bool isRunning() const = 0;
-
-    virtual async::Channel<msecs_t> timeChanged() const = 0;
-    virtual async::Notification seekOccurred() const = 0;
-    virtual async::Channel<PlaybackStatus> statusChanged() const = 0;
+    virtual async::Channel<secs_t> timeChanged() const = 0;
 };
 
 using IClockPtr = std::shared_ptr<IClock>;
 }
 
-#endif // MU_AUDIO_ICLOCK_H
+#endif // MUSE_AUDIO_ICLOCK_H

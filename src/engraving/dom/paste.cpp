@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -58,7 +58,7 @@
 #include "log.h"
 
 using namespace mu;
-using namespace mu::io;
+using namespace muse::io;
 using namespace mu::engraving;
 
 namespace mu::engraving {
@@ -306,8 +306,21 @@ static Note* prepareTarget(ChordRest* target, Note* with, const Fraction& durati
         Measure* m = segment->measure()->mmRestFirst();
         segment = m->findSegment(SegmentType::ChordRest, m->tick());
     }
+
+    const Staff* staff = target->staff();
+    const StaffGroup staffGroup = staff->staffType(segment->tick())->group();
+    DirectionV stemDirection = DirectionV::AUTO;
+    if (staffGroup == StaffGroup::PERCUSSION) {
+        const Drumset* ds = staff->part()->instrument(segment->tick())->drumset();
+        DO_ASSERT(ds);
+
+        if (ds) {
+            stemDirection = ds->stemDirection(with->noteVal().pitch);
+        }
+    }
+
     segment = target->score()->setNoteRest(segment, target->track(),
-                                           with->noteVal(), duration, DirectionV::AUTO, false, {}, false, &target->score()->inputState());
+                                           with->noteVal(), duration, stemDirection, false, {}, false, &target->score()->inputState());
     return toChord(segment->nextChordRest(target->track()))->upNote();
 }
 
@@ -343,7 +356,7 @@ static bool canPasteStaff(XmlReader& reader, const Fraction& scale)
     return true;
 }
 
-inline static bool canPasteStaff(const ByteArray& mimeData, const Fraction& scale)
+inline static bool canPasteStaff(const muse::ByteArray& mimeData, const Fraction& scale)
 {
     XmlReader reader(mimeData);
     return canPasteStaff(reader, scale);
@@ -353,26 +366,28 @@ inline static bool canPasteStaff(const ByteArray& mimeData, const Fraction& scal
 //   cmdPaste
 //---------------------------------------------------------
 
-void Score::cmdPaste(const IMimeData* ms, MuseScoreView* view, Fraction scale)
+std::vector<EngravingItem*> Score::cmdPaste(const IMimeData* ms, MuseScoreView* view, Fraction scale)
 {
+    std::vector<EngravingItem*> droppedElements;
+
     if (ms == 0) {
         LOGD("no application mime data");
         MScore::setError(MsError::NO_MIME);
-        return;
+        return {};
     }
     if ((m_selection.isSingle() || m_selection.isList()) && ms->hasFormat(mimeSymbolFormat)) {
-        ByteArray data = ms->data(mimeSymbolFormat);
+        muse::ByteArray data = ms->data(mimeSymbolFormat);
 
         PointF dragOffset;
         Fraction duration(1, 4);
         std::unique_ptr<EngravingItem> el(EngravingItem::readMimeData(this, data, &dragOffset, &duration));
 
         if (!el) {
-            return;
+            return {};
         }
         duration *= scale;
         if (!TDuration(duration).isValid()) {
-            return;
+            return {};
         }
 
         std::vector<EngravingItem*> els;
@@ -384,15 +399,17 @@ void Score::cmdPaste(const IMimeData* ms, MuseScoreView* view, Fraction scale)
         EngravingItem* newEl = 0;
         for (EngravingItem* target : els) {
             el->setTrack(target->track());
-            addRefresh(target->abbox());         // layout() ?!
+            addRefresh(target->pageBoundingRect()); // layout() ?!
             EditData ddata(view);
             ddata.dropElement = el.get();
+            ddata.pos = target->pageBoundingRect().topLeft();
             if (target->acceptDrop(ddata)) {
                 if (!el->isNote() || (target = prepareTarget(target, toNote(el.get()), duration))) {
                     ddata.dropElement = el->clone();
                     EngravingItem* dropped = target->drop(ddata);
                     if (dropped) {
                         newEl = dropped;
+                        droppedElements.emplace_back(dropped);
                     }
                 }
             }
@@ -409,7 +426,7 @@ void Score::cmdPaste(const IMimeData* ms, MuseScoreView* view, Fraction scale)
             if (!e->isNote() && !e->isChordRest()) {
                 LOGD("cannot paste to %s", e->typeName());
                 MScore::setError(MsError::DEST_NO_CR);
-                return;
+                return {};
             }
             if (e->isNote()) {
                 e = toNote(e)->chord();
@@ -418,19 +435,19 @@ void Score::cmdPaste(const IMimeData* ms, MuseScoreView* view, Fraction scale)
         }
         if (cr == 0) {
             MScore::setError(MsError::NO_DEST);
-            return;
+            return {};
         } else if (cr->tuplet() && cr->tick() != cr->topTuplet()->tick()) {
             MScore::setError(MsError::DEST_TUPLET);
-            return;
+            return {};
         } else {
-            ByteArray data = ms->data(mimeStaffListFormat);
+            muse::ByteArray data = ms->data(mimeStaffListFormat);
             if (MScore::debugMode) {
                 LOGD("paste <%s>", data.data());
             }
             if (canPasteStaff(data, scale)) {
                 XmlReader e(data);
                 if (!pasteStaff(e, cr->segment(), cr->staffIdx(), scale)) {
-                    return;
+                    return {};
                 }
             }
         }
@@ -443,7 +460,7 @@ void Score::cmdPaste(const IMimeData* ms, MuseScoreView* view, Fraction scale)
             if (!e->isNote() && !e->isRest() && !e->isChord()) {
                 LOGD("cannot paste to %s", e->typeName());
                 MScore::setError(MsError::DEST_NO_CR);
-                return;
+                return {};
             }
             if (e->isNote()) {
                 e = toNote(e)->chord();
@@ -452,9 +469,9 @@ void Score::cmdPaste(const IMimeData* ms, MuseScoreView* view, Fraction scale)
         }
         if (cr == 0) {
             MScore::setError(MsError::NO_DEST);
-            return;
+            return {};
         } else {
-            ByteArray data = ms->data(mimeSymbolListFormat);
+            muse::ByteArray data = ms->data(mimeSymbolListFormat);
             if (MScore::debugMode) {
                 LOGD("paste <%s>", data.data());
             }
@@ -462,7 +479,7 @@ void Score::cmdPaste(const IMimeData* ms, MuseScoreView* view, Fraction scale)
             pasteSymbols(e, cr);
         }
     } else if (ms->hasImage()) {
-        ByteArray ba;
+        muse::ByteArray ba;
         Buffer buffer(&ba);
         buffer.open(IODevice::WriteOnly);
 
@@ -482,13 +499,17 @@ void Score::cmdPaste(const IMimeData* ms, MuseScoreView* view, Fraction scale)
 
         for (EngravingItem* target : els) {
             EngravingItem* nel = image->clone();
-            addRefresh(target->abbox());         // layout() ?!
+            addRefresh(target->pageBoundingRect()); // layout() ?!
             EditData ddata(view);
             ddata.dropElement    = nel;
             if (target->acceptDrop(ddata)) {
-                target->drop(ddata);
+                EngravingItem* dropped = target->drop(ddata);
+                if (dropped) {
+                    droppedElements.emplace_back(dropped);
+                }
+
                 if (m_selection.element()) {
-                    addRefresh(m_selection.element()->abbox());
+                    addRefresh(m_selection.element()->pageBoundingRect());
                 }
             }
         }
@@ -499,5 +520,7 @@ void Score::cmdPaste(const IMimeData* ms, MuseScoreView* view, Fraction scale)
             LOGD() << " format: " << s;
         }
     }
+
+    return droppedElements;
 }
 }

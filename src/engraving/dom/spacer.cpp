@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -30,7 +30,7 @@
 #include "log.h"
 
 using namespace mu;
-using namespace mu::draw;
+using namespace muse::draw;
 using namespace mu::engraving;
 
 namespace mu::engraving {
@@ -43,6 +43,7 @@ Spacer::Spacer(Measure* parent)
 {
     m_spacerType = SpacerType::UP;
     m_gap = 0.0;
+    m_z = -10; // Ensure behind notation
 }
 
 Spacer::Spacer(const Spacer& s)
@@ -97,6 +98,8 @@ void Spacer::layout0()
     RectF bb(0, 0, w, h);
     bb.adjust(-lw, -lw, lw, lw);
     setbbox(bb);
+
+    setZ(0.0);
 }
 
 //---------------------------------------------------------
@@ -157,7 +160,7 @@ void Spacer::editDrag(EditData& ed)
 //   gripsPositions
 //---------------------------------------------------------
 
-std::vector<mu::PointF> Spacer::gripsPositions(const EditData&) const
+std::vector<PointF> Spacer::gripsPositions(const EditData&) const
 {
     double _spatium = spatium();
     PointF p;
@@ -221,5 +224,22 @@ PropertyValue Spacer::propertyDefault(Pid id) const
     default:
         return EngravingItem::propertyDefault(id);
     }
+}
+
+//---------------------------------------------------------
+//   subtypeUserName
+//---------------------------------------------------------
+
+muse::TranslatableString Spacer::subtypeUserName() const
+{
+    switch (m_spacerType) {
+    case SpacerType::UP:
+        return TranslatableString("engraving/spacertype", "Staff spacer up");
+    case SpacerType::DOWN:
+        return TranslatableString("engraving/spacertype", "Staff spacer down");
+    case SpacerType::FIXED:
+        return TranslatableString("engraving/spacertype", "Staff spacer fixed down");
+    }
+    return TranslatableString::untranslatable("Unknown spacer");
 }
 }

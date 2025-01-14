@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -24,19 +24,18 @@
 
 #include <QObject>
 
+#include "async/asyncable.h"
+
 #include "modularity/ioc.h"
+#include "engraving/iengravingconfiguration.h"
 #include "shortcuts/ishortcutsconfiguration.h"
 #include "notation/inotationconfiguration.h"
 #include "playback/iplaybackconfiguration.h"
 
 namespace mu::appshell {
-class NoteInputPreferencesModel : public QObject
+class NoteInputPreferencesModel : public QObject, public muse::Injectable, public muse::async::Asyncable
 {
     Q_OBJECT
-
-    INJECT(shortcuts::IShortcutsConfiguration, shortcutsConfiguration)
-    INJECT(notation::INotationConfiguration, notationConfiguration)
-    INJECT(playback::IPlaybackConfiguration, playbackConfiguration)
 
     Q_PROPERTY(
         bool advanceToNextNoteOnKeyRelease READ advanceToNextNoteOnKeyRelease WRITE setAdvanceToNextNoteOnKeyRelease NOTIFY advanceToNextNoteOnKeyReleaseChanged)
@@ -53,9 +52,18 @@ class NoteInputPreferencesModel : public QObject
     Q_PROPERTY(bool playChordWhenEditing READ playChordWhenEditing WRITE setPlayChordWhenEditing NOTIFY playChordWhenEditingChanged)
     Q_PROPERTY(
         bool playChordSymbolWhenEditing READ playChordSymbolWhenEditing WRITE setPlayChordSymbolWhenEditing NOTIFY playChordSymbolWhenEditingChanged)
+    Q_PROPERTY(
+        bool dynamicsApplyToAllVoices READ dynamicsApplyToAllVoices WRITE setDynamicsApplyToAllVoices NOTIFY dynamicsApplyToAllVoicesChanged FINAL)
+
+    muse::Inject<muse::shortcuts::IShortcutsConfiguration> shortcutsConfiguration = { this };
+    muse::Inject<notation::INotationConfiguration> notationConfiguration = { this };
+    muse::Inject<playback::IPlaybackConfiguration> playbackConfiguration = { this };
+    muse::Inject<mu::engraving::IEngravingConfiguration> engravingConfiguration = { this };
 
 public:
     explicit NoteInputPreferencesModel(QObject* parent = nullptr);
+
+    Q_INVOKABLE void load();
 
     bool advanceToNextNoteOnKeyRelease() const;
     bool colorNotesOutsideOfUsablePitchRange() const;
@@ -67,6 +75,8 @@ public:
     bool playChordWhenEditing() const;
     bool playChordSymbolWhenEditing() const;
 
+    bool dynamicsApplyToAllVoices() const;
+
 public slots:
     void setAdvanceToNextNoteOnKeyRelease(bool value);
     void setColorNotesOutsideOfUsablePitchRange(bool value);
@@ -76,6 +86,7 @@ public slots:
     void setNotePlayDurationMilliseconds(int duration);
     void setPlayChordWhenEditing(bool value);
     void setPlayChordSymbolWhenEditing(bool value);
+    void setDynamicsApplyToAllVoices(bool value);
 
 signals:
     void advanceToNextNoteOnKeyReleaseChanged(bool value);
@@ -86,6 +97,7 @@ signals:
     void notePlayDurationMillisecondsChanged(int duration);
     void playChordWhenEditingChanged(bool value);
     void playChordSymbolWhenEditingChanged(bool value);
+    void dynamicsApplyToAllVoicesChanged(bool value);
 };
 }
 

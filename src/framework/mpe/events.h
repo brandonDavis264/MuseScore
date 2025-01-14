@@ -20,33 +20,35 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_MPE_EVENTS_H
-#define MU_MPE_EVENTS_H
+#ifndef MUSE_MPE_EVENTS_H
+#define MUSE_MPE_EVENTS_H
 
 #include <variant>
 #include <vector>
-#include <optional>
 
 #include "async/channel.h"
 #include "realfn.h"
-#include "types/val.h"
 
 #include "mpetypes.h"
-#include "soundid.h"
+#include "playbacksetupdata.h"
 
-namespace mu::mpe {
+namespace muse::mpe {
 struct NoteEvent;
 struct RestEvent;
 using PlaybackEvent = std::variant<NoteEvent, RestEvent>;
 using PlaybackEventList = std::vector<PlaybackEvent>;
 using PlaybackEventsMap = std::map<timestamp_t, PlaybackEventList>;
 
+using DynamicLevelMap = std::map<timestamp_t, dynamic_level_t>;
+using DynamicLevelLayers = std::map<layer_idx_t, DynamicLevelMap>;
+
 struct PlaybackParam;
 using PlaybackParamList = std::vector<PlaybackParam>;
 using PlaybackParamMap = std::map<timestamp_t, PlaybackParamList>;
+using PlaybackParamLayers = std::map<layer_idx_t, PlaybackParamMap>;
 
-using MainStreamChanges = async::Channel<PlaybackEventsMap, DynamicLevelMap, PlaybackParamMap>;
-using OffStreamChanges = async::Channel<PlaybackEventsMap, PlaybackParamMap>;
+using MainStreamChanges = async::Channel<PlaybackEventsMap, DynamicLevelLayers, PlaybackParamLayers>;
+using OffStreamChanges = async::Channel<PlaybackEventsMap, PlaybackParamList>;
 
 struct ArrangementContext
 {
@@ -55,7 +57,8 @@ struct ArrangementContext
     duration_t nominalDuration = 0;
     duration_t actualDuration = 0;
     voice_layer_idx_t voiceLayerIndex = 0;
-    double bps = 0;
+    staff_layer_idx_t staffLayerIndex = 0;
+    double bps = 0.0;
 
     bool operator==(const ArrangementContext& other) const
     {
@@ -64,6 +67,7 @@ struct ArrangementContext
                && nominalDuration == other.nominalDuration
                && actualDuration == other.actualDuration
                && voiceLayerIndex == other.voiceLayerIndex
+               && staffLayerIndex == other.staffLayerIndex
                && bps == other.bps;
     }
 };
@@ -85,12 +89,14 @@ struct ExpressionContext
     ArticulationMap articulations;
     dynamic_level_t nominalDynamicLevel = MIN_DYNAMIC_LEVEL;
     ExpressionCurve expressionCurve;
+    std::optional<float> velocityOverride;
 
     bool operator==(const ExpressionContext& other) const
     {
         return articulations == other.articulations
                && nominalDynamicLevel == other.nominalDynamicLevel
-               && expressionCurve == other.expressionCurve;
+               && expressionCurve == other.expressionCurve
+               && velocityOverride == velocityOverride;
     }
 };
 
@@ -108,6 +114,7 @@ struct NoteEvent
     explicit NoteEvent(const timestamp_t nominalTimestamp,
                        const duration_t nominalDuration,
                        const voice_layer_idx_t voiceIdx,
+                       const staff_layer_idx_t staffIdx,
                        const pitch_level_t nominalPitchLevel,
                        const dynamic_level_t nominalDynamicLevel,
                        const ArticulationMap& articulationsApplied,
@@ -118,6 +125,7 @@ struct NoteEvent
         m_arrangementCtx.nominalDuration = nominalDuration;
         m_arrangementCtx.nominalTimestamp = nominalTimestamp;
         m_arrangementCtx.voiceLayerIndex = voiceIdx;
+        m_arrangementCtx.staffLayerIndex = staffIdx;
         m_arrangementCtx.bps = bps;
 
         m_pitchCtx.nominalPitchLevel = nominalPitchLevel;
@@ -217,12 +225,14 @@ private:
 
     void calculateExpressionCurve(const ArticulationMap& articulationsApplied, const float requiredVelocityFraction)
     {
-        const ExpressionPattern::DynamicOffsetMap& appliedOffsetMap = articulationsApplied.averageDynamicOffsetMap();
+        m_expressionCtx.expressionCurve = articulationsApplied.averageDynamicOffsetMap();
+
+        if (!RealIsNull(requiredVelocityFraction)) {
+            m_expressionCtx.velocityOverride = requiredVelocityFraction;
+        }
 
         dynamic_level_t articulationDynamicLevel = articulationsApplied.averageMaxAmplitudeLevel();
         dynamic_level_t nominalDynamicLevel = m_expressionCtx.nominalDynamicLevel;
-
-        m_expressionCtx.expressionCurve = appliedOffsetMap;
 
         constexpr dynamic_level_t naturalDynamicLevel = dynamicLevelFromType(DynamicType::Natural);
 
@@ -241,10 +251,6 @@ private:
 
         for (auto& pair : m_expressionCtx.expressionCurve) {
             pair.second = static_cast<dynamic_level_t>(RealRound(pair.second * ratio, 0));
-        }
-
-        if (!RealIsNull(requiredVelocityFraction)) {
-            m_expressionCtx.expressionCurve.amplifyVelocity(requiredVelocityFraction);
         }
     }
 
@@ -283,119 +289,37 @@ private:
     ArrangementContext m_arrangementCtx;
 };
 
-struct PlaybackSetupData
-{
-    SoundId id = SoundId::Undefined;
-    SoundCategory category = SoundCategory::Undefined;
-    SoundSubCategories subCategorySet;
-
-    std::optional<std::string> musicXmlSoundId;
-
-    bool contains(const SoundSubCategory subcategory) const
-    {
-        return subCategorySet.find(subcategory) != subCategorySet.cend();
-    }
-
-    bool operator==(const PlaybackSetupData& other) const
-    {
-        return id == other.id
-               && category == other.category
-               && subCategorySet == other.subCategorySet;
-    }
-
-    bool operator<(const PlaybackSetupData& other) const
-    {
-        if (other.id > id) {
-            return true;
-        } else if (other.id == id) {
-            if (other.category > category) {
-                return true;
-            } else if (other.category == category) {
-                return other.subCategorySet > subCategorySet;
-            }
-        }
-
-        return false;
-    }
-
-    bool isValid() const
-    {
-        return id != SoundId::Undefined
-               && category != SoundCategory::Undefined;
-    }
-
-    String toString() const
-    {
-        String result;
-
-        if (!subCategorySet.empty()) {
-            result = String(u"%1.%2.%3")
-                     .arg(soundCategoryToString(category))
-                     .arg(soundIdToString(id))
-                     .arg(subCategorySet.toString());
-        } else {
-            result = String(u"%1.%2")
-                     .arg(soundCategoryToString(category))
-                     .arg(soundIdToString(id));
-        }
-
-        return result;
-    }
-
-    static PlaybackSetupData fromString(const String& str)
-    {
-        if (str.empty()) {
-            return PlaybackSetupData();
-        }
-
-        StringList subStrList = str.split(u".");
-
-        if (subStrList.size() < 2) {
-            return PlaybackSetupData();
-        }
-
-        SoundSubCategories subCategories;
-        if (subStrList.size() == 3) {
-            subCategories = SoundSubCategories::fromString(subStrList.at(2));
-        }
-
-        PlaybackSetupData result = {
-            soundIdFromString(subStrList.at(1)),
-            soundCategoryFromString(subStrList.at(0)),
-            std::move(subCategories),
-            std::nullopt
-        };
-
-        return result;
-    }
-};
-
-static const PlaybackSetupData GENERIC_SETUP_DATA = {
-    SoundId::Last,
-    SoundCategory::Last,
-    { SoundSubCategory::Last },
-    std::nullopt
-};
-
-static const String GENERIC_SETUP_DATA_STRING = GENERIC_SETUP_DATA.toString();
-
 struct PlaybackParam {
-    String code;
-    Val val;
+    enum Type {
+        Undefined = -1,
+        SoundPreset,
+        PlayingTechnique,
+        Syllable,
+    };
+
+    using Value = String;
+
+    Type type = Undefined;
+    Value val;
+
+    std::optional<bool> isPersistent;
+
+    PlaybackParam(Type t, Value v)
+        : type(t), val(std::move(v))
+    {
+    }
 
     bool operator==(const PlaybackParam& other) const
     {
-        return code == other.code && val == other.val;
+        return type == other.type && val == other.val;
     }
 };
-
-static const String SOUND_PRESET_PARAM_CODE(u"sound_preset");
 
 struct PlaybackData {
     PlaybackEventsMap originEvents;
     PlaybackSetupData setupData;
-    DynamicLevelMap dynamicLevelMap;
-    PlaybackParamMap paramMap;
+    DynamicLevelLayers dynamics;
+    PlaybackParamLayers params;
 
     MainStreamChanges mainStream;
     OffStreamChanges offStream;
@@ -404,8 +328,8 @@ struct PlaybackData {
     {
         return originEvents == other.originEvents
                && setupData == other.setupData
-               && dynamicLevelMap == other.dynamicLevelMap
-               && paramMap == other.paramMap;
+               && dynamics == other.dynamics
+               && params == other.params;
     }
 
     bool isValid() const
@@ -415,4 +339,4 @@ struct PlaybackData {
 };
 }
 
-#endif // MU_MPE_EVENTS_H
+#endif // MUSE_MPE_EVENTS_H

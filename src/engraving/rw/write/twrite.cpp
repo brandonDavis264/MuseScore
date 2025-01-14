@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -89,6 +89,7 @@
 
 #include "dom/keysig.h"
 
+#include "dom/laissezvib.h"
 #include "dom/layoutbreak.h"
 #include "dom/ledgerline.h"
 #include "dom/letring.h"
@@ -110,6 +111,7 @@
 #include "dom/page.h"
 #include "dom/palmmute.h"
 #include "dom/part.h"
+#include "dom/partialtie.h"
 #include "dom/pedal.h"
 #include "dom/pickscrape.h"
 #include "dom/playtechannotation.h"
@@ -162,6 +164,7 @@
 
 #include "log.h"
 
+using namespace muse;
 using namespace mu::engraving;
 using namespace mu::engraving::write;
 
@@ -244,6 +247,8 @@ void TWrite::writeItem(const EngravingItem* item, XmlWriter& xml, WriteContext& 
         break;
     case ElementType::KEYSIG:       write(item_cast<const KeySig*>(item), xml, ctx);
         break;
+    case ElementType::LAISSEZ_VIB:  write(item_cast<const LaissezVib*>(item), xml, ctx);
+        break;
     case ElementType::LAYOUT_BREAK: write(item_cast<const LayoutBreak*>(item), xml, ctx);
         break;
     case ElementType::LEDGER_LINE:  write(item_cast<const LedgerLine*>(item), xml, ctx);
@@ -277,6 +282,8 @@ void TWrite::writeItem(const EngravingItem* item, XmlWriter& xml, WriteContext& 
     case ElementType::PAGE:         write(item_cast<const Page*>(item), xml, ctx);
         break;
     case ElementType::PALM_MUTE:    write(item_cast<const PalmMute*>(item), xml, ctx);
+        break;
+    case ElementType::PARTIAL_TIE:  write(item_cast<const PartialTie*>(item), xml, ctx);
         break;
     case ElementType::PEDAL:        write(item_cast<const Pedal*>(item), xml, ctx);
         break;
@@ -399,7 +406,7 @@ void TWrite::writeProperty(const EngravingItem* item, XmlWriter& xml, Pid pid, b
         if (d.isValid() && std::abs(f1 - d.toReal()) < 0.0001) {            // fuzzy compare
             return;
         }
-        p = PropertyValue(Spatium::fromMM(f1, item->style().spatium()));
+        p = PropertyValue(Spatium::fromMM(f1, item->spatium()));
         d = PropertyValue();
     } else if (P_TYPE::POINT == type) {
         PointF p1 = p.value<PointF>();
@@ -416,6 +423,43 @@ void TWrite::writeProperty(const EngravingItem* item, XmlWriter& xml, Pid pid, b
     xml.tagProperty(pid, p, d);
 }
 
+void TWrite::writeSystemLocks(const Score* score, XmlWriter& xml)
+{
+    std::vector<const SystemLock*> locks = score->systemLocks()->allLocks();
+    if (locks.empty()) {
+        return;
+    }
+
+    xml.startElement("SystemLocks");
+    for (const SystemLock* sl : locks) {
+        writeSystemLock(sl, xml);
+    }
+    xml.endElement();
+}
+
+void TWrite::writeItemEid(const EngravingObject* item, XmlWriter& xml, WriteContext& ctx)
+{
+    if (MScore::testMode || ctx.configuration()->doNotSaveEIDsForBackCompat() || item->score()->isPaletteScore() || ctx.clipboardmode()) {
+        return;
+    }
+
+    EID eid = item->eid();
+    if (!eid.isValid()) {
+        eid = item->assignNewEID();
+    }
+    xml.tag("eid", eid.toStdString());
+}
+
+void TWrite::writeSystemLock(const SystemLock* systemLock, XmlWriter& xml)
+{
+    xml.startElement("systemLock");
+
+    xml.tag("startMeasure", systemLock->startMB()->eid().toStdString());
+    xml.tag("endMeasure", systemLock->endMB()->eid().toStdString());
+
+    xml.endElement();
+}
+
 void TWrite::writeStyledProperties(const EngravingItem* item, XmlWriter& xml)
 {
     for (const StyledProperty& spp : *item->styledProperties()) {
@@ -425,9 +469,7 @@ void TWrite::writeStyledProperties(const EngravingItem* item, XmlWriter& xml)
 
 void TWrite::writeItemProperties(const EngravingItem* item, XmlWriter& xml, WriteContext& ctx)
 {
-    if (!MScore::testMode && !item->score()->isPaletteScore()) {
-        xml.tag("eid", item->eid().toUint64());
-    }
+    TWrite::writeItemEid(item, xml, ctx);
 
     bool autoplaceEnabled = item->score()->style().styleB(Sid::autoplaceEnabled);
     if (!autoplaceEnabled) {
@@ -486,7 +528,7 @@ void TWrite::writeItemProperties(const EngravingItem* item, XmlWriter& xml, Writ
         }
     }
     if ((ctx.writeTrack() || item->track() != ctx.curTrack())
-        && (item->track() != mu::nidx) && !item->isBeam() && !item->isTuplet()) {
+        && (item->track() != muse::nidx) && !item->isBeam() && !item->isTuplet()) {
         // Writing track number for beams and tuplets is redundant as it is calculated
         // during layout.
         int t = static_cast<int>(item->track()) + ctx.trackDiff();
@@ -496,10 +538,14 @@ void TWrite::writeItemProperties(const EngravingItem* item, XmlWriter& xml, Writ
         xml.tagProperty(Pid::POSITION, item->rtick());
     }
 
-    for (Pid pid : { Pid::OFFSET, Pid::COLOR, Pid::VISIBLE, Pid::Z, Pid::PLACEMENT }) {
+    for (Pid pid : { Pid::OFFSET, Pid::COLOR, Pid::VISIBLE, Pid::Z }) {
         if (item->propertyFlags(pid) == PropertyFlags::NOSTYLE) {
             writeProperty(item, xml, pid);
         }
+    }
+
+    if (!item->hasVoiceAssignmentProperties() && item->propertyFlags(Pid::PLACEMENT) == PropertyFlags::NOSTYLE) {
+        writeProperty(item, xml, Pid::PLACEMENT);
     }
 
     writeProperty(item, xml, Pid::POSITION_LINKED_TO_MASTER);
@@ -514,6 +560,7 @@ void TWrite::write(const Accidental* item, XmlWriter& xml, WriteContext& ctx)
     writeProperty(item, xml, Pid::ACCIDENTAL_ROLE);
     writeProperty(item, xml, Pid::SMALL);
     writeProperty(item, xml, Pid::ACCIDENTAL_TYPE);
+    writeProperty(item, xml, Pid::ACCIDENTAL_STACKING_ORDER_OFFSET);
     writeItemProperties(item, xml, ctx);
     xml.endElement();
 }
@@ -522,9 +569,7 @@ void TWrite::write(const ActionIcon* item, XmlWriter& xml, WriteContext&)
 {
     xml.startElement(item);
     xml.tag("subtype", int(item->actionType()));
-    if (!item->actionCode().empty()) {
-        xml.tag("action", String::fromStdString(item->actionCode()));
-    }
+    xml.tag("action", String::fromStdString(item->actionCode()));
     xml.endElement();
 }
 
@@ -535,7 +580,7 @@ void TWrite::write(const Ambitus* item, XmlWriter& xml, WriteContext& ctx)
     xml.tagProperty(Pid::HEAD_TYPE,  int(item->noteHeadType()),  int(Ambitus::NOTEHEADTYPE_DEFAULT));
     xml.tagProperty(Pid::MIRROR_HEAD, int(item->direction()),    int(Ambitus::DIRECTION_DEFAULT));
     xml.tag("hasLine",    item->hasLine(), true);
-    xml.tagProperty(Pid::LINE_WIDTH_SPATIUM, item->lineWidth(), Ambitus::LINEWIDTH_DEFAULT);
+    xml.tagProperty(Pid::LINE_WIDTH, item->lineWidth(), Ambitus::LINEWIDTH_DEFAULT);
     xml.tag("topPitch",   item->topPitch());
     xml.tag("topTpc",     item->topTpc());
     xml.tag("bottomPitch", item->bottomPitch());
@@ -562,10 +607,10 @@ void TWrite::write(const Arpeggio* item, XmlWriter& xml, WriteContext& ctx)
     xml.startElement(item);
     writeItemProperties(item, xml, ctx);
     writeProperty(item, xml, Pid::ARPEGGIO_TYPE);
-    if (item->userLen1() != 0.0) {
+    if (!RealIsNull(item->userLen1())) {
         xml.tag("userLen1", item->userLen1() / item->spatium());
     }
-    if (item->userLen2() != 0.0) {
+    if (!RealIsNull(item->userLen2())) {
         xml.tag("userLen2", item->userLen2() / item->spatium());
     }
     if (item->span() != 1) {
@@ -632,6 +677,7 @@ void TWrite::write(const Ornament* item, XmlWriter& xml, WriteContext& ctx)
     writeProperty(item, xml, Pid::INTERVAL_ABOVE);
     writeProperty(item, xml, Pid::INTERVAL_BELOW);
     writeProperty(item, xml, Pid::ORNAMENT_SHOW_ACCIDENTAL);
+    writeProperty(item, xml, Pid::ORNAMENT_SHOW_CUE_NOTE);
     writeProperty(item, xml, Pid::START_ON_UPPER_NOTE);
     writeProperties(static_cast<const Articulation*>(item), xml, ctx);
     xml.endElement();
@@ -679,8 +725,9 @@ void TWrite::write(const Beam* item, XmlWriter& xml, WriteContext& ctx)
     writeProperty(item, xml, Pid::BEAM_NO_SLOPE);
     writeProperty(item, xml, Pid::GROW_LEFT);
     writeProperty(item, xml, Pid::GROW_RIGHT);
+    writeProperty(item, xml, Pid::BEAM_CROSS_STAFF_MOVE);
 
-    int idx = (item->beamDirection() == DirectionV::AUTO || item->beamDirection() == DirectionV::DOWN) ? 0 : 1;
+    int idx = item->directionIdx();
     if (item->userModified()) {
         double _spatium = item->spatium();
         for (BeamFragment* f : item->beamFragments()) {
@@ -743,7 +790,7 @@ void TWrite::writeProperties(const Box* item, XmlWriter& xml, WriteContext& ctx)
 {
     for (Pid id : {
         Pid::BOX_HEIGHT, Pid::BOX_WIDTH, Pid::TOP_GAP, Pid::BOTTOM_GAP,
-        Pid::LEFT_MARGIN, Pid::RIGHT_MARGIN, Pid::TOP_MARGIN, Pid::BOTTOM_MARGIN, Pid::BOX_AUTOSIZE
+        Pid::LEFT_MARGIN, Pid::RIGHT_MARGIN, Pid::TOP_MARGIN, Pid::BOTTOM_MARGIN, Pid::BOX_AUTOSIZE, Pid::SIZE_SPATIUM_DEPENDENT
     }) {
         bool force = (item->isVBox() && id == Pid::BOX_HEIGHT) || (item->isHBox() && id == Pid::BOX_WIDTH);
         writeProperty(item, xml, id, force);
@@ -872,7 +919,7 @@ void TWrite::write(const Chord* item, XmlWriter& xml, WriteContext& ctx)
 
     if (item->noStem()) {
         xml.tag("noStem", item->noStem());
-    } else if (item->stem() && (item->stem()->isUserModified() || (item->stem()->userLength() != 0.0))) {
+    } else if (item->stem() && (item->stem()->isUserModified() || !item->stem()->userLength().isZero())) {
         write(item->stem(), xml, ctx);
     }
     if (item->hook() && item->hook()->isUserModified()) {
@@ -897,6 +944,8 @@ void TWrite::write(const Chord* item, XmlWriter& xml, WriteContext& ctx)
     } else if (item->tremoloTwoChord() && item->tremoloChordType() != TremoloChordType::TremoloSecondChord) {
         write(item->tremoloTwoChord(), xml, ctx);
     }
+
+    writeProperty(item, xml, Pid::COMBINE_VOICE);
 
     for (EngravingItem* e : item->el()) {
         if (e->isChordLine() && toChordLine(e)->note()) { // this is now written by Note
@@ -1048,7 +1097,7 @@ void TWrite::write(const ChordLine* item, XmlWriter& xml, WriteContext& ctx)
     if (item->modified()) {
         //! NOTE Need separated "given" data and layout data
         const ChordLine::LayoutData* ldata = item->ldata();
-        const draw::PainterPath& path = ldata->path;
+        const PainterPath& path = ldata->path;
         size_t n = path.elementCount();
         xml.startElement("Path");
         for (size_t i = 0; i < n; ++i) {
@@ -1110,11 +1159,11 @@ void TWrite::write(const Dynamic* item, XmlWriter& xml, WriteContext& ctx)
     xml.startElement(item);
     writeProperty(item, xml, Pid::DYNAMIC_TYPE);
     writeProperty(item, xml, Pid::VELOCITY);
-    writeProperty(item, xml, Pid::DYNAMIC_RANGE);
     writeProperty(item, xml, Pid::AVOID_BARLINES);
     writeProperty(item, xml, Pid::DYNAMICS_SIZE);
     writeProperty(item, xml, Pid::CENTER_ON_NOTEHEAD);
     writeProperty(item, xml, Pid::PLAY);
+    writeProperty(item, xml, Pid::ANCHOR_TO_END_OF_PREVIOUS);
 
     if (item->isVelocityChangeAvailable()) {
         writeProperty(item, xml, Pid::VELO_CHANGE);
@@ -1137,6 +1186,12 @@ void TWrite::write(const Expression* item, XmlWriter& xml, WriteContext& ctx)
 
 void TWrite::writeProperties(const TextBase* item, XmlWriter& xml, WriteContext& ctx, bool writeText)
 {
+    if (item->hasVoiceAssignmentProperties()) {
+        writeProperty(item, xml, Pid::VOICE_ASSIGNMENT);
+        writeProperty(item, xml, Pid::DIRECTION);
+        writeProperty(item, xml, Pid::CENTER_BETWEEN_STAVES);
+    }
+
     writeItemProperties(item, xml, ctx);
     writeProperty(item, xml, Pid::TEXT_STYLE);
 
@@ -1252,7 +1307,7 @@ void TWrite::write(const FretDiagram* item, XmlWriter& xml, WriteContext& ctx)
     }
     xml.startElement(item);
 
-    static const std::array<Pid, 8> pids { {
+    static const std::array<Pid, 10> pids { {
         Pid::MIN_DISTANCE,
         Pid::FRET_OFFSET,
         Pid::FRET_FRETS,
@@ -1260,7 +1315,9 @@ void TWrite::write(const FretDiagram* item, XmlWriter& xml, WriteContext& ctx)
         Pid::FRET_NUT,
         Pid::MAG,
         Pid::FRET_NUM_POS,
-        Pid::ORIENTATION
+        Pid::ORIENTATION,
+        Pid::FRET_SHOW_FINGERINGS,
+        Pid::FRET_FINGERING,
     } };
 
     // Write properties first and only once
@@ -1428,14 +1485,14 @@ void TWrite::write(const Glissando* item, XmlWriter& xml, WriteContext& ctx)
     }
     xml.startElement(item);
     if (item->showText() && !item->text().isEmpty()) {
-        xml.tag("text", item->text());
+        xml.tagProperty("text", item->text(), item->propertyDefault(Pid::GLISS_TEXT));
     }
 
     if (ctx.clipboardmode() && item->isHarpGliss().has_value()) {
         xml.tagProperty("isHarpGliss", PropertyValue(item->isHarpGliss().value()));
     }
 
-    for (auto id : { Pid::GLISS_TYPE, Pid::PLAY, Pid::GLISS_STYLE, Pid::GLISS_SHIFT, Pid::GLISS_EASEIN, Pid::GLISS_EASEOUT }) {
+    for (auto id : { Pid::GLISS_SHIFT, Pid::GLISS_EASEIN, Pid::GLISS_EASEOUT }) {
         writeProperty(item, xml, id);
     }
     for (const StyledProperty& spp : *item->styledProperties()) {
@@ -1495,7 +1552,6 @@ void TWrite::writeProperties(const SLine* item, XmlWriter& xml, WriteContext& ct
     }
     writeProperty(item, xml, Pid::LINE_WIDTH);
     writeProperty(item, xml, Pid::LINE_STYLE);
-    writeProperty(item, xml, Pid::COLOR);
     writeProperty(item, xml, Pid::ANCHOR);
     writeProperty(item, xml, Pid::DASH_LINE_LEN);
     writeProperty(item, xml, Pid::DASH_GAP_LEN);
@@ -1535,6 +1591,7 @@ void TWrite::writeProperties(const Spanner* item, XmlWriter& xml, WriteContext& 
     if (ctx.clipboardmode()) {
         xml.tagFraction("ticks_f", item->ticks());
     }
+    writeProperty(item, xml, Pid::PLAY);
     writeItemProperties(item, xml, ctx);
 }
 
@@ -1545,6 +1602,7 @@ void TWrite::write(const GradualTempoChange* item, XmlWriter& xml, WriteContext&
     writeProperty(item, xml, Pid::TEMPO_EASING_METHOD);
     writeProperty(item, xml, Pid::TEMPO_CHANGE_FACTOR);
     writeProperty(item, xml, Pid::PLACEMENT);
+    writeProperty(item, xml, Pid::SNAP_AFTER);
     writeProperties(static_cast<const TextLineBase*>(item), xml, ctx);
     xml.endElement();
 }
@@ -1556,6 +1614,7 @@ void TWrite::writeProperties(const TextLineBase* item, XmlWriter& xml, WriteCont
             writeProperty(item, xml, pid);
         }
     }
+
     writeProperties(static_cast<const SLine*>(item), xml, ctx);
 }
 
@@ -1577,24 +1636,20 @@ void TWrite::write(const Hairpin* item, XmlWriter& xml, WriteContext& ctx)
     xml.tag("subtype", int(item->hairpinType()));
     writeProperty(item, xml, Pid::VELO_CHANGE);
     writeProperty(item, xml, Pid::HAIRPIN_CIRCLEDTIP);
-    writeProperty(item, xml, Pid::DYNAMIC_RANGE);
-//      writeProperty(xml, Pid::BEGIN_TEXT);
-    writeProperty(item, xml, Pid::END_TEXT);
-//      writeProperty(xml, Pid::CONTINUE_TEXT);
-    writeProperty(item, xml, Pid::LINE_VISIBLE);
     writeProperty(item, xml, Pid::SINGLE_NOTE_DYNAMICS);
     writeProperty(item, xml, Pid::VELO_CHANGE_METHOD);
-    writeProperty(item, xml, Pid::PLAY);
-    writeProperty(item, xml, Pid::BEGIN_TEXT_OFFSET);
-    writeProperty(item, xml, Pid::CONTINUE_TEXT_OFFSET);
-    writeProperty(item, xml, Pid::END_TEXT_OFFSET);
 
-    for (const StyledProperty& spp : *item->styledProperties()) {
-        if (!item->isStyled(spp.pid)) {
-            writeProperty(item, xml, spp.pid);
-        }
-    }
-    writeProperties(static_cast<const SLine*>(item), xml, ctx);
+    writeProperty(item, xml, Pid::VOICE_ASSIGNMENT);
+    writeProperty(item, xml, Pid::DIRECTION);
+    writeProperty(item, xml, Pid::CENTER_BETWEEN_STAVES);
+
+    writeProperty(item, xml, Pid::SNAP_BEFORE);
+    writeProperty(item, xml, Pid::SNAP_AFTER);
+
+    writeProperty(item, xml, Pid::HAIRPIN_HEIGHT);
+    writeProperty(item, xml, Pid::HAIRPIN_CONT_HEIGHT);
+
+    writeProperties(static_cast<const TextLineBase*>(item), xml, ctx);
     xml.endElement();
 }
 
@@ -1741,7 +1796,7 @@ void TWrite::write(const Image* item, XmlWriter& xml, WriteContext& ctx)
     //
     String relativeFilePath;
     if (!item->linkPath().isEmpty() && item->linkIsValid()) {
-        io::FileInfo fi(item->linkPath());
+        muse::io::FileInfo fi(item->linkPath());
         // score()->fileInfo()->canonicalPath() would be better
         // but we are saving under a temp file name and the 'final' file
         // might not exist yet, so canonicalFilePath() may return only "/"
@@ -1749,7 +1804,7 @@ void TWrite::write(const Image* item, XmlWriter& xml, WriteContext& ctx)
         String scorePath = item->score()->masterScore()->fileInfo()->absoluteDirPath().toString();
         String imgFPath  = fi.canonicalFilePath();
         // if imgFPath is in (or below) the directory of scorePath
-        if (imgFPath.startsWith(scorePath, mu::CaseSensitive)) {
+        if (imgFPath.startsWith(scorePath, muse::CaseSensitive)) {
             // relative img path is the part exceeding scorePath
             imgFPath.remove(0, scorePath.size());
             if (imgFPath.startsWith(u'/')) {
@@ -1760,10 +1815,10 @@ void TWrite::write(const Image* item, XmlWriter& xml, WriteContext& ctx)
         // try 1 level up
         else {
             // reduce scorePath by one path level
-            fi = io::FileInfo(scorePath);
+            fi = muse::io::FileInfo(scorePath);
             scorePath = fi.path();
             // if imgFPath is in (or below) the directory up the score directory
-            if (imgFPath.startsWith(scorePath, mu::CaseSensitive)) {
+            if (imgFPath.startsWith(scorePath, muse::CaseSensitive)) {
                 // relative img path is the part exceeding new scorePath plus "../"
                 imgFPath.remove(0, scorePath.size());
                 if (!imgFPath.startsWith(u'/')) {
@@ -1801,6 +1856,11 @@ void TWrite::write(const Instrument* item, XmlWriter& xml, WriteContext&, const 
     } else {
         xml.startElement("Instrument", { { "id", item->id() } });
     }
+
+    if (!item->soundId().empty()) {
+        xml.tag("soundId", item->soundId());
+    }
+
     write(&item->longNames(), xml, "longName");
     write(&item->shortNames(), xml, "shortName");
 //      if (!_trackName.empty())
@@ -2061,6 +2121,15 @@ void TWrite::write(const KeySig* item, XmlWriter& xml, WriteContext& ctx)
     xml.endElement();
 }
 
+void TWrite::write(const LaissezVib* item, XmlWriter& xml, WriteContext& ctx)
+{
+    xml.startElement(item);
+    writeProperty(item, xml, Pid::MIN_LENGTH);
+    writeProperty(item, xml, Pid::TIE_PLACEMENT);
+    writeProperties(static_cast<const SlurTie*>(item), xml, ctx);
+    xml.endElement();
+}
+
 void TWrite::write(const LayoutBreak* item, XmlWriter& xml, WriteContext& ctx)
 {
     xml.startElement(item);
@@ -2107,6 +2176,7 @@ void TWrite::write(const Location* item, XmlWriter& xml, WriteContext&)
     xml.tagFraction("fractions", item->frac().reduced(), relDefaults.frac());
     xml.tag("grace", item->graceIndex(), relDefaults.graceIndex());
     xml.tag("notes", item->note(), relDefaults.note());
+    xml.tag("timeTick", item->isTimeTick(), false);
     xml.endElement();
 }
 
@@ -2163,7 +2233,7 @@ void TWrite::write(const MMRest* item, XmlWriter& xml, WriteContext& ctx)
 {
     xml.startElement("Rest"); // for compatibility, see also Measure::readVoice()
     writeProperties(static_cast<const ChordRest*>(item), xml, ctx);
-    writeProperty(item, xml, Pid::MMREST_NUMBER_POS);
+    writeProperty(item, xml, Pid::MMREST_NUMBER_OFFSET);
     writeProperty(item, xml, Pid::MMREST_NUMBER_VISIBLE);
     writeItems(item->el(), xml, ctx);
     xml.endElement();
@@ -2190,7 +2260,7 @@ void TWrite::write(const Note* item, XmlWriter& xml, WriteContext& ctx)
     writeItems(item->el(), xml, ctx);
     bool write_dots = false;
     for (NoteDot* dot : item->dots()) {
-        if (!dot->offset().isNull() || !dot->visible() || dot->color() != engravingConfiguration()->defaultColor()
+        if (!dot->offset().isNull() || !dot->visible() || dot->color() != ctx.configuration()->defaultColor()
             || dot->visible() != item->visible()) {
             write_dots = true;
             break;
@@ -2202,12 +2272,26 @@ void TWrite::write(const Note* item, XmlWriter& xml, WriteContext& ctx)
         }
     }
 
-    if (item->tieFor()) {
+    if (item->laissezVib()) {
+        write(item->laissezVib(), xml, ctx);
+    }
+
+    if (item->incomingPartialTie() && !ctx.clipboardmode()) {
+        write(item->incomingPartialTie(), xml, ctx);
+    }
+
+    if (item->outgoingPartialTie() && !ctx.clipboardmode()) {
+        write(item->outgoingPartialTie(), xml, ctx);
+    }
+
+    if (item->tieForNonPartial()) {
         writeSpannerStart(item->tieFor(), xml, ctx, item, item->track());
     }
-    if (item->tieBack()) {
+
+    if (item->tieBackNonPartial()) {
         writeSpannerEnd(item->tieBack(), xml, ctx, item, item->track());
     }
+
     if ((item->chord() == 0 || item->chord()->playEventType() != PlayEventType::Auto) && !item->playEvents().empty()) {
         xml.startElement("Events");
         for (const NoteEvent& e : item->playEvents()) {
@@ -2347,6 +2431,15 @@ void TWrite::write(const Part* item, XmlWriter& xml, WriteContext& ctx)
     xml.endElement();
 }
 
+void TWrite::write(const PartialTie* item, XmlWriter& xml, WriteContext& ctx)
+{
+    xml.startElement(item);
+    writeProperty(item, xml, Pid::TIE_PLACEMENT);
+    writeProperty(item, xml, Pid::PARTIAL_SPANNER_DIRECTION);
+    writeProperties(static_cast<const SlurTie*>(item), xml, ctx);
+    xml.endElement();
+}
+
 void TWrite::write(const Pedal* item, XmlWriter& xml, WriteContext& ctx)
 {
     if (!ctx.canWrite(item)) {
@@ -2422,7 +2515,7 @@ void TWrite::write(const Rest* item, XmlWriter& xml, WriteContext& ctx)
     writeItems(item->el(), xml, ctx);
     bool write_dots = false;
     for (NoteDot* dot : item->dotList()) {
-        if (!dot->offset().isNull() || !dot->visible() || dot->color() != engravingConfiguration()->defaultColor()
+        if (!dot->offset().isNull() || !dot->visible() || dot->color() != ctx.configuration()->defaultColor()
             || dot->visible() != item->visible()) {
             write_dots = true;
             break;
@@ -2463,6 +2556,11 @@ void TWrite::write(const Slur* item, XmlWriter& xml, WriteContext& ctx)
     if (ctx.clipboardmode()) {
         xml.tag("stemArr", Slur::calcStemArrangement(item->startElement(), item->endElement()));
     }
+
+    // We don't know if the paste destination has the correct repeat structure for partial slurs to be permitted
+    if (!ctx.clipboardmode()) {
+        writeProperty(item, xml, Pid::PARTIAL_SPANNER_DIRECTION);
+    }
     writeProperties(static_cast<const SlurTie*>(item), xml, ctx);
     xml.endElement();
 }
@@ -2481,7 +2579,7 @@ void TWrite::writeProperties(const SlurTie* item, XmlWriter& xml, WriteContext& 
 void TWrite::writeSlur(const SlurTieSegment* seg, XmlWriter& xml, WriteContext& ctx, int no)
 {
     if (seg->visible() && seg->autoplace()
-        && (seg->color() == engravingConfiguration()->defaultColor())
+        && (seg->color() == ctx.configuration()->defaultColor())
         && seg->offset().isNull()
         && seg->ups(Grip::START).off.isNull()
         && seg->ups(Grip::BEZIER1).off.isNull()
@@ -2570,8 +2668,8 @@ void TWrite::write(const Staff* item, XmlWriter& xml, WriteContext& ctx)
     if (item->hideSystemBarLine()) {
         xml.tag("hideSystemBarLine", item->hideSystemBarLine());
     }
-    if (item->mergeMatchingRests()) {
-        xml.tag("mergeMatchingRests", item->mergeMatchingRests());
+    if (item->mergeMatchingRests() != AutoOnOff::AUTO) {
+        xml.tag("mergeMatchingRests", TConv::toXml(item->mergeMatchingRests()));
     }
     if (!item->visible()) {
         xml.tag("isStaffVisible", item->visible());
@@ -2613,7 +2711,19 @@ void TWrite::write(const StaffState* item, XmlWriter& xml, WriteContext& ctx)
 
 void TWrite::write(const StaffText* item, XmlWriter& xml, WriteContext& ctx)
 {
-    write(static_cast<const StaffTextBase*>(item), xml, ctx);
+    if (!ctx.canWrite(item)) {
+        return;
+    }
+
+    xml.startElement(item);
+
+    writeProperties(static_cast<const StaffTextBase*>(item), xml, ctx);
+
+    if (const SoundFlag* flag = item->soundFlag()) {
+        writeItem(flag, xml, ctx);
+    }
+
+    xml.endElement();
 }
 
 void TWrite::write(const StaffTextBase* item, XmlWriter& xml, WriteContext& ctx)
@@ -2621,8 +2731,14 @@ void TWrite::write(const StaffTextBase* item, XmlWriter& xml, WriteContext& ctx)
     if (!ctx.canWrite(item)) {
         return;
     }
-    xml.startElement(item);
 
+    xml.startElement(item);
+    writeProperties(item, xml, ctx);
+    xml.endElement();
+}
+
+void TWrite::writeProperties(const StaffTextBase* item, XmlWriter& xml, WriteContext& ctx)
+{
     for (const ChannelActions& s : item->channelActions()) {
         int channel = s.channel;
         for (const String& name : s.midiActionNames) {
@@ -2651,12 +2767,11 @@ void TWrite::write(const StaffTextBase* item, XmlWriter& xml, WriteContext& ctx)
         int swingRatio = item->swingParameters().swingRatio;
         xml.tag("swing", { { "unit", TConv::toXml(swingUnit) }, { "ratio", swingRatio } });
     }
-    writeProperties(static_cast<const TextBase*>(item), xml, ctx, true);
 
-    xml.endElement();
+    writeProperties(static_cast<const TextBase*>(item), xml, ctx, true);
 }
 
-void TWrite::write(const StaffType* item, XmlWriter& xml, WriteContext&)
+void TWrite::write(const StaffType* item, XmlWriter& xml, WriteContext& ctx)
 {
     xml.startElement("StaffType", { { "group", TConv::toXml(item->group()) } });
     if (!item->xmlName().isEmpty()) {
@@ -2665,13 +2780,13 @@ void TWrite::write(const StaffType* item, XmlWriter& xml, WriteContext&)
     if (item->lines() != 5) {
         xml.tag("lines", item->lines());
     }
-    if (item->lineDistance().val() != 1.0) {
+    if (!RealIsEqual(item->lineDistance().val(), 1.0)) {
         xml.tag("lineDistance", item->lineDistance().val());
     }
-    if (item->yoffset().val() != 0.0) {
+    if (!RealIsNull(item->yoffset().val())) {
         xml.tag("yoffset", item->yoffset().val());
     }
-    if (item->userMag() != 1.0) {
+    if (!RealIsEqual(item->userMag(), 1.0)) {
         xml.tag("mag", item->userMag());
     }
     if (item->isSmall()) {
@@ -2696,8 +2811,8 @@ void TWrite::write(const StaffType* item, XmlWriter& xml, WriteContext&)
     if (item->invisible()) {
         xml.tag("invisible", item->invisible());
     }
-    if (item->color() != engravingConfiguration()->defaultColor()) {
-        xml.tag("color", item->color().toString().c_str());
+    if (item->color() != ctx.configuration()->defaultColor()) {
+        xml.tagProperty(Pid::COLOR, item->color());
     }
     if (item->group() == StaffGroup::STANDARD) {
         xml.tag("noteheadScheme", TConv::toXml(item->noteHeadScheme()), TConv::toXml(NoteHeadScheme::HEAD_NORMAL));
@@ -2816,6 +2931,8 @@ void TWrite::write(const Symbol* item, XmlWriter& xml, WriteContext& ctx)
     xml.tag("name", SymNames::nameForSymId(item->sym()));
     if (item->scoreFont()) {
         xml.tag("font", item->scoreFont()->name());
+        writeProperty(item, xml, Pid::SYMBOLS_SIZE);
+        writeProperty(item, xml, Pid::SYMBOL_ANGLE);
     }
     writeProperties(static_cast<const BSymbol*>(item), xml, ctx);
     xml.endElement();
@@ -2824,7 +2941,7 @@ void TWrite::write(const Symbol* item, XmlWriter& xml, WriteContext& ctx)
 void TWrite::write(const FSymbol* item, XmlWriter& xml, WriteContext& ctx)
 {
     xml.startElement(item);
-    xml.tag("font",     item->font().family());
+    xml.tag("font",     item->font().family().id());
     xml.tag("fontsize", item->font().pointSizeF());
     xml.tag("code",     item->code());
     writeProperties(static_cast<const BSymbol*>(item), xml, ctx);
@@ -2855,29 +2972,33 @@ void TWrite::write(const SystemText* item, XmlWriter& xml, WriteContext& ctx)
     write(static_cast<const StaffTextBase*>(item), xml, ctx);
 }
 
-void TWrite::write(const SoundFlag* item, XmlWriter& xml, WriteContext& ctx)
+void TWrite::write(const SoundFlag* item, XmlWriter& xml, WriteContext&)
 {
+    if (item->soundPresets().empty() && item->playingTechnique().empty()) {
+        return;
+    }
+
     xml.startElement(item);
+
+    writeProperty(item, xml, Pid::PLAY);
 
     if (!item->soundPresets().empty()) {
         xml.tag("presets", item->soundPresets().join(u","));
     }
 
-    if (!item->params().empty()) {
-        xml.startElement("Params");
-        for (const auto& pair : item->params()) {
-            xml.tag(pair.first.toStdString(), pair.second.toString().c_str());
-        }
-        xml.endElement();
+    if (!item->playingTechnique().empty()) {
+        xml.tag("playingTechnique", item->playingTechnique());
     }
 
-    writeProperties(static_cast<const TextBase*>(item), xml, ctx, true);
+    writeProperty(item, xml, Pid::APPLY_TO_ALL_STAVES);
+
     xml.endElement();
 }
 
 void TWrite::write(const TempoText* item, XmlWriter& xml, WriteContext& ctx)
 {
     xml.startElement(item);
+    writeProperty(item, xml, Pid::PLAY);
     xml.tag("tempo", TConv::toXml(item->tempo()));
     if (item->followText()) {
         xml.tag("followText", item->followText());
@@ -2960,12 +3081,7 @@ void TWrite::write(const TremoloSingleChord* item, XmlWriter& xml, WriteContext&
         return;
     }
 
-    if (ctx.clipboardmode()) {
-        xml.startElement(item);
-    } else {
-        // for compatible reason
-        xml.startElement(TConv::toXml(ElementType::TREMOLO).ascii());
-    }
+    xml.startElement(item);
 
     writeProperty(item, xml, Pid::TREMOLO_TYPE);
     writeProperty(item, xml, Pid::PLAY);
@@ -2979,12 +3095,7 @@ void TWrite::write(const TremoloTwoChord* item, XmlWriter& xml, WriteContext& ct
         return;
     }
 
-    if (ctx.clipboardmode()) {
-        xml.startElement(item);
-    } else {
-        // for compatible reason
-        xml.startElement(TConv::toXml(ElementType::TREMOLO).ascii());
-    }
+    xml.startElement(item);
 
     writeProperty(item, xml, Pid::TREMOLO_TYPE);
     writeProperty(item, xml, Pid::TREMOLO_STYLE);
@@ -2992,7 +3103,7 @@ void TWrite::write(const TremoloTwoChord* item, XmlWriter& xml, WriteContext& ct
     writeItemProperties(item, xml, ctx);
 
     // write manual adjustments to file
-    int idx = (item->direction() == DirectionV::AUTO || item->direction() == DirectionV::DOWN) ? 0 : 1;
+    int idx = item->directionIdx();
     if (item->userModified()) {
         double _spatium = item->spatium();
 
@@ -3031,7 +3142,6 @@ void TWrite::write(const Trill* item, XmlWriter& xml, WriteContext& ctx)
     }
     xml.startElement(item);
     xml.tag("subtype", TConv::toXml(item->trillType()));
-    writeProperty(item, xml, Pid::PLAY);
     writeProperty(item, xml, Pid::ORNAMENT_STYLE);
     writeProperty(item, xml, Pid::PLACEMENT);
     writeProperties(static_cast<const SLine*>(item), xml, ctx);
@@ -3075,7 +3185,6 @@ void TWrite::write(const Vibrato* item, XmlWriter& xml, WriteContext& ctx)
     }
     xml.startElement(item);
     xml.tag("subtype", TConv::toXml(item->vibratoType()));
-    writeProperty(item, xml, Pid::PLAY);
     for (const StyledProperty& spp : *item->styledProperties()) {
         writeProperty(item, xml, spp.pid);
     }
@@ -3134,6 +3243,7 @@ static bool writeVoiceMove(XmlWriter& xml, WriteContext& ctx, Segment* seg, cons
         dest.setTrack(static_cast<int>(track));
 
         dest.toRelative(curr);
+        dest.setIsTimeTick(seg->isTimeTickType());
         TWrite::write(&dest, xml, ctx);
 
         ctx.setCurTick(seg->tick());
@@ -3240,7 +3350,6 @@ void TWrite::writeSegments(XmlWriter& xml, WriteContext& ctx, track_idx_t strack
                     ElementType et = e1->type();
                     if ((et == ElementType::REHEARSAL_MARK)
                         || (et == ElementType::SYSTEM_TEXT)
-                        || (et == ElementType::SOUND_FLAG)
                         || (et == ElementType::TRIPLET_FEEL)
                         || (et == ElementType::PLAYTECH_ANNOTATION)
                         || (et == ElementType::CAPO)
@@ -3265,8 +3374,11 @@ void TWrite::writeSegments(XmlWriter& xml, WriteContext& ctx, track_idx_t strack
             Measure* m = segment->measure();
             // don't write spanners for multi measure rests
 
-            if ((!(m && m->isMMRest())) && segment->isChordRestType()) {
+            if ((!(m && m->isMMRest()))) {
                 for (Spanner* s : spanners) {
+                    if (!segment->canWriteSpannerStartEnd(track, s)) {
+                        continue;
+                    }
                     if (s->track() == track) {
                         bool end = false;
                         if (s->anchor() == Spanner::Anchor::CHORD || s->anchor() == Spanner::Anchor::NOTE) {
@@ -3355,16 +3467,28 @@ void TWrite::writeSegments(XmlWriter& xml, WriteContext& ctx, track_idx_t strack
             }
         }
 
-        //write spanner ending after the last segment, on the last tick
-        if (clip || eseg == 0) {
+        // write spanners whose end tick lies outside the clip region
+        if (clip) {
             for (Spanner* s : spanners) {
-                if ((s->tick2() == endTick)
-                    && !s->isSlur()
-                    && (s->track2() == track || (s->track2() == mu::nidx && s->track() == track))
-                    && (!clip || s->tick() >= sseg->tick())
-                    ) {
-                    writeSpannerEnd(s, xml, ctx, score->lastMeasure(), track, endTick);
+                Fraction spannerEndTick = s->tick2();
+                bool spannerEndingAtEdgeOfClipZone = spannerEndTick == endTick && !s->isSlur() && s->effectiveTrack2() == track
+                                                     && s->tick() >= sseg->tick();
+                if (!spannerEndingAtEdgeOfClipZone) {
+                    continue;
                 }
+                bool needMove = spannerEndTick != ctx.curTick();
+                if (needMove) {
+                    // If spanner started on a timeTick and there was no other segment in between there and here,
+                    // ctx.curTick hasn't been moved forward, so we must move it forward here.
+                    Location curr = Location::absolute();
+                    Location dest = Location::absolute();
+                    curr.setFrac(ctx.curTick());
+                    dest.setFrac(spannerEndTick);
+                    dest.toRelative(curr);
+                    TWrite::write(&dest, xml, ctx);
+                    ctx.setCurTick(spannerEndTick);
+                }
+                writeSpannerEnd(s, xml, ctx, score->lastMeasure(), track, endTick);
             }
         }
 

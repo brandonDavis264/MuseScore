@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -20,10 +20,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_ENGRAVING_UTILS_H
-#define MU_ENGRAVING_UTILS_H
+#pragma once
 
-#include "types/types.h"
+#include "../types/types.h"
 
 #include "interval.h"
 
@@ -35,15 +34,16 @@ class EngravingItem;
 class KeySig;
 class Note;
 class Rest;
+class Score;
 class Segment;
 class System;
 class Tuplet;
+class Volta;
 
 enum class Key;
 
-extern mu::RectF handleRect(const mu::PointF& pos);
+extern RectF handleRect(const PointF& pos);
 
-extern int getStaff(System* system, const mu::PointF& p);
 extern int pitchKeyAdjust(int note, Key);
 extern int line2pitch(int line, ClefType clef, Key);
 extern int y2pitch(double y, ClefType clef, double spatium);
@@ -65,10 +65,11 @@ int diatonicUpDown(Key, int pitch, int steps);
 
 extern Note* nextChordNote(Note* note);
 extern Note* prevChordNote(Note* note);
-extern Segment* nextSeg1(Segment* s, track_idx_t& track);
-extern Segment* prevSeg1(Segment* seg, track_idx_t& track);
+extern Segment* nextSeg1(Segment* s);
+extern Segment* prevSeg1(Segment* seg);
 
-extern Note* searchTieNote(Note* note);
+extern Volta* findVolta(const Segment* seg, const Score* score);
+extern Note* searchTieNote(const Note* note, const Segment* nextSegment = nullptr);
 extern Note* searchTieNote114(Note* note);
 
 extern int absStep(int pitch);
@@ -80,12 +81,13 @@ extern int relStep(int pitch, int tpc, ClefType clef);
 extern int pitch2step(int pitch);
 extern int step2pitch(int step);
 int chromaticPitchSteps(const Note* noteL, const Note* noteR, const int nominalDiatonicSteps);
+extern int compareNotesPos(const Note* n1, const Note* n2);
 
 extern Segment* skipTuplet(Tuplet* tuplet);
 extern SymIdList timeSigSymIdsFromString(const String&);
 extern Fraction actualTicks(Fraction duration, Tuplet* tuplet, Fraction timeStretch);
 
-extern double yStaffDifference(const System* system1, staff_idx_t staffIdx1, const System* system2, staff_idx_t staffIdx2);
+extern double yStaffDifference(const System* system1, const System* system2, staff_idx_t staffIdx1);
 
 extern bool allowRemoveWhenRemovingStaves(EngravingItem* item, staff_idx_t startStaff, staff_idx_t endStaff = 0);
 extern bool moveDownWhenAddingStaves(EngravingItem* item, staff_idx_t startStaff, staff_idx_t endStaff = 0);
@@ -100,5 +102,6 @@ extern String formatUniqueExcerptName(const String& baseName, const StringList& 
 extern bool isFirstSystemKeySig(const KeySig* ks);
 
 extern String bendAmountToString(int fulls, int quarts);
+
+extern InstrumentTrackId makeInstrumentTrackId(const EngravingItem* item);
 } // namespace mu::engraving
-#endif

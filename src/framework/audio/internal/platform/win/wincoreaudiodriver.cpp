@@ -43,7 +43,7 @@
         return errorValue; \
 } \
 
-using namespace mu::audio;
+using namespace muse::audio;
 
 struct WinCoreData {
     IAudioClient* audioClient = nullptr;
@@ -397,7 +397,7 @@ bool CoreAudioDriver::selectOutputDevice(const AudioDeviceID& id)
     return ok;
 }
 
-bool mu::audio::CoreAudioDriver::resetToDefaultOutputDevice()
+bool muse::audio::CoreAudioDriver::resetToDefaultOutputDevice()
 {
     return selectOutputDevice(defaultDeviceId());
 }
@@ -430,7 +430,7 @@ std::vector<unsigned int> CoreAudioDriver::resolveBufferSizes(unsigned int minBu
 
     unsigned int minimum = std::max(static_cast<int>(minBufferSize), MINIMUM_BUFFER_SIZE);
 
-    unsigned int n = 4096;
+    unsigned int n = MAXIMUM_BUFFER_SIZE;
     while (n >= minimum) {
         result.push_back(n);
         n /= 2;
@@ -441,7 +441,7 @@ std::vector<unsigned int> CoreAudioDriver::resolveBufferSizes(unsigned int minBu
     return result;
 }
 
-mu::async::Notification CoreAudioDriver::outputDeviceChanged() const
+async::Notification CoreAudioDriver::outputDeviceChanged() const
 {
     return m_outputDeviceChanged;
 }
@@ -454,7 +454,7 @@ AudioDeviceList CoreAudioDriver::availableOutputDevices() const
     CoInitialize(NULL);
 
     AudioDeviceList result;
-    result.push_back({ DEFAULT_DEVICE_ID, trc("audio", "System default") });
+    result.push_back({ DEFAULT_DEVICE_ID, muse::trc("audio", "System default") });
 
     HRESULT hr;
     IMMDeviceCollection* devices;
@@ -506,7 +506,7 @@ AudioDeviceList CoreAudioDriver::availableOutputDevices() const
     return result;
 }
 
-mu::async::Notification CoreAudioDriver::availableOutputDevicesChanged() const
+async::Notification CoreAudioDriver::availableOutputDevicesChanged() const
 {
     return m_availableOutputDevicesChanged;
 }
@@ -542,7 +542,7 @@ bool CoreAudioDriver::setOutputDeviceBufferSize(unsigned int bufferSize)
     return ok;
 }
 
-mu::async::Notification CoreAudioDriver::outputDeviceBufferSizeChanged() const
+async::Notification CoreAudioDriver::outputDeviceBufferSizeChanged() const
 {
     return m_bufferSizeChanged;
 }

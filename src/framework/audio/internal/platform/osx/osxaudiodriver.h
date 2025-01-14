@@ -19,8 +19,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef MU_AUDIO_OSXAUDIODRIVER_H
-#define MU_AUDIO_OSXAUDIODRIVER_H
+#ifndef MUSE_AUDIO_OSXAUDIODRIVER_H
+#define MUSE_AUDIO_OSXAUDIODRIVER_H
 
 #include <map>
 #include <memory>
@@ -28,20 +28,15 @@
 
 #include <MacTypes.h>
 
-#include "modularity/ioc.h"
-#include "iaudioconfiguration.h"
-
 #include "iaudiodriver.h"
 
 struct AudioTimeStamp;
 struct AudioQueueBuffer;
 struct OpaqueAudioQueue;
 
-namespace mu::audio {
+namespace muse::audio {
 class OSXAudioDriver : public IAudioDriver
 {
-    INJECT(IAudioConfiguration, configuration)
-
 public:
     OSXAudioDriver();
     ~OSXAudioDriver();
@@ -52,6 +47,9 @@ public:
     bool open(const Spec& spec, Spec* activeSpec) override;
     void close() override;
     bool isOpened() const override;
+
+    const Spec& activeSpec() const override;
+
     void resume() override;
     void suspend() override;
 
@@ -69,6 +67,12 @@ public:
     async::Notification outputDeviceBufferSizeChanged() const override;
 
     std::vector<unsigned int> availableOutputDeviceBufferSizes() const override;
+
+    unsigned int outputDeviceSampleRate() const override;
+    bool setOutputDeviceSampleRate(unsigned int sampleRate) override;
+    async::Notification outputDeviceSampleRateChanged() const override;
+
+    std::vector<unsigned int> availableOutputDeviceSampleRates() const override;
 
 private:
     static void OnFillBuffer(void* context, OpaqueAudioQueue* queue, AudioQueueBuffer* buffer);
@@ -93,4 +97,4 @@ private:
     async::Notification m_sampleRateChanged;
 };
 }
-#endif // MU_AUDIO_OSXAUDIODRIVER_H
+#endif // MUSE_AUDIO_OSXAUDIODRIVER_H

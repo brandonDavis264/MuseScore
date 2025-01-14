@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -30,13 +30,13 @@
 #include "context/iglobalcontext.h"
 
 namespace mu::notation {
-class SelectionFilterModel : public QAbstractListModel, public async::Asyncable
+class SelectionFilterModel : public QAbstractListModel, public muse::Injectable, public muse::async::Asyncable
 {
     Q_OBJECT
 
-    INJECT(context::IGlobalContext, globalContext)
-
     Q_PROPERTY(bool enabled READ enabled NOTIFY enabledChanged)
+
+    muse::Inject<context::IGlobalContext> globalContext = { this };
 
 public:
     explicit SelectionFilterModel(QObject* parent = nullptr);

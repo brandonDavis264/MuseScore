@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -41,8 +41,8 @@ OrnamentSettingsModel::OrnamentSettingsModel(QObject* parent, IElementRepository
     : AbstractInspectorModel(parent, repository)
 {
     setModelType(InspectorModelType::TYPE_ORNAMENT);
-    setTitle(qtrc("inspector", "Ornament"));
-    setIcon(ui::IconCode::Code::ORNAMENT);
+    setTitle(muse::qtrc("inspector", "Ornament"));
+    setIcon(muse::ui::IconCode::Code::ORNAMENT);
     createProperties();
 }
 
@@ -92,6 +92,7 @@ void OrnamentSettingsModel::createProperties()
     });
 
     m_showAccidental = buildPropertyItem(Pid::ORNAMENT_SHOW_ACCIDENTAL);
+    m_showCueNote = buildPropertyItem(Pid::ORNAMENT_SHOW_CUE_NOTE);
     m_startOnUpperNote = buildPropertyItem(Pid::START_ON_UPPER_NOTE);
 }
 
@@ -138,6 +139,7 @@ void OrnamentSettingsModel::loadProperties()
     });
 
     loadPropertyItem(m_showAccidental);
+    loadPropertyItem(m_showCueNote);
     loadPropertyItem(m_startOnUpperNote);
 
     updateIsFullIntervalChoiceAvailable();
@@ -154,6 +156,7 @@ void OrnamentSettingsModel::resetProperties()
     m_intervalStep->resetToDefault();
     m_intervalType->resetToDefault();
     m_showAccidental->resetToDefault();
+    m_showCueNote->resetToDefault();
     m_startOnUpperNote->resetToDefault();
 }
 
@@ -185,6 +188,11 @@ PropertyItem* OrnamentSettingsModel::intervalType() const
 PropertyItem* OrnamentSettingsModel::showAccidental() const
 {
     return m_showAccidental;
+}
+
+PropertyItem* OrnamentSettingsModel::showCueNote() const
+{
+    return m_showCueNote;
 }
 
 PropertyItem* OrnamentSettingsModel::startOnUpperNote() const
@@ -245,7 +253,7 @@ void OrnamentSettingsModel::setIntervalStep(Pid id, engraving::IntervalStep step
         return;
     }
 
-    beginCommand();
+    beginCommand(muse::TranslatableString("undoableAction", "Set ornament interval step"));
 
     for (mu::engraving::EngravingItem* item : m_elementList) {
         IF_ASSERT_FAILED(item) {
@@ -277,7 +285,7 @@ void OrnamentSettingsModel::setIntervalType(Pid id, engraving::IntervalType type
         return;
     }
 
-    beginCommand();
+    beginCommand(muse::TranslatableString("undoableAction", "Set ornament interval type"));
 
     for (mu::engraving::EngravingItem* item : m_elementList) {
         IF_ASSERT_FAILED(item) {

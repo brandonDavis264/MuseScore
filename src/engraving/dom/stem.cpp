@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -31,7 +31,7 @@
 #include "log.h"
 
 using namespace mu;
-using namespace mu::draw;
+using namespace muse::draw;
 using namespace mu::engraving;
 
 static const ElementStyle stemStyle {
@@ -65,6 +65,11 @@ void Stem::setBaseLength(Millimetre baseLength)
     m_baseLength = Millimetre(std::abs(baseLength.val()));
 }
 
+double Stem::lineWidthMag() const
+{
+    return absoluteFromSpatium(m_lineWidth) * chord()->intrinsicMag();
+}
+
 void Stem::spatiumChanged(double oldValue, double newValue)
 {
     m_userLength = (m_userLength / oldValue) * newValue;
@@ -77,7 +82,7 @@ PointF Stem::flagPosition() const
     return pos() + PointF(ldata()->bbox().left(), up() ? -length() : length());
 }
 
-std::vector<mu::PointF> Stem::gripsPositions(const EditData&) const
+std::vector<PointF> Stem::gripsPositions(const EditData&) const
 {
     return { pagePos() + ldata()->line.p2() };
 }
@@ -98,12 +103,12 @@ void Stem::startEditDrag(EditData& ed)
 
 void Stem::editDrag(EditData& ed)
 {
-    double yDelta = ed.delta.y();
-    m_userLength += up() ? Millimetre(-yDelta) : Millimetre(yDelta);
+    double yDelta = up() ? -ed.delta.y() : ed.delta.y();
+    m_userLength += Spatium::fromMM(yDelta, spatium());
     renderer()->layoutItem(this);
     Chord* c = chord();
     if (c->hook()) {
-        c->hook()->move(PointF(0.0, yDelta));
+        c->hook()->move(PointF(0.0, ed.delta.y()));
     }
 }
 
@@ -163,10 +168,10 @@ bool Stem::setProperty(Pid propertyId, const PropertyValue& v)
 {
     switch (propertyId) {
     case Pid::LINE_WIDTH:
-        setLineWidth(v.value<Millimetre>());
+        setLineWidth(v.value<Spatium>());
         break;
     case Pid::USER_LEN:
-        setUserLength(v.value<Millimetre>());
+        setUserLength(v.value<Spatium>());
         break;
     case Pid::STEM_DIRECTION:
         chord()->setStemDirection(v.value<DirectionV>());
@@ -176,6 +181,7 @@ bool Stem::setProperty(Pid propertyId, const PropertyValue& v)
             chord()->relinkPropertyToMaster(Pid::STEM_DIRECTION);
             break;
         }
+    // fall through
     default:
         return EngravingItem::setProperty(propertyId, v);
     }

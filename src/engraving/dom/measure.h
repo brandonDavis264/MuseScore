@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -20,8 +20,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_ENGRAVING_MEASURE_H
-#define MU_ENGRAVING_MEASURE_H
+#pragma once
 
 /**
  \file
@@ -204,8 +203,10 @@ public:
     Segment* first() const { return m_segments.first(); }
     Segment* first(SegmentType t) const { return m_segments.first(t); }
     Segment* firstEnabled() const { return m_segments.first(ElementFlag::ENABLED); }
+    Segment* firstActive() const { return m_segments.firstActive(); }
 
     Segment* last() const { return m_segments.last(); }
+    Segment* last(SegmentType t) const { return m_segments.last(t); }
     Segment* lastEnabled() const { return m_segments.last(ElementFlag::ENABLED); }
     SegmentList& segments() { return m_segments; }
     const SegmentList& segments() const { return m_segments; }
@@ -213,20 +214,17 @@ public:
     double userStretch() const;
     void setUserStretch(double v) { m_userStretch = v; }
 
-    void setLayoutStretch(double stretchCoeff) { m_layoutStretch = stretchCoeff; }
-    double layoutStretch() const { return m_layoutStretch; }
-
-    Fraction computeTicks();
-    Fraction shortestChordRest() const;
+    void computeTicks();
+    Fraction anacrusisOffset() const;
     Fraction maxTicks() const;
 
     bool showsMeasureNumber();
     bool showsMeasureNumberInAutoMode();
 
-    Chord* findChord(Fraction tick, track_idx_t track);
-    ChordRest* findChordRest(Fraction tick, track_idx_t track);
-    Fraction snap(const Fraction& tick, const mu::PointF p) const;
-    Fraction snapNote(const Fraction& tick, const mu::PointF p, int staff) const;
+    Chord* findChord(Fraction tick, track_idx_t track) const;
+    ChordRest* findChordRest(Fraction tick, track_idx_t track) const;
+    Fraction snap(const Fraction& tick, const PointF p) const;
+    Fraction snapNote(const Fraction& tick, const PointF p, int staff) const;
 
     Segment* searchSegment(double x, SegmentType st, track_idx_t strack, track_idx_t etrack, const Segment* preferredSegment = nullptr,
                            double spacingFactor = 0.5) const;
@@ -262,10 +260,12 @@ public:
     Segment* findSegment(SegmentType st,    const Fraction& f) const { return findSegmentR(st, f - tick()); }
     Segment* undoGetSegment(SegmentType st, const Fraction& f) { return undoGetSegmentR(st, f - tick()); }
     Segment* getSegment(SegmentType st,     const Fraction& f) { return getSegmentR(st, f - tick()); }
+    Segment* undoGetChordRestOrTimeTickSegment(const Fraction& f);
+    Segment* getChordRestOrTimeTickSegment(const Fraction& f);
 
     void connectTremolo();
 
-    void setEndBarLineType(BarLineType val, track_idx_t track, bool visible = true, mu::draw::Color color = mu::draw::Color());
+    void setEndBarLineType(BarLineType val, track_idx_t track, bool visible = true, Color color = Color());
 
     void scanElements(void* data, void (* func)(void*, EngravingItem*), bool all=true) override;
     void createVoice(int track);
@@ -284,6 +284,7 @@ public:
     bool isFinalMeasureOfSection() const;
     bool isAnacrusis() const;
     bool isFirstInSystem() const;
+    bool isLastInSystem() const;
     bool isFirstInSection() const;
 
     bool breakMultiMeasureRest() const { return m_breakMultiMeasureRest; }
@@ -295,7 +296,7 @@ public:
 
     int playbackCount() const { return m_playbackCount; }
     void setPlaybackCount(int val) { m_playbackCount = val; }
-    mu::RectF staffabbox(staff_idx_t staffIdx) const;
+    RectF staffPageBoundingRect(staff_idx_t staffIdx) const;
 
     PropertyValue getProperty(Pid propertyId) const override;
     bool setProperty(Pid propertyId, const PropertyValue&) override;
@@ -327,8 +328,14 @@ public:
     bool nextIsOneMeasureRepeat(staff_idx_t staffidx) const;
     bool prevIsOneMeasureRepeat(staff_idx_t staffIdx) const;
 
-    EngravingItem* nextElementStaff(staff_idx_t staff);
-    EngravingItem* prevElementStaff(staff_idx_t staff);
+    ChordRest* lastChordRest(track_idx_t track) const;
+    ChordRest* firstChordRest(track_idx_t track) const;
+
+    EngravingItem* nextElementStaff(staff_idx_t staff, EngravingItem* fromItem = nullptr);
+    EngravingItem* prevElementStaff(staff_idx_t staff, EngravingItem* fromItem = nullptr);
+
+    double firstNoteRestSegmentX(bool leading = false) const;
+    double endingXForOpenEndedLines() const;
 
     String accessibleInfo() const override;
 
@@ -339,20 +346,11 @@ public:
     const BarLine* endBarLine() const;
     BarLineType endBarLineType() const;
     bool endBarLineVisible() const;
+    const BarLine* startBarLine() const;
     void triggerLayout() const override;
-    double basicStretch() const;
-    double basicWidth() const;
-    void stretchToTargetWidth(double targetWidth);
+
     void checkHeader();
     void checkTrailer();
-
-    bool isWidthLocked() const { return m_isWidthLocked; }
-    // A measure is widthLocked if its width has been locked by the minMeasureWidth (or minMMRestWidth)
-    // parameter, meaning it can't be any narrower than it currently is.
-    void setWidthLocked(bool b) { m_isWidthLocked = b; }
-
-    double squeezableSpace() const { return m_squeezableSpace; }
-    void setSqueezableSpace(double val) { m_squeezableSpace = val; }
 
     void respaceSegments();
 
@@ -375,8 +373,6 @@ private:
 
     MStaff* mstaff(staff_idx_t staffIndex) const;
 
-    double m_squeezableSpace = 0.0;
-
     std::vector<MStaff*> m_mstaves;
     SegmentList m_segments;
     Measure* m_mmRest = nullptr; // multi measure rest which replaces a measure range
@@ -396,9 +392,5 @@ private:
 
     MeasureNumberMode m_noMode = MeasureNumberMode::AUTO;
     bool m_breakMultiMeasureRest = false;
-
-    double m_layoutStretch = 1.0;
-    bool m_isWidthLocked = false;
 };
 } // namespace mu::engraving
-#endif

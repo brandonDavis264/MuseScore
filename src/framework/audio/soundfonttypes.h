@@ -19,17 +19,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef MU_AUDIO_SOUNDFONTTYPES_H
-#define MU_AUDIO_SOUNDFONTTYPES_H
+#ifndef MUSE_AUDIO_SOUNDFONTTYPES_H
+#define MUSE_AUDIO_SOUNDFONTTYPES_H
 
 #include <map>
 #include <string>
 #include <vector>
 
-#include "io/path.h"
+#include "global/io/path.h"
+
 #include "midi/miditypes.h"
 
-namespace mu::audio::synth {
+namespace muse::audio::synth {
 using SoundFontPath = io::path_t;
 using SoundFontPaths = std::vector<SoundFontPath>;
 
@@ -59,4 +60,4 @@ inline const String PRESET_BANK_ATTRIBUTE(u"presetBank");
 inline const String PRESET_PROGRAM_ATTRIBUTE(u"presetProgram");
 }
 
-#endif // MU_AUDIO_SOUNDFONTTYPES_H
+#endif // MUSE_AUDIO_SOUNDFONTTYPES_H

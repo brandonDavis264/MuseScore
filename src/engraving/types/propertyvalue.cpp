@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -55,7 +55,7 @@ bool PropertyValue::operator ==(const PropertyValue& v) const
 
     //! HACK Temporary hack for Spatium comparisons (maybe one type is Spatium and another type is real)
     if (v.m_type == P_TYPE::SPATIUM || m_type == P_TYPE::SPATIUM) {
-        return RealIsEqual(v.value<double>(), value<double>());
+        return muse::RealIsEqual(v.value<double>(), value<double>());
     }
 
     //! HACK Temporary hack for Fraction comparisons
@@ -66,7 +66,7 @@ bool PropertyValue::operator ==(const PropertyValue& v) const
 
     if (v.m_type == P_TYPE::REAL) {
         assert(m_type == P_TYPE::REAL);
-        return RealIsEqual(v.value<double>(), value<double>());
+        return muse::RealIsEqual(v.value<double>(), value<double>());
     }
 
     assert(m_data);
@@ -112,7 +112,7 @@ QVariant PropertyValue::toQVariant() const
 
     // Draw
     case P_TYPE::SYMID:       return static_cast<int>(value<SymId>());
-    case P_TYPE::COLOR:       return value<draw::Color>().toQColor();
+    case P_TYPE::COLOR:       return value<Color>().toQColor();
     case P_TYPE::ORNAMENT_STYLE: return static_cast<int>(value<OrnamentStyle>());
     case P_TYPE::ORNAMENT_INTERVAL: {
         OrnamentInterval interval = value<OrnamentInterval>();
@@ -120,6 +120,7 @@ QVariant PropertyValue::toQVariant() const
     } break;
     case P_TYPE::ORNAMENT_SHOW_ACCIDENTAL: return static_cast<int>(value<OrnamentShowAccidental>());
     case P_TYPE::GLISS_STYLE: return static_cast<int>(value<GlissandoStyle>());
+    case P_TYPE::GLISS_TYPE: return static_cast<int>(value<GlissandoType>());
 
     // Layout
     case P_TYPE::ALIGN: {
@@ -155,7 +156,6 @@ QVariant PropertyValue::toQVariant() const
     case P_TYPE::CLEF_TYPE:        return static_cast<int>(value<ClefType>());
     case P_TYPE::CLEF_TO_BARLINE_POS: return static_cast<int>(value<ClefToBarlinePosition>());
     case P_TYPE::DYNAMIC_TYPE:     return static_cast<int>(value<DynamicType>());
-    case P_TYPE::DYNAMIC_RANGE:    return static_cast<int>(value<DynamicRange>());
     case P_TYPE::DYNAMIC_SPEED:    return static_cast<int>(value<DynamicSpeed>());
     case P_TYPE::LINE_TYPE:        return static_cast<int>(value<LineType>());
     case P_TYPE::HOOK_TYPE:        return static_cast<int>(value<HookType>());
@@ -164,7 +164,14 @@ QVariant PropertyValue::toQVariant() const
     case P_TYPE::PLAYTECH_TYPE:    return static_cast<int>(value<PlayingTechniqueType>());
     case P_TYPE::TEMPOCHANGE_TYPE: return static_cast<int>(value<GradualTempoChangeType>());
     case P_TYPE::SLUR_STYLE_TYPE:  return static_cast<int>(value<SlurStyleType>());
+    case P_TYPE::NOTELINE_PLACEMENT_TYPE: return static_cast<int>(value<NoteLineEndPlacement>());
     case P_TYPE::TIE_PLACEMENT:    return static_cast<int>(value<TiePlacement>());
+    case P_TYPE::TIE_DOTS_PLACEMENT: return static_cast<int>(value<TieDotsPlacement>());
+    case P_TYPE::LYRICS_DASH_SYSTEM_START_TYPE: return static_cast<int>(value<LyricsDashSystemStart>());
+    case P_TYPE::PARTIAL_SPANNER_DIRECTION: return static_cast<int>(value<PartialSpannerDirection>());
+
+    case P_TYPE::VOICE_ASSIGNMENT: return static_cast<int>(value<VoiceAssignment>());
+    case P_TYPE::AUTO_ON_OFF:       return static_cast<int>(value<AutoOnOff>());
 
     // Other
     case P_TYPE::GROUPS: {
@@ -218,6 +225,7 @@ PropertyValue PropertyValue::fromQVariant(const QVariant& v, P_TYPE type)
     } break;
     case P_TYPE::ORNAMENT_SHOW_ACCIDENTAL: return PropertyValue(OrnamentShowAccidental(v.toInt()));
     case P_TYPE::GLISS_STYLE:   return PropertyValue(GlissandoStyle(v.toInt()));
+    case P_TYPE::GLISS_TYPE:   return PropertyValue(GlissandoType(v.toInt()));
 
     // Layout
     case P_TYPE::ALIGN: {
@@ -256,7 +264,6 @@ PropertyValue PropertyValue::fromQVariant(const QVariant& v, P_TYPE type)
     case P_TYPE::CLEF_TYPE:        return PropertyValue(ClefType(v.toInt()));
     case P_TYPE::CLEF_TO_BARLINE_POS: return PropertyValue(ClefToBarlinePosition(v.toInt()));
     case P_TYPE::DYNAMIC_TYPE:     return PropertyValue(DynamicType(v.toInt()));
-    case P_TYPE::DYNAMIC_RANGE:    return PropertyValue(DynamicRange(v.toInt()));
     case P_TYPE::DYNAMIC_SPEED:    return PropertyValue(DynamicSpeed(v.toInt()));
     case P_TYPE::LINE_TYPE:        return PropertyValue(LineType(v.toInt()));
     case P_TYPE::HOOK_TYPE:        return PropertyValue(HookType(v.toInt()));
@@ -265,7 +272,13 @@ PropertyValue PropertyValue::fromQVariant(const QVariant& v, P_TYPE type)
     case P_TYPE::PLAYTECH_TYPE:    return PropertyValue(PlayingTechniqueType(v.toInt()));
     case P_TYPE::TEMPOCHANGE_TYPE: return PropertyValue(GradualTempoChangeType(v.toInt()));
     case P_TYPE::SLUR_STYLE_TYPE:  return PropertyValue(SlurStyleType(v.toInt()));
+    case P_TYPE::NOTELINE_PLACEMENT_TYPE:    return PropertyValue(NoteLineEndPlacement(v.toInt()));
     case P_TYPE::TIE_PLACEMENT:    return PropertyValue(TiePlacement(v.toInt()));
+    case P_TYPE::TIE_DOTS_PLACEMENT: return PropertyValue(TieDotsPlacement(v.toInt()));
+    case P_TYPE::LYRICS_DASH_SYSTEM_START_TYPE:    return PropertyValue(LyricsDashSystemStart(v.toInt()));
+    case P_TYPE::PARTIAL_SPANNER_DIRECTION:    return PropertyValue(PartialSpannerDirection(v.toInt()));
+    case P_TYPE::VOICE_ASSIGNMENT: return PropertyValue(VoiceAssignment(v.toInt()));
+    case P_TYPE::AUTO_ON_OFF:      return PropertyValue(AutoOnOff(v.toInt()));
 
     // Other
     case P_TYPE::GROUPS: {
@@ -275,21 +288,21 @@ PropertyValue PropertyValue::fromQVariant(const QVariant& v, P_TYPE type)
     }
 
     //! NOTE Try determinate type by QVariant type
-    switch (v.type()) {
-    case QVariant::Invalid:     return PropertyValue();
-    case QVariant::Bool:        return PropertyValue(v.toBool());
-    case QVariant::Int:         return PropertyValue(v.toInt());
-    case QVariant::UInt:        return PropertyValue(v.toInt());
-    case QVariant::LongLong:    return PropertyValue(v.toInt());
-    case QVariant::ULongLong:   return PropertyValue(v.toInt());
-    case QVariant::Double:      return PropertyValue(v.toReal());
-    case QVariant::Char:        return PropertyValue(v.toInt());
-    case QVariant::String:      return PropertyValue(v.toString());
-    case QVariant::Size:        return PropertyValue(SizeF::fromQSizeF(QSizeF(v.toSize())));
-    case QVariant::SizeF:       return PropertyValue(SizeF::fromQSizeF(v.toSizeF()));
-    case QVariant::Point:       return PropertyValue(PointF::fromQPointF(QPointF(v.toPoint())));
-    case QVariant::PointF:      return PropertyValue(PointF::fromQPointF(v.toPointF()));
-    case QVariant::Color:       return PropertyValue(Color::fromQColor(v.value<QColor>()));
+    switch (v.typeId()) {
+    case QMetaType::UnknownType: return PropertyValue();
+    case QMetaType::Bool:        return PropertyValue(v.toBool());
+    case QMetaType::Int:         return PropertyValue(v.toInt());
+    case QMetaType::UInt:        return PropertyValue(v.toInt());
+    case QMetaType::LongLong:    return PropertyValue(v.toInt());
+    case QMetaType::ULongLong:   return PropertyValue(v.toInt());
+    case QMetaType::Double:      return PropertyValue(v.toReal());
+    case QMetaType::Char:        return PropertyValue(v.toInt());
+    case QMetaType::QString:     return PropertyValue(v.toString());
+    case QMetaType::QSize:       return PropertyValue(SizeF::fromQSizeF(QSizeF(v.toSize())));
+    case QMetaType::QSizeF:      return PropertyValue(SizeF::fromQSizeF(v.toSizeF()));
+    case QMetaType::QPoint:      return PropertyValue(PointF::fromQPointF(QPointF(v.toPoint())));
+    case QMetaType::QPointF:     return PropertyValue(PointF::fromQPointF(v.toPointF()));
+    case QMetaType::QColor:      return PropertyValue(Color::fromQColor(v.value<QColor>()));
     default:
         break;
     }

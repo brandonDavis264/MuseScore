@@ -19,12 +19,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef MU_AUDIO_ABSTRACTAUDIOSOURCE_H
-#define MU_AUDIO_ABSTRACTAUDIOSOURCE_H
+#ifndef MUSE_AUDIO_ABSTRACTAUDIOSOURCE_H
+#define MUSE_AUDIO_ABSTRACTAUDIOSOURCE_H
 
-#include "iaudiosource.h"
+#include "../../iaudiosource.h"
 
-namespace mu::audio {
+namespace muse::audio {
 class AbstractAudioSource : public IAudioSource
 {
 public:
@@ -35,7 +35,7 @@ public:
     bool isActive() const override;
     void setIsActive(bool arg) override;
 
-    mu::async::Channel<unsigned int> audioChannelsCountChanged() const override;
+    async::Channel<unsigned int> audioChannelsCountChanged() const override;
 
 protected:
     unsigned int m_sampleRate = 1;
@@ -44,4 +44,4 @@ protected:
 };
 }
 
-#endif // MU_AUDIO_ABSTRACTAUDIOSOURCE_H
+#endif // MUSE_AUDIO_ABSTRACTAUDIOSOURCE_H

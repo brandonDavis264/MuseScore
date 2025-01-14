@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<museScore version="4.20">
+<museScore version="4.50">
   <Score>
     <Division>480</Division>
     <Style>
-      <Spatium>1.74978</Spatium>
+      <spatium>1.74978</spatium>
       </Style>
     <showInvisible>1</showInvisible>
     <showUnprintable>1</showUnprintable>
@@ -34,6 +34,7 @@
         <trackName></trackName>
         <instrumentId>voice.tenor</instrumentId>
         <Channel>
+          <program value="52"/>
           </Channel>
         </Instrument>
       </Part>
@@ -50,6 +51,7 @@
         <trackName></trackName>
         <instrumentId>voice.bass</instrumentId>
         <Channel>
+          <program value="52"/>
           </Channel>
         </Instrument>
       </Part>
@@ -113,7 +115,7 @@
               <no>1</no>
               <syllabic>end</syllabic>
               <ticks>1920</ticks>
-              <ticks_f>2/2</ticks_f>
+              <ticks_f>8/8</ticks_f>
               <text>que</text>
               </Lyrics>
             <Lyrics>
@@ -190,7 +192,7 @@
               </Lyrics>
             <Lyrics>
               <ticks>1920</ticks>
-              <ticks_f>1/1</ticks_f>
+              <ticks_f>8/8</ticks_f>
               <text>màs,</text>
               </Lyrics>
             <Note>
@@ -328,7 +330,7 @@
             <durationType>quarter</durationType>
             <Lyrics>
               <ticks>1920</ticks>
-              <ticks_f>2/2</ticks_f>
+              <ticks_f>8/8</ticks_f>
               <text>màs</text>
               </Lyrics>
             <Note>
@@ -476,7 +478,7 @@
             <durationType>quarter</durationType>
             <Lyrics>
               <ticks>1920</ticks>
-              <ticks_f>1/1</ticks_f>
+              <ticks_f>8/8</ticks_f>
               <text>màs,</text>
               </Lyrics>
             <Lyrics>

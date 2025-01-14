@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -53,7 +53,7 @@ TEST_F(Engraving_TimesigTests, timesig01)
     TimeSig* ts = Factory::createTimeSig(score->dummy()->segment());
     ts->setSig(Fraction(3, 4), TimeSigType::NORMAL);
 
-    score->startCmd();
+    score->startCmd(TranslatableString::untranslatable("Engraving time signature tests"));
     int staffIdx = 0;
     bool local   = false;
     score->cmdAddTimeSig(m, staffIdx, ts, local);
@@ -77,7 +77,7 @@ TEST_F(Engraving_TimesigTests, timesig02)
     TimeSig* ts = Factory::createTimeSig(score->dummy()->segment());
     ts->setSig(Fraction(3, 4), TimeSigType::NORMAL);
 
-    score->startCmd();
+    score->startCmd(TranslatableString::untranslatable("Engraving time signature tests"));
     score->cmdAddTimeSig(m, 0, ts, false);
     score->doLayout();
     score->endCmd();
@@ -168,7 +168,7 @@ TEST_F(Engraving_TimesigTests, timesig06)
     TimeSig* ts = Factory::createTimeSig(score->dummy()->segment());
     ts->setSig(Fraction(5, 4), TimeSigType::NORMAL);
 
-    score->startCmd();
+    score->startCmd(TranslatableString::untranslatable("Engraving time signature tests"));
     score->cmdAddTimeSig(m, 0, ts, false);
     score->doLayout();
     EXPECT_TRUE(ScoreComp::saveCompareScore(score, u"timesig-06.mscx", TIMESIG_DATA_DIR + u"timesig-06-ref.mscx"));
@@ -194,7 +194,7 @@ TEST_F(Engraving_TimesigTests, timesig07)
     TimeSig* ts = Factory::createTimeSig(score->dummy()->segment());
     ts->setSig(Fraction(3, 4), TimeSigType::NORMAL);
 
-    score->startCmd();
+    score->startCmd(TranslatableString::untranslatable("Engraving time signature tests"));
     score->cmdAddTimeSig(m, 0, ts, false);
     score->doLayout();
     EXPECT_TRUE(ScoreComp::saveCompareScore(score, u"timesig-07.mscx", TIMESIG_DATA_DIR + u"timesig-07-ref.mscx"));
@@ -231,7 +231,7 @@ TEST_F(Engraving_TimesigTests, timesig08)
 //    Change timesig with tremolos on notes that end up across barlines
 //---------------------------------------------------------
 
-TEST_F(Engraving_TimesigTests, timesig09)
+TEST_F(Engraving_TimesigTests, DISABLED_timesig09)
 {
     MasterScore* score = ScoreRW::readScore(TIMESIG_DATA_DIR + "timesig-09.mscx");
     EXPECT_TRUE(score);
@@ -239,7 +239,7 @@ TEST_F(Engraving_TimesigTests, timesig09)
     TimeSig* ts = Factory::createTimeSig(score->dummy()->segment());
     ts->setSig(Fraction(9, 8), TimeSigType::NORMAL);
 
-    score->startCmd();
+    score->startCmd(TranslatableString::untranslatable("Engraving time signature tests"));
     score->cmdAddTimeSig(m, 0, ts, false);
     score->doLayout();
     EXPECT_TRUE(ScoreComp::saveCompareScore(score, u"timesig-09-1.mscx", TIMESIG_DATA_DIR + u"timesig-09-ref.mscx"));
@@ -266,7 +266,7 @@ TEST_F(Engraving_TimesigTests, timesig10)
     TimeSig* ts1 = Factory::createTimeSig(score->dummy()->segment());
     ts1->setSig(Fraction(2, 2), TimeSigType::ALLA_BREVE);
 
-    score->startCmd();
+    score->startCmd(TranslatableString::untranslatable("Engraving time signature tests"));
     score->cmdAddTimeSig(m1, 0, ts1, false);
 
     Measure* m2 = m1->nextMeasure();

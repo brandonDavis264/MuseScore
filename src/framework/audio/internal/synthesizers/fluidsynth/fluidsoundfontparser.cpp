@@ -22,22 +22,16 @@
 
 #include "fluidsoundfontparser.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
+#include <fluidsynth.h>
 #include <sfloader/fluid_sfont.h>
 #include <sfloader/fluid_defsfont.h>
 
-#ifdef __cplusplus
-}
-#endif
-
 #include "defer.h"
 
-using namespace mu::audio::synth;
+using namespace muse;
+using namespace muse::audio::synth;
 
-mu::RetVal<SoundFontMeta> FluidSoundFontParser::parseSoundFont(const SoundFontPath& path)
+RetVal<SoundFontMeta> FluidSoundFontParser::parseSoundFont(const SoundFontPath& path)
 {
     fluid_settings_t* settings = nullptr;
     fluid_sfloader_t* loader = nullptr;

@@ -19,18 +19,30 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef MU_MIDI_MIDIEVENT_H
-#define MU_MIDI_MIDIEVENT_H
+#ifndef MUSE_MIDI_MIDIEVENT_H
+#define MUSE_MIDI_MIDIEVENT_H
 
 #include <cstdint>
 #include <array>
 #include <set>
+#include <cassert>
+#include <string>
+
+#include "containers.h"
 
 #ifndef UNUSED
 #define UNUSED(x) (void)x;
 #endif
 
-namespace mu::midi {
+#ifndef MU_FALLTHROUGH
+#if __has_cpp_attribute(fallthrough)
+#define MU_FALLTHROUGH() [[fallthrough]]
+#else
+#define MU_FALLTHROUGH() (void)0
+#endif
+#endif
+
+namespace muse::midi {
 using channel_t = uint8_t;
 using tuning_t = float;
 
@@ -375,7 +387,7 @@ struct Event {
                 return ((m_data[0] & 0x7F) << 7) | ((m_data[0] & 0x7F00) >> 8);
             default: assert(false);
             }
-            Q_FALLTHROUGH();
+            MU_FALLTHROUGH();
         case MessageType::ChannelVoice20:
             switch (opcode()) {
             case Opcode::PolyPressure:
@@ -392,7 +404,7 @@ struct Event {
                 return m_data[1];
             default: assert(false);
             }
-            Q_FALLTHROUGH();
+            MU_FALLTHROUGH();
         default:;     //TODO
         }
 
@@ -821,7 +833,7 @@ struct Event {
     #define opcodeValueMap(o) { o, std::string(#o) \
 }
 
-        static std::map<Opcode, std::string> m = {
+        static const std::map<Opcode, std::string> m = {
             opcodeValueMap(Opcode::RegisteredPerNoteController),
             opcodeValueMap(Opcode::AssignablePerNoteController),
             opcodeValueMap(Opcode::RegisteredController),
@@ -839,7 +851,7 @@ struct Event {
             opcodeValueMap(Opcode::PerNoteManagement)
         };
     #undef opcodeValueMap
-        return m[opcode()];
+        return muse::value(m, opcode());
     }
 
     std::string to_string() const
@@ -1021,4 +1033,4 @@ private:
 };
 }
 
-#endif // MU_MIDI_MIDIEVENT_H
+#endif // MUSE_MIDI_MIDIEVENT_H

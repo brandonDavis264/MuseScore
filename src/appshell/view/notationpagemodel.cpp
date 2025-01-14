@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -28,10 +28,10 @@
 
 using namespace mu::appshell;
 using namespace mu::notation;
-using namespace mu::actions;
+using namespace muse::actions;
 
 NotationPageModel::NotationPageModel(QObject* parent)
-    : QObject(parent)
+    : QObject(parent), muse::Injectable(muse::iocCtxForQmlObject(this))
 {
 }
 
@@ -63,7 +63,14 @@ void NotationPageModel::init()
     });
 
     onNotationChanged();
+
     updateDrumsetPanelVisibility();
+    updatePercussionPanelVisibility();
+
+    notationConfiguration()->useNewPercussionPanelChanged().onNotify(this, [this]() {
+        updateDrumsetPanelVisibility();
+        updatePercussionPanelVisibility();
+    });
 }
 
 QString NotationPageModel::notationToolBarName() const
@@ -106,6 +113,11 @@ QString NotationPageModel::selectionFiltersPanelName() const
     return SELECTION_FILTERS_PANEL_NAME;
 }
 
+QString NotationPageModel::undoHistoryPanelName() const
+{
+    return UNDO_HISTORY_PANEL_NAME;
+}
+
 QString NotationPageModel::mixerPanelName() const
 {
     return MIXER_PANEL_NAME;
@@ -126,6 +138,11 @@ QString NotationPageModel::drumsetPanelName() const
     return DRUMSET_PANEL_NAME;
 }
 
+QString NotationPageModel::percussionPanelName() const
+{
+    return PERCUSSION_PANEL_NAME;
+}
+
 QString NotationPageModel::statusBarName() const
 {
     return NOTATION_STATUSBAR_NAME;
@@ -138,9 +155,19 @@ void NotationPageModel::onNotationChanged()
         return;
     }
 
-    INotationNoteInputPtr noteInput = notation->interaction()->noteInput();
-    noteInput->stateChanged().onNotify(this, [this]() {
+    if (!notationConfiguration()->useNewPercussionPanel()) {
+        INotationNoteInputPtr noteInput = notation->interaction()->noteInput();
+        noteInput->stateChanged().onNotify(this, [this]() {
+            updateDrumsetPanelVisibility();
+            updatePercussionPanelVisibility();
+        });
+        return;
+    }
+
+    INotationInteractionPtr notationInteraction = notation->interaction();
+    notationInteraction->selectionChanged().onNotify(this, [this]() {
         updateDrumsetPanelVisibility();
+        updatePercussionPanelVisibility();
     });
 }
 
@@ -152,6 +179,12 @@ void NotationPageModel::toggleDock(const QString& name)
         return;
     }
 
+    if (name == NOTATION_BRAILLE_PANEL_NAME) {
+        brailleConfiguration()->setBraillePanelEnabled(!isBraillePanelVisible());
+        emit isBraillePanelVisibleChanged();
+        return;
+    }
+
     dispatcher()->dispatch("dock-toggle", ActionData::make_arg1<QString>(name));
 }
 
@@ -159,7 +192,7 @@ void NotationPageModel::updateDrumsetPanelVisibility()
 {
     TRACEFUNC;
 
-    const dock::IDockWindow* window = dockWindowProvider()->window();
+    const muse::dock::IDockWindow* window = dockWindowProvider()->window();
     if (!window) {
         return;
     }
@@ -168,9 +201,14 @@ void NotationPageModel::updateDrumsetPanelVisibility()
         if (open == window->isDockOpen(DRUMSET_PANEL_NAME)) {
             return;
         }
-
         dispatcher()->dispatch("dock-set-open", ActionData::make_arg2<QString, bool>(DRUMSET_PANEL_NAME, open));
     };
+
+    // This should never be open when the new percussion panel is in use...
+    if (notationConfiguration()->useNewPercussionPanel()) {
+        setDrumsetPanelOpen(false);
+        return;
+    }
 
     const INotationPtr notation = globalContext()->currentNotation();
     if (!notation) {
@@ -182,4 +220,60 @@ void NotationPageModel::updateDrumsetPanelVisibility()
     bool isNeedOpen = noteInput->isNoteInputMode() && noteInput->state().drumset != nullptr;
 
     setDrumsetPanelOpen(isNeedOpen);
+}
+
+void NotationPageModel::updatePercussionPanelVisibility()
+{
+    TRACEFUNC;
+
+    const muse::dock::IDockWindow* window = dockWindowProvider()->window();
+    if (!window) {
+        return;
+    }
+
+    auto setPercussionPanelOpen = [this, window](bool open) {
+        if (open == window->isDockOpen(PERCUSSION_PANEL_NAME)) {
+            return;
+        }
+        dispatcher()->dispatch("dock-set-open", ActionData::make_arg2<QString, bool>(PERCUSSION_PANEL_NAME, open));
+    };
+
+    // This should never be open when the old drumset panel is in use...
+    if (!notationConfiguration()->useNewPercussionPanel()) {
+        setPercussionPanelOpen(false);
+        return;
+    }
+
+    const INotationPtr notation = globalContext()->currentNotation();
+    if (!notation || !notation->elements() || !notationConfiguration()->autoShowPercussionPanel()) {
+        return;
+    }
+
+    const mu::engraving::Score* score = notation->elements()->msScore();
+    const INotationSelectionPtr selection = notation->interaction()->selection();
+    if (!score || !selection || selection->isNone()) {
+        return;
+    }
+
+    //! NOTE: Unlike the old drumset panel, this panel shouldn't automatically close when a non-drum staff is selected...
+    if (selection->isRange()) {
+        const INotationSelectionRangePtr rangeSelection = selection->range();
+        if (!rangeSelection) {
+            return;
+        }
+        for (const Part* p : rangeSelection->selectedParts()) {
+            if (!p->hasDrumStaff()) {
+                return;
+            }
+        }
+    } else {
+        for (const EngravingItem* e : selection->elements()) {
+            const Staff* staff = e->staff();
+            if (!staff || !staff->isDrumStaff(e->tick())) {
+                return;
+            }
+        }
+    }
+
+    setPercussionPanelOpen(true);
 }

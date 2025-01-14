@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -32,18 +32,15 @@ class StaffTextBase;
 }
 
 namespace mu::notation {
-class StaffTextPropertiesDialog : public QDialog, public Ui::StaffTextPropertiesDialog
+class StaffTextPropertiesDialog : public QDialog, public Ui::StaffTextPropertiesDialog, public muse::Injectable
 {
     Q_OBJECT
 
-    INJECT(context::IGlobalContext, globalContext)
+    muse::Inject<context::IGlobalContext> globalContext = { this };
 
 public:
     StaffTextPropertiesDialog(QWidget* parent = nullptr);
-    StaffTextPropertiesDialog(const StaffTextPropertiesDialog& other);
     ~StaffTextPropertiesDialog() override;
-
-    static int static_metaTypeId();
 
 private slots:
     void saveValues();
@@ -58,7 +55,5 @@ private:
     engraving::StaffTextBase* m_staffText = nullptr;
 };
 }
-
-Q_DECLARE_METATYPE(mu::notation::StaffTextPropertiesDialog)
 
 #endif // MU_NOTATION_STAFFTEXTPROPERTIESDIALOG_H

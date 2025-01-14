@@ -25,10 +25,11 @@
 #include <QStyle>
 #include <QWindow>
 #include <QScreen>
+#include <QApplication>
 
 #include "log.h"
 
-using namespace mu::uicomponents;
+using namespace muse::uicomponents;
 
 static const int DIALOG_WINDOW_FRAME_HEIGHT(20);
 
@@ -36,12 +37,20 @@ DialogView::DialogView(QQuickItem* parent)
     : PopupView(parent)
 {
     setObjectName("DialogView");
-    setClosePolicy(NoAutoClose);
+    setClosePolicies(ClosePolicy::NoAutoClose);
 }
 
 bool DialogView::isDialog() const
 {
     return true;
+}
+
+void DialogView::beforeOpen()
+{
+    //! NOTE Set default title
+    if (m_title.isEmpty()) {
+        setTitle(application()->title());
+    }
 }
 
 void DialogView::onHidden()

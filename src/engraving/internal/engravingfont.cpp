@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -34,16 +34,18 @@
 #include "log.h"
 
 using namespace mu;
-using namespace mu::io;
-using namespace mu::draw;
+using namespace muse;
+using namespace muse::io;
+using namespace muse::draw;
 using namespace mu::engraving;
 
 // =============================================
 // ScoreFont
 // =============================================
 
-EngravingFont::EngravingFont(const std::string& name, const std::string& family, const path_t& filePath)
-    : m_symbols(static_cast<size_t>(SymId::lastSym) + 1),
+EngravingFont::EngravingFont(const std::string& name, const std::string& family, const path_t& filePath,
+                             const modularity::ContextPtr& iocCtx)
+    : muse::Injectable(iocCtx),  m_symbols(static_cast<size_t>(SymId::lastSym) + 1),
     m_name(name),
     m_family(family),
     m_fontPath(filePath)
@@ -51,6 +53,7 @@ EngravingFont::EngravingFont(const std::string& name, const std::string& family,
 }
 
 EngravingFont::EngravingFont(const EngravingFont& other)
+    : muse::Injectable(other.iocContext())
 {
     m_loaded = false;
     m_symbols  = other.m_symbols;
@@ -98,11 +101,11 @@ void EngravingFont::ensureLoad()
         return;
     }
 
-    m_font.setWeight(mu::draw::Font::Normal);
+    m_font.setWeight(Font::Normal);
     m_font.setItalic(false);
     m_font.setFamily(String::fromStdString(m_family), Font::Type::MusicSymbol);
     m_font.setNoFontMerging(true);
-    m_font.setHinting(mu::draw::Font::Hinting::PreferVerticalHinting);
+    m_font.setHinting(Font::Hinting::PreferVerticalHinting);
 
     for (size_t id = 0; id < m_symbols.size(); ++id) {
         Smufl::Code code = Smufl::code(static_cast<SymId>(id));
@@ -113,7 +116,7 @@ void EngravingFont::ensureLoad()
         computeMetrics(sym, code);
     }
 
-    File metadataFile(io::FileInfo(m_fontPath).path() + u"/metadata.json");
+    File metadataFile(FileInfo(m_fontPath).path() + u"/metadata.json");
     if (!metadataFile.open(IODevice::ReadOnly)) {
         LOGE() << "Failed to open glyph metadata file: " << metadataFile.filePath();
         return;
@@ -436,10 +439,10 @@ void EngravingFont::loadEngravingDefaults(const JsonObject& engravingDefaultsObj
         // "beamSpacing" handled separately
         { "legerLineThickness",         { { Sid::ledgerLineWidth } } },
         { "legerLineExtension",         { { Sid::ledgerLineLength } } },
-        { "slurEndpointThickness",      { { Sid::SlurEndWidth } } },
-        { "slurMidpointThickness",      { { Sid::SlurMidWidth } } },
-        { "tieEndpointThickness",       { { Sid::TieEndWidth } } },
-        { "tieMidpointThickness",       { { Sid::TieMidWidth } } },
+        { "slurEndpointThickness",      { { Sid::slurEndWidth } } },
+        { "slurMidpointThickness",      { { Sid::slurMidWidth } } },
+        { "tieEndpointThickness",       { { Sid::tieEndWidth } } },
+        { "tieMidpointThickness",       { { Sid::tieMidWidth } } },
         { "thinBarlineThickness",       { { Sid::barWidth, Sid::doubleBarWidth } } },
         { "thickBarlineThickness",      { { Sid::endBarWidth } } },
         // "dashedBarlineThickness" not supported
@@ -493,7 +496,7 @@ void EngravingFont::loadEngravingDefaults(const JsonObject& engravingDefaultsObj
         applyEngravingDefault(key, engravingDefaultsObject.value(key).toDouble());
     }
 
-    m_engravingDefaults.insert({ Sid::MusicalTextFont, String(u"%1 Text").arg(String::fromStdString(m_family)) });
+    m_engravingDefaults.insert({ Sid::musicalTextFont, String(u"%1 Text").arg(String::fromStdString(m_family)) });
 }
 
 void EngravingFont::computeMetrics(EngravingFont::Sym& sym, const Smufl::Code& code)
@@ -730,7 +733,7 @@ PointF EngravingFont::smuflAnchor(SymId symId, SmuflAnchorId anchorId, double ma
         return engravingFonts()->fallbackFont()->smuflAnchor(symId, anchorId, mag);
     }
 
-    const std::map<SmuflAnchorId, mu::PointF>& smuflAnchors = sym(symId).smuflAnchors;
+    const std::map<SmuflAnchorId, PointF>& smuflAnchors = sym(symId).smuflAnchors;
 
     auto it = smuflAnchors.find(anchorId);
     if (it == smuflAnchors.cend()) {
@@ -744,17 +747,17 @@ PointF EngravingFont::smuflAnchor(SymId symId, SmuflAnchorId anchorId, double ma
 // Draw
 // =============================================
 
-void EngravingFont::draw(SymId id, Painter* painter, const SizeF& mag, const PointF& pos) const
+void EngravingFont::draw(SymId id, Painter* painter, const SizeF& mag, const PointF& pos, const double angle) const
 {
     const Sym& sym = this->sym(id);
     if (sym.isCompound()) { // is this a compound symbol?
-        draw(sym.subSymbolIds, painter, mag, pos);
+        draw(sym.subSymbolIds, painter, mag, pos, angle);
         return;
     }
 
     if (!sym.isValid()) {
         if (MScore::useFallbackFont && !engravingFonts()->isFallbackFont(this)) {
-            engravingFonts()->fallbackFont()->draw(id, painter, mag, pos);
+            engravingFonts()->fallbackFont()->draw(id, painter, mag, pos, angle);
         } else {
             LOGE() << "invalid sym: " << static_cast<size_t>(id);
         }
@@ -767,29 +770,36 @@ void EngravingFont::draw(SymId id, Painter* painter, const SizeF& mag, const Poi
     m_font.setPointSizeF(size);
     painter->scale(mag.width(), mag.height());
     painter->setFont(m_font);
+    if (angle != 0) {
+        const double _width = sym.bbox.width() / 2;
+        const double _height = sym.bbox.height() / 2;
+        painter->translate(_width, -_height);
+        painter->rotate(angle);
+        painter->translate(-_width, _height);
+    }
     painter->drawSymbol(PointF(pos.x() / mag.width(), pos.y() / mag.height()), symCode(id));
     painter->restore();
 }
 
-void EngravingFont::draw(SymId id, Painter* painter, double mag, const PointF& pos) const
+void EngravingFont::draw(SymId id, Painter* painter, double mag, const PointF& pos, const double angle) const
 {
-    draw(id, painter, SizeF(mag, mag), pos);
+    draw(id, painter, SizeF(mag, mag), pos, angle);
 }
 
-void EngravingFont::draw(const SymIdList& ids, Painter* painter, double mag, const PointF& startPos) const
+void EngravingFont::draw(const SymIdList& ids, Painter* painter, double mag, const PointF& startPos, const double angle) const
 {
     PointF pos(startPos);
     for (SymId id : ids) {
-        draw(id, painter, mag, pos);
+        draw(id, painter, mag, pos, angle);
         pos.setX(pos.x() + advance(id, mag));
     }
 }
 
-void EngravingFont::draw(const SymIdList& ids, Painter* painter, const SizeF& mag, const PointF& startPos) const
+void EngravingFont::draw(const SymIdList& ids, Painter* painter, const SizeF& mag, const PointF& startPos, const double angle) const
 {
     PointF pos(startPos);
     for (SymId id : ids) {
-        draw(id, painter, mag, pos);
+        draw(id, painter, mag, pos, angle);
         pos.setX(pos.x() + advance(id, mag.width()));
     }
 }

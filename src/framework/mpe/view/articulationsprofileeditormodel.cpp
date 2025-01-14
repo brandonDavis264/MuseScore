@@ -22,13 +22,17 @@
 
 #include "articulationsprofileeditormodel.h"
 
-using namespace mu;
-using namespace mu::mpe;
+using namespace muse;
+using namespace muse::mpe;
 
 static const std::string PROFILE_EXTENSION = "(*.json)";
 
 ArticulationsProfileEditorModel::ArticulationsProfileEditorModel(QObject* parent)
-    : QObject(parent)
+    : QObject(parent), Injectable(muse::iocCtxForQmlObject(this))
+{
+}
+
+void ArticulationsProfileEditorModel::init()
 {
     loadItems();
 

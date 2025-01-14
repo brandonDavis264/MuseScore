@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -27,8 +27,7 @@
 #include "log.h"
 
 using namespace mu::inspector;
-using namespace mu::actions;
-using namespace mu::framework;
+using namespace muse::actions;
 using namespace mu::engraving;
 
 static constexpr int REARRANGE_ORDER_STEP = 50;
@@ -38,7 +37,7 @@ AppearanceSettingsModel::AppearanceSettingsModel(QObject* parent, IElementReposi
 {
     createProperties();
 
-    setTitle(qtrc("inspector", "Appearance"));
+    setTitle(muse::qtrc("inspector", "Appearance"));
 }
 
 void AppearanceSettingsModel::createProperties()
@@ -56,7 +55,19 @@ void AppearanceSettingsModel::createProperties()
 
 void AppearanceSettingsModel::requestElements()
 {
-    m_elementList = m_repository->takeAllElements();
+    m_elementList.clear();
+
+    static const std::unordered_set<ElementType> noAvailableChangeAppearanceTypes {
+        ElementType::SOUND_FLAG
+    };
+
+    for (EngravingItem* element : m_repository->takeAllElements()) {
+        if (muse::contains(noAvailableChangeAppearanceTypes, element->type())) {
+            continue;
+        }
+
+        m_elementList << element;
+    }
 
     static const std::unordered_set<ElementType> applyOffsetToChordTypes {
         ElementType::NOTE,
@@ -64,10 +75,17 @@ void AppearanceSettingsModel::requestElements()
         ElementType::HOOK,
     };
 
-    QSet<EngravingItem*> elementsForOffsetProperty;
-
+    QSet<EngravingItem*> elementsForArrangeProperty;
     for (EngravingItem* element : m_elementList) {
-        if (!mu::contains(applyOffsetToChordTypes, element->type())) {
+        if (element->findAncestor(ElementType::PAGE)) {
+            elementsForArrangeProperty.insert(element);
+        }
+    }
+    m_elementsForArrangeProperty = elementsForArrangeProperty.values();
+
+    QSet<EngravingItem*> elementsForOffsetProperty;
+    for (EngravingItem* element : m_elementList) {
+        if (!muse::contains(applyOffsetToChordTypes, element->type())) {
             elementsForOffsetProperty.insert(element);
             continue;
         }
@@ -77,7 +95,6 @@ void AppearanceSettingsModel::requestElements()
             elementsForOffsetProperty.insert(parent);
         }
     }
-
     m_elementsForOffsetProperty = elementsForOffsetProperty.values();
 }
 
@@ -114,27 +131,27 @@ void AppearanceSettingsModel::onNotationChanged(const PropertyIdSet& changedProp
 
 void AppearanceSettingsModel::loadProperties(const PropertyIdSet& propertyIdSet)
 {
-    if (mu::contains(propertyIdSet, Pid::LEADING_SPACE)) {
+    if (muse::contains(propertyIdSet, Pid::LEADING_SPACE)) {
         loadPropertyItem(m_leadingSpace, formatDoubleFunc);
     }
 
-    if (mu::contains(propertyIdSet, Pid::USER_STRETCH)) {
+    if (muse::contains(propertyIdSet, Pid::USER_STRETCH)) {
         loadPropertyItem(m_measureWidth, formatDoubleFunc);
     }
 
-    if (mu::contains(propertyIdSet, Pid::MIN_DISTANCE)) {
+    if (muse::contains(propertyIdSet, Pid::MIN_DISTANCE)) {
         loadPropertyItem(m_minimumDistance, formatDoubleFunc);
     }
 
-    if (mu::contains(propertyIdSet, Pid::COLOR)) {
+    if (muse::contains(propertyIdSet, Pid::COLOR)) {
         loadPropertyItem(m_color);
     }
 
-    if (mu::contains(propertyIdSet, Pid::Z)) {
-        loadPropertyItem(m_arrangeOrder);
+    if (muse::contains(propertyIdSet, Pid::Z)) {
+        loadPropertyItem(m_arrangeOrder, m_elementsForArrangeProperty);
     }
 
-    if (mu::contains(propertyIdSet, Pid::OFFSET)) {
+    if (muse::contains(propertyIdSet, Pid::OFFSET)) {
         loadPropertyItem(m_offset, m_elementsForOffsetProperty);
     }
 
@@ -143,7 +160,7 @@ void AppearanceSettingsModel::loadProperties(const PropertyIdSet& propertyIdSet)
 
 Page* AppearanceSettingsModel::page() const
 {
-    return toPage(m_elementList.first()->findAncestor(ElementType::PAGE));
+    return toPage(m_elementsForArrangeProperty.first()->findAncestor(ElementType::PAGE));
 }
 
 std::vector<EngravingItem*> AppearanceSettingsModel::allElementsInPage() const
@@ -153,9 +170,9 @@ std::vector<EngravingItem*> AppearanceSettingsModel::allElementsInPage() const
 
 std::vector<EngravingItem*> AppearanceSettingsModel::allOverlappingElements() const
 {
-    RectF bbox = m_elementList.first()->abbox();
-    for (EngravingItem* element : m_elementList) {
-        bbox |= element->abbox();
+    RectF bbox = m_elementsForArrangeProperty.first()->pageBoundingRect();
+    for (EngravingItem* element : m_elementsForArrangeProperty) {
+        bbox |= element->pageBoundingRect();
     }
     if (bbox.width() == 0 || bbox.height() == 0) {
         LOGD() << "Bounding box appears to have a size of 0, so we'll get all the elements in the page";
@@ -169,7 +186,7 @@ void AppearanceSettingsModel::pushBackwardsInOrder()
     std::vector<EngravingItem*> elements = allOverlappingElements();
     std::sort(elements.begin(), elements.end(), elementLessThan);
 
-    int minZ = (*std::min_element(m_elementList.begin(), m_elementList.end(), elementLessThan))->z();
+    int minZ = (*std::min_element(m_elementsForArrangeProperty.begin(), m_elementsForArrangeProperty.end(), elementLessThan))->z();
     int i;
     for (i = 0; i < static_cast<int>(elements.size()); i++) {
         if (elements[i]->z() == minZ) {
@@ -186,7 +203,7 @@ void AppearanceSettingsModel::pushForwardsInOrder()
     std::vector<EngravingItem*> elements = allOverlappingElements();
     std::sort(elements.begin(), elements.end(), elementLessThan);
 
-    int maxZ = (*std::max_element(m_elementList.begin(), m_elementList.end(), elementLessThan))->z();
+    int maxZ = (*std::max_element(m_elementsForArrangeProperty.begin(), m_elementsForArrangeProperty.end(), elementLessThan))->z();
     int elementsCount = static_cast<int>(elements.size());
     int i;
     for (i = elementsCount - 1; i > 0; i--) {
@@ -204,7 +221,7 @@ void AppearanceSettingsModel::pushToBackInOrder()
     std::vector<EngravingItem*> elements = allElementsInPage();
     EngravingItem* minElement = *std::min_element(elements.begin(), elements.end(), elementLessThan);
 
-    if (m_elementList.contains(minElement)) {
+    if (m_elementsForArrangeProperty.contains(minElement)) {
         m_arrangeOrder->setValue(minElement->z());
     } else {
         m_arrangeOrder->setValue(minElement->z() - REARRANGE_ORDER_STEP);
@@ -216,7 +233,7 @@ void AppearanceSettingsModel::pushToFrontInOrder()
     std::vector<EngravingItem*> elements = allElementsInPage();
     EngravingItem* maxElement = *std::max_element(elements.begin(), elements.end(), elementLessThan);
 
-    if (m_elementList.contains(maxElement)) {
+    if (m_elementsForArrangeProperty.contains(maxElement)) {
         m_arrangeOrder->setValue(maxElement->z());
     } else {
         m_arrangeOrder->setValue(maxElement->z() + REARRANGE_ORDER_STEP);
@@ -265,8 +282,8 @@ bool AppearanceSettingsModel::isVerticalOffsetAvailable() const
 
 bool AppearanceSettingsModel::isSnappedToGrid() const
 {
-    bool isSnapped = notationConfiguration()->isSnappedToGrid(framework::Orientation::Horizontal);
-    isSnapped &= notationConfiguration()->isSnappedToGrid(framework::Orientation::Vertical);
+    bool isSnapped = notationConfiguration()->isSnappedToGrid(muse::Orientation::Horizontal);
+    isSnapped &= notationConfiguration()->isSnappedToGrid(muse::Orientation::Vertical);
 
     return isSnapped;
 }
@@ -277,8 +294,8 @@ void AppearanceSettingsModel::setIsSnappedToGrid(bool isSnapped)
         return;
     }
 
-    notationConfiguration()->setIsSnappedToGrid(framework::Orientation::Horizontal, isSnapped);
-    notationConfiguration()->setIsSnappedToGrid(framework::Orientation::Vertical, isSnapped);
+    notationConfiguration()->setIsSnappedToGrid(muse::Orientation::Horizontal, isSnapped);
+    notationConfiguration()->setIsSnappedToGrid(muse::Orientation::Vertical, isSnapped);
 
     emit isSnappedToGridChanged(isSnappedToGrid());
 }

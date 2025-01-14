@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -34,8 +34,8 @@ TremoloSettingsModel::TremoloSettingsModel(QObject* parent, IElementRepositorySe
     : AbstractInspectorModel(parent, repository)
 {
     setModelType(InspectorModelType::TYPE_TREMOLO);
-    setTitle(qtrc("inspector", "Tremolos"));
-    setIcon(ui::IconCode::Code::TREMOLO_TWO_NOTES);
+    setTitle(muse::qtrc("inspector", "Tremolos"));
+    setIcon(muse::ui::IconCode::Code::TREMOLO_TWO_NOTES);
     createProperties();
 }
 
@@ -58,16 +58,30 @@ void TremoloSettingsModel::requestElements()
     }
 }
 
+void TremoloSettingsModel::loadProperties(const PropertyIdSet& propertyIdSet)
+{
+    if (muse::contains(propertyIdSet, Pid::TREMOLO_STYLE)) {
+        loadPropertyItem(m_style);
+    }
+    if (muse::contains(propertyIdSet, Pid::STEM_DIRECTION)) {
+        loadPropertyItem(m_direction);
+    }
+}
+
 void TremoloSettingsModel::loadProperties()
 {
-    loadPropertyItem(m_style);
-    loadPropertyItem(m_direction);
+    loadProperties(PropertyIdSet { Pid::TREMOLO_STYLE, Pid::STEM_DIRECTION });
 }
 
 void TremoloSettingsModel::resetProperties()
 {
     m_style->resetToDefault();
     m_direction->resetToDefault();
+}
+
+void TremoloSettingsModel::onNotationChanged(const PropertyIdSet& changedPropertyIdSet, const StyleIdSet&)
+{
+    loadProperties(changedPropertyIdSet);
 }
 
 PropertyItem* TremoloSettingsModel::style() const

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<museScore version="4.20">
+<museScore version="4.50">
   <Score>
     <Division>480</Division>
     <showInvisible>1</showInvisible>
@@ -319,6 +319,13 @@
               <string>4</string>
               </Note>
             </Chord>
+          <Spanner type="HarmonicMark">
+            <prev>
+              <location>
+                <fractions>-3/4</fractions>
+                </location>
+              </prev>
+            </Spanner>
           <Spanner type="HarmonicMark">
             <prev>
               <location>

@@ -28,11 +28,10 @@
 #include "shortcutstypes.h"
 #include "log.h"
 
-using namespace mu::shortcuts;
-using namespace mu::framework;
+using namespace muse::shortcuts;
 
 EditShortcutModel::EditShortcutModel(QObject* parent)
-    : QObject(parent)
+    : QObject(parent), Injectable(muse::iocCtxForQmlObject(this))
 {
 }
 
@@ -79,30 +78,28 @@ void EditShortcutModel::clearNewSequence()
     emit newSequenceChanged();
 }
 
-void EditShortcutModel::inputKey(int key, Qt::KeyboardModifiers modifiers)
+void EditShortcutModel::inputKey(Qt::Key key, Qt::KeyboardModifiers modifiers)
 {
-    std::pair<int, Qt::KeyboardModifiers> correctedKeyInput = correctKeyInput(key, modifiers);
-    int newKey = correctedKeyInput.first;
-    int newModifiers = correctedKeyInput.second;
+    std::tie(key, modifiers) = correctKeyInput(key, modifiers);
 
-    if (needIgnoreKey(newKey)) {
+    if (needIgnoreKey(key)) {
         return;
     }
 
-    newKey += newModifiers;
-
-    // remove shift-modifier for keys that don't need it: letters and special keys
-    if ((newKey & Qt::ShiftModifier) && ((key < 0x41) || (key > 0x5a) || (key >= 0x01000000))) {
-        newKey -= Qt::ShiftModifier;
+    // remove shift-modifier for non-letter keys, except a few keys
+    if ((modifiers & Qt::ShiftModifier) && !isShiftAllowed(key)) {
+        modifiers &= ~Qt::ShiftModifier;
     }
 
+    QKeyCombination combination(modifiers, key);
+
     for (int i = 0; i < m_newSequence.count(); i++) {
-        if (m_newSequence[i] == key) {
+        if (m_newSequence[i] == combination) {
             return;
         }
     }
 
-    QKeySequence newSequence = QKeySequence(newKey);
+    QKeySequence newSequence = QKeySequence(combination);
     if (m_newSequence == newSequence) {
         return;
     }
@@ -111,6 +108,67 @@ void EditShortcutModel::inputKey(int key, Qt::KeyboardModifiers modifiers)
     checkNewSequenceForConflicts();
 
     emit newSequenceChanged();
+}
+
+bool EditShortcutModel::isShiftAllowed(Qt::Key key)
+{
+    if (key >= Qt::Key_A && key <= Qt::Key_Z) {
+        return true;
+    }
+
+    // keys where Shift should not be removed
+    switch (key) {
+    case Qt::Key_Up:
+    case Qt::Key_Down:
+    case Qt::Key_Left:
+    case Qt::Key_Right:
+    case Qt::Key_Insert:
+    case Qt::Key_Delete:
+    case Qt::Key_Home:
+    case Qt::Key_End:
+    case Qt::Key_PageUp:
+    case Qt::Key_PageDown:
+    case Qt::Key_Space:
+    case Qt::Key_Escape:
+    case Qt::Key_F1:
+    case Qt::Key_F2:
+    case Qt::Key_F3:
+    case Qt::Key_F4:
+    case Qt::Key_F5:
+    case Qt::Key_F6:
+    case Qt::Key_F7:
+    case Qt::Key_F8:
+    case Qt::Key_F9:
+    case Qt::Key_F10:
+    case Qt::Key_F11:
+    case Qt::Key_F12:
+    case Qt::Key_F13:
+    case Qt::Key_F14:
+    case Qt::Key_F15:
+    case Qt::Key_F16:
+    case Qt::Key_F17:
+    case Qt::Key_F18:
+    case Qt::Key_F19:
+    case Qt::Key_F20:
+    case Qt::Key_F21:
+    case Qt::Key_F22:
+    case Qt::Key_F23:
+    case Qt::Key_F24:
+    case Qt::Key_F25:
+    case Qt::Key_F26:
+    case Qt::Key_F27:
+    case Qt::Key_F28:
+    case Qt::Key_F29:
+    case Qt::Key_F30:
+    case Qt::Key_F31:
+    case Qt::Key_F32:
+    case Qt::Key_F33:
+    case Qt::Key_F34:
+    case Qt::Key_F35:
+        return true;
+    default:
+        return false;
+    }
 }
 
 void EditShortcutModel::checkNewSequenceForConflicts()
@@ -151,7 +209,7 @@ QString EditShortcutModel::conflictWarning() const
         return QString();
     }
 
-    return qtrc("shortcuts", "This shortcut is already assigned to: <b>%1</b>").arg(title);
+    return muse::qtrc("shortcuts", "This shortcut is already assigned to: <b>%1</b>").arg(title);
 }
 
 void EditShortcutModel::applyNewSequence()
@@ -171,12 +229,12 @@ void EditShortcutModel::applyNewSequence()
         return;
     }
 
-    QString str = conflictWarn + "<br><br>" + mu::qtrc("shortcuts", "Are you sure you want to assign it to <b>%1</b> instead?")
+    QString str = conflictWarn + "<br><br>" + muse::qtrc("shortcuts", "Are you sure you want to assign it to <b>%1</b> instead?")
                   .arg(m_originShortcutTitle);
 
     IInteractive::Text text(str.toStdString(), IInteractive::TextFormat::RichText);
 
-    IInteractive::Button btn = interactive()->warning(mu::trc("shortcuts", "Reassign shortcut"), text, {
+    IInteractive::Button btn = interactive()->warning(muse::trc("shortcuts", "Reassign shortcut"), text, {
         interactive()->buttonData(IInteractive::Button::Cancel),
         interactive()->buttonData(IInteractive::Button::Ok)
     }, (int)IInteractive::Button::Ok).standardButton();

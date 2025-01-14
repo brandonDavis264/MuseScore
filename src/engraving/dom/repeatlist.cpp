@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -90,6 +90,15 @@ bool RepeatSegment::containsMeasure(Measure const* const m) const
     return false;
 }
 
+bool RepeatSegment::endsWithMeasure(Measure const* const m) const
+{
+    if (m_measureList.empty()) {
+        return false;
+    }
+
+    return m_measureList.back() == m;
+}
+
 bool RepeatSegment::isEmpty() const
 {
     return m_measureList.empty();
@@ -129,7 +138,7 @@ RepeatList::RepeatList(Score* s)
 
 RepeatList::~RepeatList()
 {
-    DeleteAll(*this);
+    muse::DeleteAll(*this);
 }
 
 //---------------------------------------------------------
@@ -149,7 +158,7 @@ int RepeatList::ticks() const
 //   update
 //---------------------------------------------------------
 
-void RepeatList::update(bool expand)
+void RepeatList::update(bool expand, bool updateTies)
 {
     if (!m_scoreChanged && expand == m_expanded) {
         return;
@@ -162,6 +171,10 @@ void RepeatList::update(bool expand)
     }
 
     m_scoreChanged = false;
+
+    if (updateTies) {
+        m_score->undoRemoveStaleTieJumpPoints();
+    }
 }
 
 //---------------------------------------------------------
@@ -234,14 +247,14 @@ int RepeatList::tick2utick(int tick) const
 //   utick2utime
 //---------------------------------------------------------
 
-double RepeatList::utick2utime(int tick, bool ignorePauseOnTick) const
+double RepeatList::utick2utime(int tick) const
 {
     size_t n = size();
     unsigned ii = (m_idx1 < n) && (tick >= at(m_idx1)->utick) ? m_idx1 : 0;
     for (unsigned i = ii; i < n; ++i) {
         if ((tick >= at(i)->utick) && ((i + 1 == n) || (tick < at(i + 1)->utick))) {
             int t     = tick - (at(i)->utick - at(i)->tick);
-            double tt = m_score->tempomap()->tick2time(t, nullptr, ignorePauseOnTick) + at(i)->timeOffset;
+            double tt = m_score->tempomap()->tick2time(t) + at(i)->timeOffset;
             return tt;
         }
     }
@@ -289,7 +302,7 @@ std::vector<RepeatSegment*>::const_iterator RepeatList::findRepeatSegmentFromUTi
 
 void RepeatList::flatten()
 {
-    DeleteAll(*this);
+    muse::DeleteAll(*this);
     clear();
 
     Measure* m = m_score->firstMeasure();
@@ -364,7 +377,7 @@ void RepeatList::collectRepeatListElements()
 
     // Clear out previous listing
     for (const RepeatListElementList& srle : m_rlElements) {
-        DeleteAll(srle);
+        muse::DeleteAll(srle);
     }
     m_rlElements.clear();
 
@@ -387,7 +400,7 @@ void RepeatList::collectRepeatListElements()
     // so we will pre-process them into cloned versions that handle those overlaps.
     // This assumes that spanners are ordered from first to last tick-wise
     for (const auto& spannerEntry : m_score->spanner()) {
-        if (!spannerEntry.second->isVolta()) {
+        if (!spannerEntry.second->isVolta() || !spannerEntry.second->playSpanner()) {
             continue;
         }
 
@@ -433,7 +446,7 @@ void RepeatList::collectRepeatListElements()
                 }
                 // Cross-section of the repeatList
                 std::vector<int> endings = remainder->endings();
-                mu::remove_if(endings, [&volta](const int& ending) {
+                muse::remove_if(endings, [&volta](const int& ending) {
                     return !(volta->hasEnding(ending));
                 });
 
@@ -627,7 +640,7 @@ void RepeatList::collectRepeatListElements()
 ///         "end" will result in end of current section
 ///
 std::pair<std::vector<RepeatListElementList>::const_iterator, RepeatListElementList::const_iterator> RepeatList::findMarker(
-    String label, std::vector<RepeatListElementList>::const_iterator referenceSectionIt,
+    muse::String label, std::vector<RepeatListElementList>::const_iterator referenceSectionIt,
     RepeatListElementList::const_iterator referenceRepeatListElementIt) const
 {
     bool found = false;
@@ -774,7 +787,7 @@ void RepeatList::unwind()
 {
     TRACEFUNC;
 
-    DeleteAll(*this);
+    muse::DeleteAll(*this);
     clear();
     m_jumpsTaken.clear();
 

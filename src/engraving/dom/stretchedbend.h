@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -48,7 +48,7 @@ class StretchedBend final : public EngravingItem
     M_PROPERTY(String,     fontFace,  setFontFace)
     M_PROPERTY(double,     fontSize,  setFontSize)
     M_PROPERTY(FontStyle,  fontStyle, setFontStyle)
-    M_PROPERTY(Millimetre, lineWidth, setLineWidth)
+    M_PROPERTY(Spatium,    lineWidth, setLineWidth)
 
 public:
 
@@ -81,13 +81,13 @@ public:
 
     StretchedBend* clone() const override { return new StretchedBend(*this); }
 
-    mu::draw::Font font(double sp) const;
+    muse::draw::Font font(double sp) const;
 
     void fillArrows(double width);
     void fillSegments();    // converting points from file to bend segments
 
     void fillStretchedSegments(bool untilNextSegment);
-    mu::RectF calculateBoundingRect() const;
+    RectF calculateBoundingRect() const;
 
     static std::vector<Note*> notesWithStretchedBend(Chord* chord);
     static void prepareBends(std::vector<StretchedBend*>& bends);

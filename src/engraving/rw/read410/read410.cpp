@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -21,8 +21,9 @@
  */
 #include "read410.h"
 
-#include "types/types.h"
+#include "../types/types.h"
 
+#include "dom/anchors.h"
 #include "dom/audio.h"
 #include "dom/excerpt.h"
 #include "dom/factory.h"
@@ -61,6 +62,9 @@ using namespace mu::engraving::read410;
 Err Read410::readScore(Score* score, XmlReader& e, rw::ReadInOutData* data)
 {
     ReadContext ctx(score);
+    if (data && data->overriddenSpatium.has_value()) {
+        ctx.setSpatium(data->overriddenSpatium.value());
+    }
 
     if (!score->isMaster() && data) {
         ctx.initLinks(data->links);
@@ -81,13 +85,10 @@ Err Read410::readScore(Score* score, XmlReader& e, rw::ReadInOutData* data)
         } else if (tag == "Revision") {
             e.skipCurrentElement();
         } else if (tag == "LastEID") {
-            int val = e.readInt(nullptr);
-            if (score->isMaster()) {
-                score->masterScore()->getEID()->init(val);
-            }
+            e.skipCurrentElement();
         } else if (tag == "Score") {
             if (!readScore410(score, e, ctx)) {
-                if (e.error() == XmlStreamReader::CustomError) {
+                if (e.error() == muse::XmlStreamReader::CustomError) {
                     return Err::FileCriticallyCorrupted;
                 }
                 return Err::FileBadFormat;
@@ -118,9 +119,15 @@ bool Read410::readScore410(Score* score, XmlReader& e, ReadContext& ctx)
 {
     std::vector<int> sysStaves;
     while (e.readNextStartElement()) {
-        ctx.setTrack(mu::nidx);
+        ctx.setTrack(muse::nidx);
         const AsciiStringView tag(e.name());
-        if (tag == "Staff") {
+        if (tag == "eid") {
+            AsciiStringView s = e.readAsciiText();
+            EID eid = EID::fromStdString(s);
+            if (eid.isValid()) {
+                score->setEID(eid);
+            }
+        } else if (tag == "Staff") {
             StaffRead::readStaff(score, e, ctx);
         } else if (tag == "Omr") {
             e.skipCurrentElement();
@@ -153,6 +160,8 @@ bool Read410::readScore410(Score* score, XmlReader& e, ReadContext& ctx)
             score->m_showFrames = e.readInt();
         } else if (tag == "showMargins") {
             score->m_showPageborders = e.readInt();
+        } else if (tag == "showSoundFlags") {
+            score->m_showSoundFlags = e.readInt();
         } else if (tag == "markIrregularMeasures") {
             score->m_markIrregularMeasures = e.readInt();
         } else if (tag == "Style") {
@@ -196,6 +205,8 @@ bool Read410::readScore410(Score* score, XmlReader& e, ReadContext& ctx)
                     e.skipCurrentElement();
                 }
             }
+        } else if (tag == "SystemLocks") {
+            TRead::readSystemLocks(score, e);
         } else if (tag == "Part") {
             Part* part = new Part(score);
             TRead::read(part, e, ctx);
@@ -248,8 +259,8 @@ bool Read410::readScore410(Score* score, XmlReader& e, ReadContext& ctx)
         }
     }
     ctx.reconnectBrokenConnectors();
-    if (e.error() != XmlStreamReader::NoError) {
-        if (e.error() == XmlStreamReader::CustomError) {
+    if (e.error() != muse::XmlStreamReader::NoError) {
+        if (e.error() == muse::XmlStreamReader::CustomError) {
             LOGE() << e.errorString();
         } else {
             LOGE() << String(u"XML read error at line %1, column %2: %3").arg(e.lineNumber(), e.columnNumber())
@@ -300,6 +311,7 @@ bool Read410::pasteStaff(XmlReader& e, Segment* dst, staff_idx_t dstStaff, Fract
     std::vector<Chord*> graceNotes;
     Beam* startingBeam = nullptr;
     Tuplet* tuplet = nullptr;
+    TremoloTwoChord* prevTremolo = nullptr;
     Fraction dstTick = dst->tick();
     bool pasted = false;
     Fraction tickLen = Fraction(0, 1);
@@ -388,6 +400,10 @@ bool Read410::pasteStaff(XmlReader& e, Segment* dst, staff_idx_t dstStaff, Fract
                     Location loc = Location::relative();
                     TRead::read(&loc, e, ctx);
                     ctx.setLocation(loc);
+                    if (loc.isTimeTick()) {
+                        Measure* measure = score->tick2measure(ctx.tick());
+                        EditTimeTickAnchors::createTimeTickAnchor(measure, ctx.tick() - measure->tick(), track2staff(ctx.track()));
+                    }
                 } else if (tag == "Tuplet") {
                     Tuplet* oldTuplet = tuplet;
                     Fraction tick = doScale ? (ctx.tick() - dstTick) * scale + dstTick : ctx.tick();
@@ -478,11 +494,21 @@ bool Read410::pasteStaff(XmlReader& e, Segment* dst, staff_idx_t dstStaff, Fract
                             // disallow tie across barline within two-note tremolo
                             // tremolos can potentially still straddle the barline if no tie is required
                             // but these will be removed later
-                            TremoloTwoChord* t = chord->tremoloTwoChord();
-                            if (t) {
+
+                            if (chord->tremoloTwoChord()) {
+                                prevTremolo = chord->tremoloTwoChord();
+                                prevTremolo->setChord1(chord);
+                                chord->setTremoloTwoChord(prevTremolo);
+                            } else if (!chord->tremoloTwoChord() && prevTremolo) {
+                                prevTremolo->setChord2(chord);
+                                chord->setTremoloTwoChord(prevTremolo);
+                                prevTremolo = nullptr;
+                            }
+
+                            if (TremoloTwoChord* tremolo = chord->tremoloTwoChord()) {
                                 if (doScale) {
-                                    Fraction d = t->durationType().ticks();
-                                    t->setDurationType(d * scale);
+                                    Fraction d = tremolo->durationType().ticks();
+                                    tremolo->setDurationType(d * scale);
                                 }
                                 Measure* m = score->tick2measure(tick);
                                 Fraction ticks = cr->actualTicks();
@@ -505,6 +531,9 @@ bool Read410::pasteStaff(XmlReader& e, Segment* dst, staff_idx_t dstStaff, Fract
                             if (cr->isChord()) {
                                 Chord* c = toChord(cr);
                                 for (Note* note: c->notes()) {
+                                    if (note->laissezVib()) {
+                                        continue;
+                                    }
                                     Tie* tie = note->tieFor();
                                     if (tie) {
                                         note->setTieFor(0);
@@ -588,7 +617,6 @@ bool Read410::pasteStaff(XmlReader& e, Segment* dst, staff_idx_t dstStaff, Fract
                            || tag == "Image"
                            || tag == "Text"
                            || tag == "StaffText"
-                           || tag == "SoundFlag"
                            || tag == "PlayTechAnnotation"
                            || tag == "Capo"
                            || tag == "StringTunings"
@@ -607,7 +635,7 @@ bool Read410::pasteStaff(XmlReader& e, Segment* dst, staff_idx_t dstStaff, Fract
 
                     Fraction tick = doScale ? (ctx.tick() - dstTick) * scale + dstTick : ctx.tick();
                     Measure* m = score->tick2measure(tick);
-                    Segment* seg = m->undoGetSegment(SegmentType::ChordRest, tick);
+                    Segment* seg = m->undoGetChordRestOrTimeTickSegment(tick);
                     el->setParent(seg);
 
                     // be sure to paste the element in the destination track;
@@ -719,13 +747,12 @@ bool Read410::pasteStaff(XmlReader& e, Segment* dst, staff_idx_t dstStaff, Fract
             score->setLayout(dstTick, dstTick + tickLen, dstStaff, endStaff, dst);
         }
 
-        //check and add truly invisible rests instead of gaps
         //TODO: look if this could be done different
         Measure* dstM = score->tick2measure(dstTick);
         Measure* endM = score->tick2measure(dstTick + tickLen);
         for (staff_idx_t i = dstStaff; i < endStaff; i++) {
             for (Measure* m = dstM; m && m != endM->nextMeasure(); m = m->nextMeasure()) {
-                m->checkMeasure(i, false);
+                m->checkMeasure(i);
             }
         }
         score->m_selection.setRangeTicks(dstTick, dstTick + tickLen, dstStaff, endStaff);
@@ -863,6 +890,11 @@ void Read410::pasteSymbols(XmlReader& e, ChordRest* dst)
                     d->setParent(destCR->segment());
                     score->undoAddElement(d);
                 } else if (tag == "HairPin") {
+                    if (destTrack >= maxTrack) {
+                        LOGD("PasteSymbols: no track for %s", tag.ascii());
+                        e.skipCurrentElement();
+                        continue;
+                    }
                     Hairpin* h = Factory::createHairpin(score->dummy()->segment());
                     h->setTrack(destTrack);
                     TRead::read(h, e, ctx);
@@ -902,7 +934,7 @@ void Read410::pasteSymbols(XmlReader& e, ChordRest* dst)
                             score->undoAddElement(el);
                         }
                     } else if (tag == "StaffText" || tag == "PlayTechAnnotation" || tag == "Capo" || tag == "Sticking"
-                               || tag == "SoundFlag" || tag == "HarpPedalDiagram" || tag == "StringTunings") {
+                               || tag == "HarpPedalDiagram" || tag == "StringTunings") {
                         EngravingItem* el = Factory::createItemByName(tag, score->dummy());
                         TRead::readItem(el, e, ctx);
                         el->setTrack(destTrack);

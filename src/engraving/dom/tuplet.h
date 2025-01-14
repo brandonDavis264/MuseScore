@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -84,8 +84,8 @@ public:
     void setBracketType(TupletBracketType val) { m_bracketType = val; }
     bool hasBracket() const { return m_hasBracket; }
     void setHasBracket(bool b) { m_hasBracket = b; }
-    Millimetre bracketWidth() const { return m_bracketWidth; }
-    void setBracketWidth(Millimetre s) { m_bracketWidth = s; }
+    Spatium bracketWidth() const { return m_bracketWidth; }
+    void setBracketWidth(Spatium s) { m_bracketWidth = s; }
 
     const Fraction& ratio() const { return m_ratio; }
     void setRatio(const Fraction& r) { m_ratio = r; }
@@ -126,17 +126,18 @@ public:
     bool cross() const;
     staff_idx_t vStaffIdx() const override;
 
-    const mu::PointF& p1() const { return m_p1; }
-    mu::PointF& p1() { return m_p1; }
-    void setP1(const mu::PointF& p) { m_p1 = p; }
-    const mu::PointF& p2() const { return m_p2; }
-    mu::PointF& p2() { return m_p2; }
-    void setP2(const mu::PointF& p) { m_p2 = p; }
+    const PointF& p1() const { return m_p1; }
+    PointF& p1() { return m_p1; }
+    void setP1(const PointF& p) { m_p1 = p; }
+    const PointF& p2() const { return m_p2; }
+    PointF& p2() { return m_p2; }
+    void setP2(const PointF& p) { m_p2 = p; }
 
-    const mu::PointF& userP1() const { return m_userP1; }
-    const mu::PointF& userP2() const { return m_userP2; }
+    const PointF& userP1() const { return m_userP1; }
+    const PointF& userP2() const { return m_userP2; }
 
     void setVisible(bool f) override;
+    void setColor(const Color& col) override;
 
     PropertyValue getProperty(Pid propertyId) const override;
     bool setProperty(Pid propertyId, const PropertyValue& v) override;
@@ -146,7 +147,7 @@ public:
     int gripsCount() const override { return 2; }
     Grip initialEditModeGrip() const override { return Grip::END; }
     Grip defaultGrip() const override { return Grip::START; }
-    std::vector<mu::PointF> gripsPositions(const EditData&) const override;
+    std::vector<PointF> gripsPositions(const EditData&) const override;
 
     void sanitizeTuplet();
     void addMissingElements();
@@ -155,8 +156,12 @@ public:
 
     static int computeTupletDenominator(int numerator, Fraction totalDuration);
 
-    mu::PointF bracketL[4];
-    mu::PointF bracketR[3];
+    PointF bracketL[4];
+    PointF bracketR[3];
+
+    EngravingItem* nextElement() override;
+    EngravingItem* prevElement() override;
+
 private:
 
     friend class DurationElement;
@@ -177,7 +182,7 @@ private:
     DirectionV m_direction = DirectionV::AUTO;
     TupletNumberType m_numberType = TupletNumberType::SHOW_NUMBER;
     TupletBracketType m_bracketType = TupletBracketType::AUTO_BRACKET;
-    Millimetre m_bracketWidth;
+    Spatium m_bracketWidth;
 
     bool m_hasBracket = false;
     Fraction m_ratio;
@@ -188,8 +193,8 @@ private:
 
     Fraction m_tick;
 
-    mu::PointF m_p1, m_p2;
-    mu::PointF m_userP1, m_userP2;      // user offset
+    PointF m_p1, m_p2;
+    PointF m_userP1, m_userP2;      // user offset
     mutable int m_id;                   // used during read/write
 
     Text* m_number = nullptr;

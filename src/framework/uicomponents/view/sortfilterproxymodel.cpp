@@ -28,7 +28,7 @@
 
 #include "modelutils.h"
 
-using namespace mu::uicomponents;
+using namespace muse::uicomponents;
 
 static const int INVALID_KEY = -1;
 
@@ -78,6 +78,7 @@ SortFilterProxyModel::SortFilterProxyModel(QObject* parent)
 
     connect(this, &SortFilterProxyModel::sourceModelRoleNamesChanged, this, [this]() {
         invalidate();
+        fillRoleIds();
     });
 }
 

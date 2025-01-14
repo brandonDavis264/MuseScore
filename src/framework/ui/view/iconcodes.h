@@ -20,10 +20,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_UI_ICONCODE_H
-#define MU_UI_ICONCODE_H
+#ifndef MUSE_UI_ICONCODE_H
+#define MUSE_UI_ICONCODE_H
 
 #include <QObject>
+#include <QMetaEnum>
 
 #ifdef WARNING
 #undef WARNING
@@ -42,13 +43,13 @@
 #undef FILE_OPEN
 #endif
 
-namespace mu::ui {
+namespace muse::ui {
 /**
  * @brief The IconCode class simplifies access to the icons from the icon font
  *
  * @details Each enum value is a UTF-16-like address of the icon in the icon font.
  *          The current icon-font (MusescoreIcon.ttf) is located in the 'MuseScore/fonts/mscore' folder,
- *          The most actual version can be found by this persistent URL: @link https://www.dropbox.com/s/ip59ren10u69hr7/MusescoreIcon.ttf?dl=0
+ *          The most actual version can be found by this persistent URL: @link https://www.dropbox.com/s/srfpt78uy7aazz1/MusescoreIcon.ttf?dl=0
  */
 
 class IconCode
@@ -57,6 +58,7 @@ class IconCode
 
 public:
     enum class Code : char16_t {
+        SMALL_ARROW_LEFT = 0xEF0F,
         SMALL_ARROW_UP = 0xEF10,
         SMALL_ARROW_RIGHT = 0xEF11,
         SMALL_ARROW_DOWN = 0xEF12,
@@ -167,6 +169,13 @@ public:
         KEY_SIGNATURE = 0xEF81,
         LINE_DASHED = 0xEF82,
         LINE_WIDE_DASHED = 0xF434,
+
+        ZOOM_TOGGLE = 0xF437,
+        FIT_SELECTION = 0xF438,
+        FIT_PROJECT = 0xF439,
+        TRIM_AUDIO_OUTSIDE_SELECTION = 0xF43A,
+        SILENCE_AUDIO_SELECTION = 0xF43B,
+
         LINE_DOTTED = 0xEF83,
         LINE_NORMAL = 0xEF84,
         LINE_WITH_END_HOOK = 0xEF85,
@@ -347,6 +356,8 @@ public:
         DIMINUENDO = 0xF414,
         CRESCENDO = 0xF415,
 
+        MICROPHONE = 0xF41B,
+
         APP_MINIMIZE = 0xF41C,
         APP_MAXIMIZE = 0xF41D,
         APP_UNMAXIMIZE = 0xF41E,
@@ -377,16 +388,29 @@ public:
 
         CLOUD = 0xF435,
 
+        WAVEFORM = 0xF43C,
         CROSS_STAFF_BEAMING = 0xF43D,
+
+        MAGNET = 0xF43E,
 
         TEMPO_CHANGE = 0xF43F,
 
         PLUGIN = 0xF440,
         LYRICS = 0xF441,
+        LEARN = 0xF441,
+        SPECTROGRAM = 0xF442,
+        SPECTROGRAM_BOX_SELECTION = 0xF443,
+        BRUSH = 0xF444,
 
+        PLAY_FILL = 0xF446,
         STOP_FILL = 0xF447,
+        REWIND_START_FILL = 0xF448,
+        REWIND_END_FILL = 0xF449,
+        RECORD_FILL = 0xF44A,
+        PAUSE_FILL = 0xF44B,
 
         REST_8TH = 0xF44C,
+        CIRCLE = 0xF44D,
 
         SHARE_AUDIO = 0xF44F,
 
@@ -396,6 +420,8 @@ public:
 
         CLOUD_FILL = 0xF454,
         BRAILLE = 0xF455,
+
+        AUTOMATION = 0xF45C,
 
         GUITAR_BEND_REGULAR = 0xF45F,
         GUITAR_PRE_BEND = 0xF460,
@@ -409,10 +435,54 @@ public:
         TIE_CHORD_OUTSIDE = 0xF466,
         TIE_CHORD_INSIDE = 0xF467,
 
+        SINGLE_NOTE = 0xF46C,
+
+        TRIANGLE_SYMBOL = 0xF46D,
+
+        FRETBOARD_VERTICAL = 0xF46F,
+        FRETBOARD_EXTENDED = 0xF470,
+        FRETBOARD_HORIZONTAL = 0xF471,
+        FRETBOARD_BARRE_LINE = 0xF472,
+        FRETBOARD_BARRE_SLUR = 0xF473,
+
+        BPM = 0xF474,
+        CLOCK = 0xF475,
+
+        PLAYHEAD = 0xF478,
+        PLAYHEAD_FILLED = 0xF47A,
+
+        NOTE_ANCHORED_LINE = 0xF47B,
+
+        NOTE_LV = 0xF47C,
+
+        LV_OUTSIDE = 0xF47D,
+        LV_INSIDE = 0xF47E,
+        LV_CHORD_OUTSIDE = 0xF47F,
+        LV_CHORD_INSIDE = 0xF480,
+
+        PERCUSSION = 0xF479,
+
+        SYSTEM_LOCK_START = 0xF481,
+        SYSTEM_LOCK_END = 0xF482,
+
+        LINE_BREAK = 0xF483,
+        PAGE_BREAK = 0xF484,
+        SECTION_BREAK2 = 0xF485,
+        NO_BREAK = 0xF486,
+        SYSTEM_LOCK = 0xF487,
+
         NONE = 0xFFFF
     };
 
     Q_ENUM(Code)
+
+    static Code fromString(const char* key)
+    {
+        bool ok = false;
+        QMetaEnum me = QMetaEnum::fromType<Code>();
+        int val = me.keyToValue(key, &ok);
+        return ok ? static_cast<Code>(val) : Code::NONE;
+    }
 };
 
 static inline QChar iconCodeToChar(IconCode::Code code)
@@ -421,4 +491,4 @@ static inline QChar iconCodeToChar(IconCode::Code code)
 }
 }
 
-#endif // MU_UI_ICONCODE_H
+#endif // MUSE_UI_ICONCODE_H

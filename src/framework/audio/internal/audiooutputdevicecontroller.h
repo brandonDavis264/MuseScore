@@ -22,25 +22,30 @@
 #ifndef MU_NOTATION_AUDIOOUTPUTDEVICECONTROLLER_H
 #define MU_NOTATION_AUDIOOUTPUTDEVICECONTROLLER_H
 
-#include "async/asyncable.h"
+#include "global/async/asyncable.h"
+#include "global/modularity/ioc.h"
 
-#include "modularity/ioc.h"
 #include "../iaudioconfiguration.h"
 #include "../iaudiodriver.h"
+#include "worker/iaudioengine.h"
 
-namespace mu::audio {
-class AudioOutputDeviceController : public async::Asyncable
+namespace muse::audio {
+class AudioOutputDeviceController : public Injectable, public async::Asyncable
 {
-    INJECT(IAudioConfiguration, configuration)
-    INJECT(IAudioDriver, audioDriver)
+    Inject<IAudioConfiguration> configuration = { this };
+    Inject<IAudioDriver> audioDriver = { this };
+    Inject<IAudioEngine> audioEngine = { this };
 
 public:
+
+    AudioOutputDeviceController(const modularity::ContextPtr& iocCtx)
+        : Injectable(iocCtx) {}
+
     void init();
 
 private:
     void checkConnection();
-
-    void connectCurrentOutputDevice();
+    void onOutputDeviceChanged();
 };
 }
 

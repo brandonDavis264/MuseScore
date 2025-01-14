@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<museScore version="4.20">
+<museScore version="4.50">
   <Score>
     <Division>480</Division>
     <showInvisible>1</showInvisible>
@@ -67,9 +67,9 @@
               <fret>3</fret>
               <string>3</string>
               </Note>
-            <Tremolo>
+            <TremoloSingleChord>
               <subtype>r32</subtype>
-              </Tremolo>
+              </TremoloSingleChord>
             </Chord>
           <Rest>
             <durationType>quarter</durationType>
@@ -82,9 +82,9 @@
               <fret>0</fret>
               <string>1</string>
               </Note>
-            <Tremolo>
+            <TremoloSingleChord>
               <subtype>r8</subtype>
-              </Tremolo>
+              </TremoloSingleChord>
             </Chord>
           <Rest>
             <durationType>quarter</durationType>

@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -52,7 +52,7 @@ void Engraving_SplitTests::split(const char* f1, const char* ref, int index)
     }
     ChordRest* cr = toChordRest(s->element(0));
 
-    score->startCmd();
+    score->startCmd(TranslatableString::untranslatable("Engraving split tests"));
     score->cmdSplitMeasure(cr);
     score->endCmd();
 

@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -20,12 +20,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "factory.h"
 #include "chordrest.h"
 #include "measure.h"
 #include "range.h"
 #include "score.h"
 #include "segment.h"
 #include "spanner.h"
+#include "stafftypechange.h"
 #include "tie.h"
 #include "undo.h"
 #include "utils.h"
@@ -115,6 +117,7 @@ void MasterScore::splitMeasure(const Fraction& tick)
     options.createEmptyMeasures = true;
     options.moveSignaturesClef = false;
     options.moveStaffTypeChanges = false;
+    options.ignoreBarLines = true;
 
     insertMeasure(nm, options);
     Measure* m2 = toMeasure(nm ? nm->prev() : lastMeasure());
@@ -193,6 +196,16 @@ void MasterScore::splitMeasure(const Fraction& tick)
         }
         if (s->ticks() != ticks) {
             s->undoChangeProperty(Pid::SPANNER_TICKS, ticks);
+        }
+    }
+
+    for (size_t staffIdx = 0; staffIdx < nstaves(); ++staffIdx) {
+        Staff* staff = staves().at(staffIdx);
+        if (staff->isStaffTypeStartFrom(stick)) {
+            StaffTypeChange* stc = engraving::Factory::createStaffTypeChange(m1);
+            stc->setParent(m1);
+            stc->setTrack(staffIdx * VOICES);
+            addElement(stc);
         }
     }
 }

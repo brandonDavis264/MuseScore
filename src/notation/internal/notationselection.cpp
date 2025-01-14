@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -32,6 +32,7 @@
 
 #include "log.h"
 
+using namespace muse;
 using namespace mu::notation;
 
 NotationSelection::NotationSelection(IGetScore* getScore)
@@ -55,7 +56,7 @@ SelectionState NotationSelection::state() const
     return score()->selection().state();
 }
 
-mu::Ret NotationSelection::canCopy() const
+Ret NotationSelection::canCopy() const
 {
     if (isNone()) {
         return make_ret(Err::EmptySelection);
@@ -65,7 +66,7 @@ mu::Ret NotationSelection::canCopy() const
         return make_ret(Err::SelectCompleteTupletOrTremolo);
     }
 
-    return make_ok();
+    return muse::make_ok();
 }
 
 QMimeData* NotationSelection::mimeData() const
@@ -86,15 +87,9 @@ EngravingItem* NotationSelection::element() const
     return score()->selection().element();
 }
 
-std::vector<EngravingItem*> NotationSelection::elements() const
+const std::vector<EngravingItem*>& NotationSelection::elements() const
 {
-    std::vector<EngravingItem*> els;
-    std::vector<mu::engraving::EngravingItem*> list = score()->selection().elements();
-    els.reserve(list.size());
-    for (mu::engraving::EngravingItem* e : list) {
-        els.push_back(e);
-    }
-    return els;
+    return score()->selection().elements();
 }
 
 std::vector<Note*> NotationSelection::notes(NoteFilter filter) const
@@ -111,7 +106,7 @@ std::vector<Note*> NotationSelection::notes(NoteFilter filter) const
     return {};
 }
 
-mu::RectF NotationSelection::canvasBoundingRect() const
+muse::RectF NotationSelection::canvasBoundingRect() const
 {
     if (isNone()) {
         return RectF();

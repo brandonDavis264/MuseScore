@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -65,7 +65,7 @@ MeasureBase::MeasureBase(const MeasureBase& m)
 
 void MeasureBase::clearElements()
 {
-    DeleteAll(m_el);
+    muse::DeleteAll(m_el);
     m_el.clear();
 }
 
@@ -98,7 +98,47 @@ void MeasureBase::setScore(Score* score)
 
 MeasureBase::~MeasureBase()
 {
-    DeleteAll(m_el);
+    muse::DeleteAll(m_el);
+}
+
+System* MeasureBase::prevNonVBoxSystem() const
+{
+    bool mmRests = score()->style().styleB(Sid::createMultiMeasureRests);
+    System* curSystem = system();
+    IF_ASSERT_FAILED(curSystem) {
+        return nullptr;
+    }
+
+    System* prevSystem = curSystem;
+    for (const MeasureBase* mb = this; mb && prevSystem == curSystem; mb = mmRests ? mb->prevMM() : mb->prev()) {
+        if (mb->isMeasure() || mb->isHBox()) {
+            prevSystem = mb->system();
+        } else {
+            return nullptr;
+        }
+    }
+
+    return prevSystem != curSystem ? prevSystem : nullptr;
+}
+
+System* MeasureBase::nextNonVBoxSystem() const
+{
+    bool mmRests = score()->style().styleB(Sid::createMultiMeasureRests);
+    System* curSystem = system();
+    IF_ASSERT_FAILED(curSystem) {
+        return nullptr;
+    }
+
+    System* nextSystem = curSystem;
+    for (const MeasureBase* mb = this; mb && nextSystem == curSystem; mb = mmRests ? mb->nextMM() : mb->next()) {
+        if (mb->isMeasure() || mb->isHBox()) {
+            nextSystem = mb->system();
+        } else {
+            return nullptr;
+        }
+    }
+
+    return nextSystem != curSystem ? nextSystem : nullptr;
 }
 
 //---------------------------------------------------------
@@ -130,6 +170,9 @@ void MeasureBase::add(EngravingItem* e)
             setLineBreak(false);
             setSectionBreak(true);
             setNoBreak(false);
+            if (b->startWithMeasureOne()) {
+                triggerLayoutToEnd();
+            }
             break;
         case LayoutBreakType:: NOBREAK:
             setPageBreak(false);
@@ -141,7 +184,6 @@ void MeasureBase::add(EngravingItem* e)
         if (next()) {
             next()->triggerLayout();
         }
-//            triggerLayoutAll();     // TODO
     }
     triggerLayout();
     m_el.push_back(e);
@@ -167,6 +209,9 @@ void MeasureBase::remove(EngravingItem* el)
         case LayoutBreakType::SECTION:
             setSectionBreak(false);
             score()->setPause(endTick(), 0);
+            if (lb->startWithMeasureOne()) {
+                triggerLayoutToEnd();
+            }
             break;
         case LayoutBreakType::NOBREAK:
             setNoBreak(false);
@@ -350,7 +395,7 @@ void MeasureBase::triggerLayout() const
     const MeasureBase* mb = top();
     // avoid triggering layout before getting added to a score
     if (mb->prev() || mb->next()) {
-        score()->setLayout(mb->tick(), mu::nidx, mb);
+        score()->setLayout(mb->tick(), muse::nidx, mb);
     }
 }
 
@@ -363,10 +408,10 @@ void MeasureBase::scanElements(void* data, void (* func)(void*, EngravingItem*),
     if (isMeasure()) {
         for (EngravingItem* e : m_el) {
             staff_idx_t staffIdx = e->staffIdx();
-            if (staffIdx != mu::nidx && staffIdx >= score()->staves().size()) {
+            if (staffIdx != muse::nidx && staffIdx >= score()->staves().size()) {
                 LOGD("MeasureBase::scanElements: bad staffIdx %zu in element %s", staffIdx, e->typeName());
             }
-            if ((e->track() == mu::nidx) || e->systemFlag() || toMeasure(this)->visible(staffIdx)) {
+            if ((e->track() == muse::nidx) || e->systemFlag() || toMeasure(this)->visible(staffIdx)) {
                 e->scanElements(data, func, all);
             }
         }
@@ -522,7 +567,7 @@ void MeasureBase::undoSetBreak(bool v, LayoutBreakType type)
         MeasureBase* mb = (isMeasure() && toMeasure(this)->isMMRest()) ? toMeasure(this)->mmRestLast() : this;
         LayoutBreak* lb = Factory::createLayoutBreak(mb);
         lb->setLayoutBreakType(type);
-        lb->setTrack(mu::nidx);           // this are system elements
+        lb->setTrack(muse::nidx);           // this are system elements
         lb->setParent(mb);
         score()->undoAddElement(lb);
     }
@@ -647,6 +692,51 @@ int MeasureBase::measureIndex() const
         }
     }
     return -1;
+}
+
+bool MeasureBase::isBefore(const EngravingItem* other) const
+{
+    if (other->isMeasureBase()) {
+        const MeasureBase* otherMb = toMeasureBase(other);
+        return isBefore(otherMb);
+    }
+
+    return EngravingItem::isBefore(other);
+}
+
+bool MeasureBase::isBefore(const MeasureBase* other) const
+{
+    Fraction otherTick = other->tick();
+    if (otherTick != m_tick) {
+        return m_tick < otherTick;
+    }
+
+    bool otherIsMMRest = other->isMeasure() && toMeasure(other)->isMMRest();
+    for (const MeasureBase* mb = otherIsMMRest ? nextMM() : next(); mb && mb->tick() == m_tick;
+         mb = otherIsMMRest ? mb->nextMM() : mb->next()) {
+        if (mb == other) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+const SystemLock* MeasureBase::systemLock() const
+{
+    return score()->systemLocks()->lockContaining(this);
+}
+
+bool MeasureBase::isStartOfSystemLock() const
+{
+    const SystemLock* lock = score()->systemLocks()->lockStartingAt(this);
+    return lock != nullptr;
+}
+
+bool MeasureBase::isEndOfSystemLock() const
+{
+    const SystemLock* lock = systemLock();
+    return lock && lock->endMB() == this;
 }
 
 //---------------------------------------------------------

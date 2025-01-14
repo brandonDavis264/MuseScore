@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -31,6 +31,7 @@
 
 #include "accidental.h"
 #include "actionicon.h"
+#include "anchors.h"
 #include "barline.h"
 #include "beam.h"
 #include "bracket.h"
@@ -44,6 +45,7 @@
 #include "keysig.h"
 #include "layoutbreak.h"
 #include "linkedobjects.h"
+#include "marker.h"
 #include "masterscore.h"
 #include "measure.h"
 #include "measurenumber.h"
@@ -59,6 +61,7 @@
 #include "segment.h"
 #include "select.h"
 #include "sig.h"
+#include "slur.h"
 #include "spacer.h"
 #include "staff.h"
 #include "stafflines.h"
@@ -331,7 +334,7 @@ Measure::~Measure()
         delete s;
         s = ns;
     }
-    DeleteAll(m_mstaves);
+    muse::DeleteAll(m_mstaves);
 }
 
 #ifndef ENGRAVING_NO_ACCESSIBILITY
@@ -364,17 +367,18 @@ struct AcEl {
 AccidentalVal Measure::findAccidental(Note* note) const
 {
     Chord* chord = note->chord();
+    Staff* vStaff = chord->score()->staff(chord->vStaffIdx());
     AccidentalState tversatz;    // state of already set accidentals for this measure
-    tversatz.init(chord->staff()->keySigEvent(tick()));
+    tversatz.init(vStaff->keySigEvent(tick()));
 
     for (Segment* segment = first(); segment; segment = segment->next()) {
-        track_idx_t startTrack = chord->staffIdx() * VOICES;
+        track_idx_t startTrack = chord->vStaffIdx() * VOICES;
         if (segment->isKeySigType()) {
             KeySig* ks = toKeySig(segment->element(startTrack));
             if (!ks) {
                 continue;
             }
-            tversatz.init(chord->staff()->keySigEvent(segment->tick()));
+            tversatz.init(vStaff->keySigEvent(segment->tick()));
         } else if (segment->segmentType() == SegmentType::ChordRest) {
             track_idx_t endTrack   = startTrack + VOICES;
             for (track_idx_t track = startTrack; track < endTrack; ++track) {
@@ -538,8 +542,7 @@ bool Measure::showsMeasureNumberInAutoMode()
 
     // Measure numbers should not show on first measure unless specified with Sid::showMeasureNumberOne
     // except, when showing numbers on each measure, and first measure is after anacrusis - then show always
-    if (!prevMeasure || prevMeasure->sectionBreak()
-        || (prevMeasure->irregular() && prevMeasure->isFirstInSection() && interval != 1)) {
+    if (isFirstInSection() || (prevMeasure->irregular() && prevMeasure->isFirstInSection() && interval != 1)) {
         return style().styleB(Sid::showMeasureNumberOne);
     }
 
@@ -584,7 +587,7 @@ bool Measure::showsMeasureNumber()
 ///   Search for chord at position \a tick in \a track
 //---------------------------------------------------------
 
-Chord* Measure::findChord(Fraction t, track_idx_t track)
+Chord* Measure::findChord(Fraction t, track_idx_t track) const
 {
     t -= tick();
     for (Segment* seg = last(); seg; seg = seg->prev()) {
@@ -606,7 +609,7 @@ Chord* Measure::findChord(Fraction t, track_idx_t track)
 ///   Search for chord or rest at position \a tick at \a staff in \a voice.
 //---------------------------------------------------------
 
-ChordRest* Measure::findChordRest(Fraction t, track_idx_t track)
+ChordRest* Measure::findChordRest(Fraction t, track_idx_t track) const
 {
     t -= tick();
     for (const Segment& seg : m_segments) {
@@ -704,6 +707,40 @@ Segment* Measure::findFirstR(SegmentType st, const Fraction& t) const
     return 0;
 }
 
+Segment* Measure::getChordRestOrTimeTickSegment(const Fraction& f)
+{
+    Segment* seg = findSegment(SegmentType::ChordRest, f);
+    if (!seg) {
+        seg = findSegment(SegmentType::TimeTick, f);
+    }
+    if (!seg) {
+        if (f - tick() == ticks()) { // end of measure
+            seg = getSegment(SegmentType::TimeTick, f);
+        } else {
+            seg = getSegment(SegmentType::ChordRest, f);
+        }
+    }
+
+    return seg;
+}
+
+Segment* Measure::undoGetChordRestOrTimeTickSegment(const Fraction& f)
+{
+    Segment* seg = findSegment(SegmentType::ChordRest, f);
+    if (!seg) {
+        seg = findSegment(SegmentType::TimeTick, f);
+    }
+    if (!seg) {
+        if (f - tick() == ticks()) { // end of measure
+            seg = undoGetSegment(SegmentType::TimeTick, f);
+        } else {
+            seg = undoGetSegment(SegmentType::ChordRest, f);
+        }
+    }
+
+    return seg;
+}
+
 //---------------------------------------------------------
 //   getSegmentR
 ///   Get a segment of type st at relative tick position t.
@@ -745,7 +782,9 @@ void Measure::add(EngravingItem* e)
         while (s && s->rtick() == t) {
             if (!seg->isChordRestType() && (seg->segmentType() == s->segmentType())) {
                 LOGD("there is already a <%s> segment", seg->subTypeName());
-                return;
+                /// HACK: REMOVED to prevent crash in 4.4.3.
+                /// Adding multiple identical segments may cause problems, so we should resolve this properly
+                // return;
             }
             if (seg->goesBefore(s)) {
                 break;
@@ -905,7 +944,6 @@ void Measure::remove(EngravingItem* e)
     case ElementType::JUMP:
         setRepeatJump(false);
     // fall through
-
     case ElementType::MARKER:
     case ElementType::HBOX:
         if (!el().remove(e)) {
@@ -1037,7 +1075,7 @@ void Measure::removeStaves(staff_idx_t sStaff, staff_idx_t eStaff)
         }
     }
     for (EngravingItem* e : el()) {
-        if (e->track() == mu::nidx) {
+        if (e->track() == muse::nidx) {
             continue;
         }
         voice_idx_t voice = e->voice();
@@ -1056,7 +1094,7 @@ void Measure::removeStaves(staff_idx_t sStaff, staff_idx_t eStaff)
 void Measure::insertStaves(staff_idx_t sStaff, staff_idx_t eStaff)
 {
     for (EngravingItem* e : el()) {
-        if (e->track() == mu::nidx) {
+        if (e->track() == muse::nidx) {
             continue;
         }
         staff_idx_t staffIdx = e->staffIdx();
@@ -1102,7 +1140,7 @@ void Measure::cmdRemoveStaves(staff_idx_t sStaff, staff_idx_t eStaff)
     }
 
     for (EngravingItem* e : el()) {
-        if (e->track() == mu::nidx) {
+        if (e->track() == muse::nidx) {
             continue;
         }
 
@@ -1264,20 +1302,18 @@ void Measure::insertStaff(Staff* staff, staff_idx_t staffIdx)
 }
 
 //---------------------------------------------------------
-//   staffabbox
+//   staffPageBoundingRect
 //---------------------------------------------------------
 
-RectF Measure::staffabbox(staff_idx_t staffIdx) const
+RectF Measure::staffPageBoundingRect(staff_idx_t staffIdx) const
 {
     System* s = system();
     IF_ASSERT_FAILED(s) {
         return RectF();
     }
-    RectF sb(s->staff(staffIdx)->bbox());
-    RectF rrr(sb.translated(s->pagePos()));
-    RectF rr(abbox());
-    RectF r(rr.x(), rrr.y(), rr.width(), rrr.height());
-    return r;
+    RectF sysStaffPageBbox = s->staff(staffIdx)->bbox().translated(s->pagePos());
+    RectF measurePageBbox = pageBoundingRect();
+    return RectF(measurePageBbox.x(), sysStaffPageBbox.y(), measurePageBbox.width(), sysStaffPageBbox.height());
 }
 
 //---------------------------------------------------------
@@ -1300,29 +1336,31 @@ bool Measure::acceptDrop(EditData& data) const
         return false;
     }
 
-    RectF staffR = system()->staff(staffIdx)->bbox().translated(system()->canvasPos());
-    staffR.intersect(canvasBoundingRect());
+    RectF staffRect = system()->staff(staffIdx)->bbox().translated(system()->canvasPos());
+    staffRect.intersect(canvasBoundingRect());
 
+    //! NOTE: Should match NotationInteraction::dragMeasureAnchorElement
     switch (e->type()) {
     case ElementType::MEASURE_LIST:
+    case ElementType::MEASURE_NUMBER:
     case ElementType::JUMP:
     case ElementType::MARKER:
     case ElementType::LAYOUT_BREAK:
     case ElementType::STAFF_LIST:
+        // Always drop to all staves
         viewer->setDropRectangle(canvasBoundingRect());
         return true;
 
+    case ElementType::VOLTA:
+    case ElementType::GRADUAL_TEMPO_CHANGE:
     case ElementType::KEYSIG:
     case ElementType::TIMESIG:
+        // Drop to all staves or single staff depending on modifier
         if (data.modifiers & ControlModifier) {
-            viewer->setDropRectangle(staffR);
+            viewer->setDropRectangle(staffRect);
         } else {
             viewer->setDropRectangle(canvasBoundingRect());
         }
-        return true;
-
-    case ElementType::MEASURE_NUMBER:
-        viewer->setDropRectangle(canvasBoundingRect());
         return true;
 
     case ElementType::BRACKET:
@@ -1334,7 +1372,8 @@ bool Measure::acceptDrop(EditData& data) const
     case ElementType::SYMBOL:
     case ElementType::CLEF:
     case ElementType::STAFFTYPE_CHANGE:
-        viewer->setDropRectangle(staffR);
+        // Always drop to single staff
+        viewer->setDropRectangle(staffRect);
         return true;
 
     case ElementType::STRING_TUNINGS: {
@@ -1342,7 +1381,7 @@ bool Measure::acceptDrop(EditData& data) const
             return false;
         }
 
-        viewer->setDropRectangle(staffR);
+        viewer->setDropRectangle(staffRect);
         return true;
     }
 
@@ -1356,8 +1395,17 @@ bool Measure::acceptDrop(EditData& data) const
             viewer->setDropRectangle(canvasBoundingRect());
             return true;
         case ActionIconType::STAFF_TYPE_CHANGE:
-            viewer->setDropRectangle(staffR);
+            viewer->setDropRectangle(staffRect);
             return true;
+        case ActionIconType::SYSTEM_LOCK:
+        {
+            LayoutMode layoutMode = score()->layoutMode();
+            if (layoutMode == LayoutMode::PAGE || layoutMode == LayoutMode::SYSTEM) {
+                viewer->setDropRectangle(canvasBoundingRect().adjusted(-x(), 0.0, 0.0, 0.0));
+                return true;
+            }
+            return false;
+        }
         default:
             break;
         }
@@ -1379,11 +1427,11 @@ bool Measure::acceptDrop(EditData& data) const
 EngravingItem* Measure::drop(EditData& data)
 {
     EngravingItem* e = data.dropElement;
-    staff_idx_t staffIdx = mu::nidx;
+    staff_idx_t staffIdx = muse::nidx;
     Segment* seg = nullptr;
     score()->pos2measure(data.pos, &staffIdx, 0, &seg, 0);
 
-    if (staffIdx == mu::nidx) {
+    if (staffIdx == muse::nidx) {
         return nullptr;
     }
     Staff* staff = score()->staff(staffIdx);
@@ -1537,7 +1585,7 @@ EngravingItem* Measure::drop(EditData& data)
             break;
         }
         if (b) {
-            b->setTrack(mu::nidx);                   // these are system elements
+            b->setTrack(muse::nidx);                   // these are system elements
             b->setParent(measure);
             score()->undoAddElement(b);
         }
@@ -1554,7 +1602,7 @@ EngravingItem* Measure::drop(EditData& data)
             double gap = spatium() * 10;
             System* s = system();
             const staff_idx_t nextVisStaffIdx = s->nextVisibleStaff(staffIdx);
-            const bool systemEnd = (nextVisStaffIdx == mu::nidx);
+            const bool systemEnd = (nextVisStaffIdx == muse::nidx);
             if (systemEnd) {
                 System* ns = 0;
                 for (System* ts : score()->systems()) {
@@ -1694,6 +1742,9 @@ EngravingItem* Measure::drop(EditData& data)
             score()->undoAddElement(stc);
             break;
         }
+        case ActionIconType::SYSTEM_LOCK:
+            score()->makeIntoSystem(system()->first(), this);
+            break;
         default:
             break;
         }
@@ -1733,9 +1784,9 @@ void Measure::adjustToLen(Fraction nf, bool appendRestsIfNecessary)
     }
 
     score()->undoInsertTime(startTick, diff);
-    score()->undo(new InsertTime(score(), startTick, diff));
 
     for (Score* s : score()->scoreList()) {
+        s->undo(new InsertTime(s, startTick, diff));
         Measure* m = s->tick2measure(tick());
         s->undo(new ChangeMeasureLen(m, nf));
         if (nl > ol) {
@@ -1779,18 +1830,25 @@ void Measure::adjustToLen(Fraction nf, bool appendRestsIfNecessary)
                 rest->undoChangeProperty(Pid::DURATION_TYPE_WITH_DOTS, DurationTypeWithDots(DurationType::V_MEASURE));
             } else {          // if measure value did change, represent with rests actual measure value
                 // convert the measure duration in a list of values (no dots for rests)
-                std::vector<TDuration> durList = toDurationList(nf * stretch, false, 0);
+                std::vector<TDuration> durList = toRhythmicDurationList(nf * stretch,
+                                                                        /*isRest=*/ true,
+                                                                        /*rtickStart=*/ Fraction(0, 1),
+                                                                        /*nominal=*/ score()->sigmap()->timesig(tick().ticks()).nominal(),
+                                                                        /*measure=*/ this,
+                                                                        /*maxDots=*/ 0);
 
                 // set the existing rest to the first value of the duration list
-                rest->undoChangeProperty(Pid::DURATION, durList[0].fraction());
+                TDuration firstDur = durList[0];
+                rest->undoChangeProperty(Pid::DURATION, firstDur.isMeasure() ? ticks() : firstDur.fraction());
                 rest->undoChangeProperty(Pid::DURATION_TYPE_WITH_DOTS, durList[0].typeWithDots());
 
                 // add rests for any other duration list value
                 Fraction tickOffset = tick() + rest->actualTicks();
                 for (unsigned i = 1; i < durList.size(); i++) {
                     Rest* newRest = Factory::createRest(s->dummy()->segment());
-                    newRest->setDurationType(durList.at(i));
-                    newRest->setTicks(durList.at(i).fraction());
+                    TDuration dur = durList.at(i);
+                    newRest->setDurationType(dur);
+                    newRest->setTicks(dur.isMeasure() ? ticks() : dur.fraction());
                     newRest->setTrack(rest->track());
                     score()->undoAddCR(newRest, this, tickOffset);
                     tickOffset += newRest->actualTicks();
@@ -1918,8 +1976,18 @@ bool Measure::isFinalMeasureOfSection() const
 
 bool Measure::isAnacrusis() const
 {
-    TimeSigFrac timeSig = score()->sigmap()->timesig(tick().ticks()).nominal();
-    return irregular() && ticks() < Fraction::fromTicks(timeSig.ticksPerMeasure());
+    const MeasureBase* pm = prev();
+    ElementType pt = pm ? pm->type() : ElementType::INVALID;
+
+    if (irregular() || !pm
+        || pm->lineBreak() || pm->pageBreak() || pm->sectionBreak()
+        || pt == ElementType::VBOX || pt == ElementType::HBOX
+        || pt == ElementType::FBOX || pt == ElementType::TBOX) {
+        if (timesig() - ticks() > Fraction(0, 1)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 //---------------------------------------------------------
@@ -1934,14 +2002,28 @@ bool Measure::isFirstInSystem() const
     return system()->firstMeasure() == this;
 }
 
+bool Measure::isLastInSystem() const
+{
+    IF_ASSERT_FAILED(system()) {
+        return false;
+    }
+    return system()->lastMeasure() == this;
+}
+
 //---------------------------------------------------------
 //   isFirstInSection
 //---------------------------------------------------------
 
 bool Measure::isFirstInSection() const
 {
-    Measure* prevMeasure = this->prevMeasure();
-    return !prevMeasure || prevMeasure->sectionBreak();
+    for (MeasureBase* m = prev(); m; m = m->prev()) {
+        if (m->sectionBreak()) {
+            return true;
+        } else if (m->isMeasure()) {
+            return false;
+        }
+    }
+    return true;
 }
 
 //---------------------------------------------------------
@@ -2081,12 +2163,12 @@ void Measure::sortStaves(std::vector<staff_idx_t>& dst)
     }
 
     for (EngravingItem* e : el()) {
-        if (e->track() == mu::nidx || e->isTopSystemObject()) {
+        if (e->track() == muse::nidx || e->isTopSystemObject()) {
             continue;
         }
         voice_idx_t voice    = e->voice();
         staff_idx_t staffIdx = e->staffIdx();
-        staff_idx_t idx = mu::indexOf(dst, staffIdx);
+        staff_idx_t idx = muse::indexOf(dst, staffIdx);
         e->setTrack(idx * VOICES + voice);
     }
 }
@@ -2240,7 +2322,7 @@ bool Measure::isEmpty(staff_idx_t staffIdx) const
     }
     track_idx_t strack = 0;
     track_idx_t etrack = 0;
-    if (staffIdx == mu::nidx) {
+    if (staffIdx == muse::nidx) {
         strack = 0;
         etrack = score()->nstaves() * VOICES;
     } else {
@@ -2274,7 +2356,7 @@ bool Measure::isEmpty(staff_idx_t staffIdx) const
             }
         }
         for (EngravingItem* a : s->annotations()) {
-            if (a && staffIdx == mu::nidx) {
+            if (a && staffIdx == muse::nidx) {
                 return false;
             }
             if (!a || a->systemFlag() || !a->visible() || a->isFermata()) {
@@ -2306,7 +2388,7 @@ bool Measure::isCutawayClef(staff_idx_t staffIdx) const
     }
     track_idx_t strack;
     track_idx_t etrack;
-    if (staffIdx == mu::nidx) {
+    if (staffIdx == muse::nidx) {
         strack = 0;
         etrack = score()->nstaves() * VOICES;
     } else {
@@ -2987,6 +3069,38 @@ bool Measure::prevIsOneMeasureRepeat(staff_idx_t staffIdx) const
     return prevMeasure()->isOneMeasureRepeat(staffIdx);
 }
 
+ChordRest* Measure::lastChordRest(track_idx_t track) const
+{
+    for (const Segment* seg = last(); seg; seg = seg->prev()) {
+        if (!seg->isChordRestType()) {
+            continue;
+        }
+        ChordRest* cr = seg->cr(track);
+        if (!cr) {
+            continue;
+        }
+
+        return cr;
+    }
+    return nullptr;
+}
+
+ChordRest* Measure::firstChordRest(track_idx_t track) const
+{
+    for (const Segment* seg = first(); seg; seg = seg->next()) {
+        if (!seg->isChordRestType()) {
+            continue;
+        }
+        ChordRest* cr = seg->cr(track);
+        if (!cr) {
+            continue;
+        }
+
+        return cr;
+    }
+    return nullptr;
+}
+
 //-------------------------------------------------------------------
 //   userStretch
 //-------------------------------------------------------------------
@@ -3000,9 +3114,9 @@ double Measure::userStretch() const
 //   nextElementStaff
 //---------------------------------------------------------
 
-EngravingItem* Measure::nextElementStaff(staff_idx_t staff)
+EngravingItem* Measure::nextElementStaff(staff_idx_t staff, EngravingItem* fromItem)
 {
-    EngravingItem* e = score()->selection().element();
+    EngravingItem* e = fromItem ? fromItem : score()->selection().element();
     if (!e && !score()->selection().elements().empty()) {
         e = score()->selection().elements().front();
     }
@@ -3024,7 +3138,7 @@ EngravingItem* Measure::nextElementStaff(staff_idx_t staff)
     }
     Segment* seg = toSegment(e);
     Segment* nextSegment = seg ? seg->next() : first();
-    EngravingItem* next = seg->firstElementOfSegment(nextSegment, staff);
+    EngravingItem* next = nextSegment->firstElementOfSegment(staff);
     if (next) {
         return next;
     }
@@ -3036,9 +3150,9 @@ EngravingItem* Measure::nextElementStaff(staff_idx_t staff)
 //   prevElementStaff
 //---------------------------------------------------------
 
-EngravingItem* Measure::prevElementStaff(staff_idx_t staff)
+EngravingItem* Measure::prevElementStaff(staff_idx_t staff, EngravingItem* fromItem)
 {
-    EngravingItem* e = score()->selection().element();
+    EngravingItem* e = fromItem ? fromItem : score()->selection().element();
     if (!e && !score()->selection().elements().empty()) {
         e = score()->selection().elements().front();
     }
@@ -3060,10 +3174,85 @@ EngravingItem* Measure::prevElementStaff(staff_idx_t staff)
     if (prevM) {
         Segment* seg = prevM->last();
         if (seg) {
-            return seg->lastElement(staff);
+            return seg->lastElementForNavigation(staff);
         }
     }
     return score()->firstElement();
+}
+
+double Measure::firstNoteRestSegmentX(bool leading) const
+{
+    const System* sys = system();
+    double margin = style().styleMM(Sid::headerToLineStartDistance);
+    for (const Segment* seg = first(); seg; seg = seg->next()) {
+        if (seg->isChordRestType()) {
+            double noteRestPos = seg->measure()->pos().x() + seg->pos().x();
+            if (!leading) {
+                return noteRestPos;
+            }
+
+            // first CR found; back up to previous segment
+            seg = seg->prevActive();
+            while (seg && seg->allElementsInvisible()) {
+                seg = seg->prevActive();
+            }
+            if (seg) {
+                // find maximum width
+                double width = 0.0;
+                size_t n = score()->nstaves();
+                for (staff_idx_t i = 0; i < n; ++i) {
+                    if (!sys->staff(i)->show()) {
+                        continue;
+                    }
+                    EngravingItem* e = seg->element(i * VOICES);
+                    if (e && e->addToSkyline()) {
+                        width = std::max(width, e->pos().x() + e->ldata()->bbox().right());
+                    }
+                }
+                if (seg->isStartRepeatBarLineType()) {
+                    margin = style().styleMM(Sid::repeatBarlineDotSeparation);
+                }
+                return std::min(seg->measure()->pos().x() + seg->pos().x() + width + margin, noteRestPos);
+            } else if (!isFirstInSystem() && !isFirstInSection() && prevMeasure()) {
+                const BarLine* endBl = prevMeasure()->endBarLine();
+                const Segment* endBlSeg = endBl ? endBl->segment() : nullptr;
+
+                if (!endBlSeg) {
+                    return noteRestPos;
+                }
+
+                double width = 0.0;
+                if (endBl && endBl->addToSkyline()) {
+                    width = std::max(width, endBl->pos().x() + endBl->ldata()->bbox().right());
+                }
+
+                const double startBlMargin = style().styleMM(Sid::lineEndToBarlineDistance);
+
+                return std::min(endBlSeg->measure()->pos().x() + endBlSeg->pos().x() + width + startBlMargin, noteRestPos);
+            } else {
+                return noteRestPos;
+            }
+        }
+    }
+
+    return margin;
+}
+
+double Measure::endingXForOpenEndedLines() const
+{
+    const System* sys = system();
+    double margin = style().styleMM(Sid::lineEndToBarlineDistance);
+    double systemEndX = sys->ldata()->bbox().width();
+
+    Segment* lastSeg = last();
+    while (lastSeg && !lastSeg->isType(SegmentType::BarLineType)) {
+        lastSeg = lastSeg->prevEnabled();
+    }
+    if (!lastSeg) {
+        return systemEndX - margin;
+    }
+
+    return lastSeg->x() + x() - margin;
 }
 
 //---------------------------------------------------------
@@ -3081,30 +3270,40 @@ String Measure::accessibleInfo() const
 //       return minTick
 //---------------------------------------------------
 
-Fraction Measure::computeTicks()
+void Measure::computeTicks()
 {
-    Fraction minTick = ticks();
-    if (minTick <= Fraction(0, 1)) {
-        LOGD("=====minTick %d measure %p", minTick.ticks(), this);
+    for (Segment* segment = firstActive(); segment; segment = segment->nextActive()) {
+        Segment* nextSegment = segment->nextActive();
+        Fraction nextTick = nextSegment ? nextSegment->rtick() : ticks();
+        segment->setTicks(nextTick - segment->rtick());
     }
-    assert(minTick > Fraction(0, 1));
 
-    Segment* ns = first();
-    while (ns && !ns->enabled()) {
-        ns = ns->next();
-    }
-    while (ns) {
-        Segment* s = ns;
-        ns         = s->nextActive();
-        Fraction nticks = (ns ? ns->rtick() : ticks()) - s->rtick();
-        if (nticks.isNotZero()) {
-            if (nticks < minTick) {
-                minTick = nticks;
+    for (Segment* segment = first(SegmentType::TimeTick); segment; segment = segment->next(SegmentType::TimeTick)) {
+        segment->setTicks(Fraction(0, 1));
+        Segment* nextSegment = segment->next();
+        while (nextSegment) {
+            Fraction tickDiff = nextSegment->rtick() - segment->rtick();
+            if (!tickDiff.isZero()) {
+                segment->setTicks(tickDiff);
+                break;
             }
+            nextSegment = nextSegment->next();
         }
-        s->setTicks(nticks);
+        if (segment->ticks().isZero()) {
+            segment->setTicks(ticks() - segment->rtick());
+        }
     }
-    return minTick;
+}
+
+//---------------------------------------------------------
+//   anacrusisOffset
+//      determine if measure is anacrusis
+//      and return tick offset relative to measure end
+//---------------------------------------------------------
+
+Fraction Measure::anacrusisOffset() const
+{
+    return isAnacrusis() ? (timesig() - ticks()) : Fraction(0, 1);
 }
 
 //---------------------------------------------------------
@@ -3154,6 +3353,24 @@ bool Measure::endBarLineVisible() const
     return bl ? bl->visible() : true;
 }
 
+const BarLine* Measure::startBarLine() const
+{
+    // search barline segment:
+    Segment* s = first();
+    while (s && !(s->isStartRepeatBarLineType() || s->isBeginBarLineType())) {
+        s = s->next();
+    }
+    // search first element
+    if (s) {
+        for (const EngravingItem* e : s->elist()) {
+            if (e) {
+                return toBarLine(e);
+            }
+        }
+    }
+    return nullptr;
+}
+
 //---------------------------------------------------------
 //   triggerLayout
 //---------------------------------------------------------
@@ -3172,7 +3389,7 @@ void Measure::triggerLayout() const
 //     Useful for import filters.
 //---------------------------------------------------------
 
-void Measure::setEndBarLineType(BarLineType val, track_idx_t track, bool visible, mu::draw::Color color)
+void Measure::setEndBarLineType(BarLineType val, track_idx_t track, bool visible, Color color)
 {
     Segment* seg = undoGetSegment(SegmentType::EndBarLine, endTick());
     // get existing bar line for this staff, if any
@@ -3193,34 +3410,6 @@ void Measure::setEndBarLineType(BarLineType val, track_idx_t track, bool visible
     bl->setBarLineType(val);
     bl->setVisible(visible);
     bl->setColor(color.isValid() ? color : curColor());
-}
-
-//---------------------------------------------------------
-//   basicStretch
-//---------------------------------------------------------
-
-double Measure::basicStretch() const
-{
-    double stretch = userStretch() * style().styleD(Sid::measureSpacing);
-    if (stretch < 1.0) {
-        stretch = 1.0;
-    }
-    return stretch;
-}
-
-//---------------------------------------------------------
-//   basicWidth
-//---------------------------------------------------------
-
-double Measure::basicWidth() const
-{
-    Segment* ls = last();
-    double w = (ls->x() + ls->width()) * basicStretch();
-    double minMeasureWidth = style().styleMM(Sid::minMeasureWidth);
-    if (w < minMeasureWidth) {
-        w = minMeasureWidth;
-    }
-    return w;
 }
 
 //---------------------------------------------------------
@@ -3286,24 +3475,6 @@ bool Measure::canAddStringTunings(staff_idx_t staffIdx) const
     return !alreadyHasStringTunings;
 }
 
-void Measure::stretchToTargetWidth(double targetWidth)
-{
-    if (targetWidth < width()) {
-        return;
-    }
-    std::vector<Spring> springs;
-    for (Segment& s : m_segments) {
-        if (s.isChordRestType() && s.visible() && s.enabled() && !s.allElementsInvisible()) {
-            double springConst = 1 / s.stretch();
-            double width = s.width(LD_ACCESS::BAD) - s.widthOffset();
-            double preTension = width * springConst;
-            springs.emplace_back(springConst, width, preTension, &s);
-        }
-    }
-    Segment::stretchSegmentsToWidth(springs, targetWidth - width());
-    respaceSegments();
-}
-
 Fraction Measure::maxTicks() const
 {
     Segment* s = first();
@@ -3320,23 +3491,6 @@ Fraction Measure::maxTicks() const
     return maxticks;
 }
 
-Fraction Measure::shortestChordRest() const
-{
-    Fraction shortest = Fraction::max(); // Initializing at arbitrary high value
-    Fraction cur = Fraction::max();
-    Segment* s = first();
-    while (s) {
-        if (s->isChordRestType() && !s->allElementsInvisible()) {
-            cur = s->shortestChordRest();
-            if (cur < shortest) {
-                shortest = cur;
-            }
-        }
-        s = s->next();
-    }
-    return shortest;
-}
-
 void Measure::respaceSegments()
 {
     double x = 0.0;
@@ -3349,6 +3503,9 @@ void Measure::respaceSegments()
     }
     // Start respacing segments
     for (Segment& s : m_segments) {
+        if (s.isTimeTickType()) {
+            continue;
+        }
         s.mutldata()->setPosX(x);
         if (s.enabled() && s.visible() && !s.allElementsInvisible()) {
             x += s.width(LD_ACCESS::BAD);

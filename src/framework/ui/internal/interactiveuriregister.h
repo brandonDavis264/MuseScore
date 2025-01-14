@@ -19,12 +19,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef MU_UI_INTERACTIVEURIREGISTER_H
-#define MU_UI_INTERACTIVEURIREGISTER_H
+#ifndef MUSE_UI_INTERACTIVEURIREGISTER_H
+#define MUSE_UI_INTERACTIVEURIREGISTER_H
 
 #include "iinteractiveuriregister.h"
 
-namespace mu::ui {
+template<>
+struct std::hash<muse::Uri>
+{
+    std::size_t operator()(const muse::Uri& uri) const noexcept
+    {
+        return std::hash<std::string> {}(uri.toString());
+    }
+};
+
+namespace muse::ui {
 class InteractiveUriRegister : public IInteractiveUriRegister
 {
 public:
@@ -32,15 +41,8 @@ public:
     ContainerMeta meta(const Uri& uri) const override;
 
 private:
-    QHash<Uri, ContainerMeta> m_uriHash;
+    std::unordered_map<Uri, ContainerMeta> m_uriMap;
 };
 }
 
-namespace mu {
-inline uint qHash(const Uri& uri)
-{
-    return qHash(QString::fromStdString(uri.toString()));
-}
-}
-
-#endif // MU_UI_INTERACTIVEURIREGISTER_H
+#endif // MUSE_UI_INTERACTIVEURIREGISTER_H

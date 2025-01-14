@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -31,7 +31,7 @@ GeneralSettingsModel::GeneralSettingsModel(QObject* parent, IElementRepositorySe
 {
     createProperties();
 
-    setTitle(qtrc("inspector", "General"));
+    setTitle(muse::qtrc("inspector", "General"));
     setSectionType(InspectorSectionType::SECTION_GENERAL);
 
     m_playbackProxyModel = new PlaybackProxyModel(this, repository);
@@ -89,6 +89,7 @@ void GeneralSettingsModel::loadProperties()
     };
 
     loadProperties(propertyIdSet);
+    updateAreGeneralPropertiesAvailable();
 }
 
 void GeneralSettingsModel::resetProperties()
@@ -106,15 +107,15 @@ void GeneralSettingsModel::onNotationChanged(const PropertyIdSet& changedPropert
 
 void GeneralSettingsModel::loadProperties(const mu::engraving::PropertyIdSet& propertyIdSet)
 {
-    if (mu::contains(propertyIdSet, Pid::VISIBLE)) {
+    if (muse::contains(propertyIdSet, Pid::VISIBLE)) {
         loadPropertyItem(m_isVisible);
     }
 
-    if (mu::contains(propertyIdSet, Pid::AUTOPLACE)) {
+    if (muse::contains(propertyIdSet, Pid::AUTOPLACE)) {
         loadPropertyItem(m_isAutoPlaceAllowed);
     }
 
-    if (mu::contains(propertyIdSet, Pid::PLAY)) {
+    if (muse::contains(propertyIdSet, Pid::PLAY)) {
         bool isMaster = isMasterNotation();
         m_isPlayable->setIsVisible(isMaster);
 
@@ -123,7 +124,7 @@ void GeneralSettingsModel::loadProperties(const mu::engraving::PropertyIdSet& pr
         }
     }
 
-    if (mu::contains(propertyIdSet, Pid::SMALL)) {
+    if (muse::contains(propertyIdSet, Pid::SMALL)) {
         loadPropertyItem(m_isSmall, m_elementsForIsSmallProperty);
     }
 }
@@ -138,7 +139,11 @@ void GeneralSettingsModel::onCurrentNotationChanged()
 
 void GeneralSettingsModel::onVisibleChanged(bool visible)
 {
-    beginCommand();
+    const muse::TranslatableString actionName = visible
+                                                ? TranslatableString("undoableAction", "Make element(s) visible")
+                                                : TranslatableString("undoableAction", "Make element(s) invisible");
+
+    beginCommand(actionName);
 
     Score* score = currentNotation()->elements()->msScore();
 
@@ -178,4 +183,30 @@ QObject* GeneralSettingsModel::playbackProxyModel() const
 QObject* GeneralSettingsModel::appearanceSettingsModel() const
 {
     return m_appearanceSettingsModel;
+}
+
+bool GeneralSettingsModel::areGeneralPropertiesAvailable()
+{
+    return m_areGeneralPropertiesAvailable;
+}
+
+void GeneralSettingsModel::updateAreGeneralPropertiesAvailable()
+{
+    static const std::set<ElementType> TYPES_NO_PROPERTIES = {
+        ElementType::LAYOUT_BREAK,
+        ElementType::SYSTEM_LOCK_INDICATOR
+    };
+
+    bool available = true;
+    for (EngravingItem* item : m_elementList) {
+        if (item && muse::contains(TYPES_NO_PROPERTIES, item->type())) {
+            available = false;
+            break;
+        }
+    }
+
+    if (m_areGeneralPropertiesAvailable != available) {
+        m_areGeneralPropertiesAvailable = available;
+        emit areGeneralPropertiesAvailableChanged(m_areGeneralPropertiesAvailable);
+    }
 }

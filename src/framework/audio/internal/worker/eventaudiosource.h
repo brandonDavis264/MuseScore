@@ -20,26 +20,27 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_AUDIO_EVENTAUDIOSOURCE_H
-#define MU_AUDIO_EVENTAUDIOSOURCE_H
+#ifndef MUSE_AUDIO_EVENTAUDIOSOURCE_H
+#define MUSE_AUDIO_EVENTAUDIOSOURCE_H
 
-#include "async/asyncable.h"
-#include "modularity/ioc.h"
+#include "global/async/asyncable.h"
+#include "global/modularity/ioc.h"
 #include "mpe/events.h"
 
 #include "audiotypes.h"
 #include "isynthresolver.h"
 #include "track.h"
 
-namespace mu::audio {
-class EventAudioSource : public ITrackAudioInput, public async::Asyncable
+namespace muse::audio {
+class EventAudioSource : public ITrackAudioInput, public muse::Injectable, public async::Asyncable
 {
-    INJECT(synth::ISynthResolver, synthResolver)
+    Inject<synth::ISynthResolver> synthResolver = { this };
 
 public:
     using OnOffStreamEventsReceived = std::function<void (const TrackId)>;
 
-    explicit EventAudioSource(const TrackId trackId, const mpe::PlaybackData& playbackData, OnOffStreamEventsReceived onOffStreamReceived);
+    explicit EventAudioSource(const TrackId trackId, const mpe::PlaybackData& playbackData, OnOffStreamEventsReceived onOffStreamReceived,
+                              const muse::modularity::ContextPtr& iocCtx);
 
     ~EventAudioSource() override;
 
@@ -71,7 +72,7 @@ private:
 
     void setupSource();
     SynthCtx currentSynthCtx() const;
-    void restoreSynthCtx(SynthCtx&& ctx);
+    void restoreSynthCtx(const SynthCtx& ctx);
 
     TrackId m_trackId = -1;
     mpe::PlaybackData m_playbackData;
@@ -81,6 +82,8 @@ private:
 
     samples_t m_sampleRate = 0;
 };
+
+using EventAudioSourcePtr = std::shared_ptr<EventAudioSource>;
 }
 
 #endif // EVENTAUDIOSOURCE_H

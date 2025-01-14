@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2022 MuseScore BVBA and others
+ * Copyright (C) 2022 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -23,8 +23,8 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
-import MuseScore.Ui 1.0
-import MuseScore.UiComponents 1.0
+import Muse.Ui 1.0
+import Muse.UiComponents 1.0
 import MuseScore.NotationScene 1.0
 
 StyledPopupView {
@@ -34,9 +34,9 @@ StyledPopupView {
 
     property variant pedalState: harpModel.pedalState
 
-    property NavigationSection notationViewNavigationSection: null
-    property int navigationOrderStart: 0
-    property int navigationOrderEnd: isDiagramNavPanel.order
+    property alias notationViewNavigationSection: pedalSettingsNavPanel.section
+    property alias navigationOrderStart: pedalSettingsNavPanel.order
+    readonly property alias navigationOrderEnd: isDiagramNavPanel.order
 
     contentWidth: menuItems.width
     contentHeight: menuItems.height
@@ -45,16 +45,17 @@ StyledPopupView {
 
     showArrow: false
 
-    function updatePosition(elementRect) {
-        root.x = elementRect.x + (elementRect.width - contentWidth) / 2
+    signal elementRectChanged(var elementRect)
 
+    function updatePosition() {
         const marginFromElement = 12
+        var popupHeight = root.contentHeight + root.padding * 2
 
         // Above diagram
-        let yUp = Math.min(elementRect.y - contentHeight - marginFromElement,
-                           harpModel.staffPos.y - contentHeight - marginFromElement)
-        let yDown = Math.max(elementRect.y + elementRect.height + marginFromElement,
-                             harpModel.staffPos.y + harpModel.staffPos.height + marginFromElement)
+        let yUp = Math.min(-popupHeight - marginFromElement,
+                           (harpModel.staffPos.y - root.parent.y) - contentHeight - marginFromElement)
+        let yDown = Math.max(root.parent.height + marginFromElement,
+                             (harpModel.staffPos.y - root.parent.y) + harpModel.staffPos.height + marginFromElement)
 
         // not enough room on window to open above so open below stave
         let opensUp = true
@@ -74,7 +75,7 @@ StyledPopupView {
     }
 
     function checkPedalState(string, state) {
-        return harpModel.pedalState[string] == state
+        return harpModel.pedalState[string] === state
     }
 
     function updatePedalState(string, state) {
@@ -108,7 +109,7 @@ StyledPopupView {
             id: harpModel
 
             onItemRectChanged: function(rect) {
-                updatePosition(rect)
+                root.elementRectChanged(rect)
             }
         }
 
@@ -120,8 +121,6 @@ StyledPopupView {
             id: pedalSettingsNavPanel
             name: "PedalSettings"
             direction: NavigationPanel.Vertical
-            section: root.notationViewNavigationSection
-            order: root.navigationOrderStart
             accessible.name: qsTrc("notation", "Pedal settings buttons")
         }
 
@@ -226,7 +225,6 @@ StyledPopupView {
                 { buttonId: "AFlatButton",  stringId: 6, pos: 0, col: 8, btnGroup: aGroup },
                 { buttonId: "ANatButton",   stringId: 6, pos: 1, col: 8, btnGroup: aGroup },
                 { buttonId: "ASharpButton", stringId: 6, pos: 2, col: 8, btnGroup: aGroup },
-
             ]
 
             RoundedRadioButton {

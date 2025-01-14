@@ -37,13 +37,15 @@
 
 #include "log.h"
 
-#ifdef MUE_ENABLE_ACCESSIBILITY_TRACE
+#ifdef MUSE_MODULE_ACCESSIBILITY_TRACE
 #define MYLOG() LOGI()
 #else
 #define MYLOG() LOGN()
 #endif
 
-using namespace mu::accessibility;
+using namespace muse;
+using namespace muse::modularity;
+using namespace muse::accessibility;
 
 AccessibleObject* s_rootObject = nullptr;
 std::shared_ptr<IQAccessibleInterfaceRegister> accessibleInterfaceRegister = nullptr;
@@ -62,10 +64,15 @@ QAccessibleInterface* AccessibilityController::accessibleInterface(QObject*)
     return static_cast<QAccessibleInterface*>(new AccessibleItemInterface(s_rootObject));
 }
 
+void AccessibilityController::setAccesibilityEnabled(bool enabled)
+{
+    m_enabled = enabled;
+}
+
 static QAccessibleInterface* muAccessibleFactory(const QString& classname, QObject* object)
 {
     if (!accessibleInterfaceRegister) {
-        accessibleInterfaceRegister = mu::modularity::ioc()->resolve<IQAccessibleInterfaceRegister>("accessibility");
+        accessibleInterfaceRegister = globalIoc()->resolve<IQAccessibleInterfaceRegister>("accessibility");
     }
 
     auto interfaceGetter = accessibleInterfaceRegister->interfaceGetter(classname);
@@ -90,7 +97,13 @@ void AccessibilityController::init()
 
 void AccessibilityController::reg(IAccessible* item)
 {
+    if (!m_enabled) {
+        return;
+    }
+
     if (!m_inited) {
+        //! This needed to be done here, because we need to init controller (register factory) after UI is start loaded,
+        //! thus we register the factory after qt registers its factory so that our factory is called first
         m_inited = true;
         init();
     }
@@ -197,14 +210,25 @@ void AccessibilityController::propertyChanged(IAccessible* item, IAccessible::Pr
     case IAccessible::Property::Parent: etype = QAccessible::ParentChanged;
         break;
     case IAccessible::Property::Name: {
+        bool triggerRevoicing = false;
+
 #ifdef Q_OS_MAC
-        m_needToVoicePanelInfo = false;
-        etype = QAccessible::NameChanged;
-        break;
+        triggerRevoicing = false;
+#elif defined(Q_OS_WIN)
+        triggerRevoicing = true;
 #else
-        triggerRevoicingOfChangedName(item);
-        return;
+        //! if it is one character than we can send NameChange and don't use hack with revoicing
+        triggerRevoicing = item->accessibleName().size() > 1;
 #endif
+
+        if (triggerRevoicing) {
+            triggerRevoicingOfChangedName(item);
+            return;
+        } else {
+            m_needToVoicePanelInfo = false;
+            etype = QAccessible::NameChanged;
+            break;
+        }
     }
     case IAccessible::Property::Description: etype = QAccessible::DescriptionChanged;
         break;
@@ -295,7 +319,7 @@ void AccessibilityController::stateChanged(IAccessible* aitem, State state, bool
 
 void AccessibilityController::sendEvent(QAccessibleEvent* ev)
 {
-#ifdef MUE_ENABLE_ACCESSIBILITY_TRACE
+#ifdef MUSE_MODULE_ACCESSIBILITY_TRACE
     AccessibleObject* obj = qobject_cast<AccessibleObject*>(ev->object());
     MYLOG() << "object: " << obj->item()->accessibleName() << ", event: " << int(ev->type());
 #endif
@@ -335,7 +359,6 @@ void AccessibilityController::savePanelAccessibleName(const IAccessible* oldItem
     m_needToVoicePanelInfo = oldItemPanelName != newItemPanelName;
 }
 
-#ifndef Q_OS_MAC
 void AccessibilityController::triggerRevoicingOfChangedName(IAccessible* item)
 {
     if (!configuration()->active()) {
@@ -376,8 +399,6 @@ void AccessibilityController::triggerRevoicingOfChangedName(IAccessible* item)
         m_ignorePanelChangingVoice = false;
     });
 }
-
-#endif
 
 const IAccessible* AccessibilityController::panel(const IAccessible* item) const
 {
@@ -424,7 +445,7 @@ IAccessible* AccessibilityController::findSiblingItem(const IAccessible* item, c
     return nullptr;
 }
 
-mu::async::Channel<QAccessibleEvent*> AccessibilityController::eventSent() const
+async::Channel<QAccessibleEvent*> AccessibilityController::eventSent() const
 {
     return m_eventSent;
 }
@@ -564,6 +585,11 @@ QWindow* AccessibilityController::accessibleWindow() const
     return mainWindow()->qWindow();
 }
 
+muse::modularity::ContextPtr AccessibilityController::iocContext() const
+{
+    return Injectable::iocContext();
+}
+
 IAccessible::Role AccessibilityController::accessibleRole() const
 {
     return IAccessible::Role::Application;
@@ -667,13 +693,13 @@ int AccessibilityController::accessibleRowIndex() const
     return 0;
 }
 
-mu::async::Channel<IAccessible::Property, mu::Val> AccessibilityController::accessiblePropertyChanged() const
+async::Channel<IAccessible::Property, Val> AccessibilityController::accessiblePropertyChanged() const
 {
     static async::Channel<IAccessible::Property, Val> ch;
     return ch;
 }
 
-mu::async::Channel<IAccessible::State, bool> AccessibilityController::accessibleStateChanged() const
+async::Channel<IAccessible::State, bool> AccessibilityController::accessibleStateChanged() const
 {
     static async::Channel<IAccessible::State, bool> ch;
     return ch;

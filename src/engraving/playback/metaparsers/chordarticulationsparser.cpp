@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -32,8 +32,8 @@
 #include "dom/tremolotwochord.h"
 
 #include "playback/utils/arrangementutils.h"
-#include "playback/filters/chordfilter.h"
 #include "playback/filters/spannerfilter.h"
+
 #include "internal/spannersmetaparser.h"
 #include "internal/symbolsmetaparser.h"
 #include "internal/annotationsmetaparser.h"
@@ -43,7 +43,8 @@
 #include "internal/chordlinemetaparser.h"
 
 using namespace mu::engraving;
-using namespace mu::mpe;
+using namespace muse;
+using namespace muse::mpe;
 
 void ChordArticulationsParser::buildChordArticulationMap(const Chord* chord, const RenderingContext& ctx, mpe::ArticulationMap& result)
 {
@@ -84,20 +85,12 @@ void ChordArticulationsParser::doParse(const EngravingItem* item, const Renderin
     parseArpeggio(chord, ctx, result);
     parseGraceNotes(chord, ctx, result);
     parseChordLine(chord, ctx, result);
-
     parseArticulationSymbols(chord, ctx, result);
-
-    if (ctx.profile->contains(ArticulationType::Multibend)) {
-        parseBends(chord, ctx, result);
-    }
 }
 
 void ChordArticulationsParser::parseSpanners(const Chord* chord, const RenderingContext& ctx, mpe::ArticulationMap& result)
 {
-    const Score* score = chord->score();
-
-    const SpannerMap& spannerMap = score->spannerMap();
-
+    const SpannerMap& spannerMap = ctx.score->spannerMap();
     if (spannerMap.empty()) {
         return;
     }
@@ -107,7 +100,7 @@ void ChordArticulationsParser::parseSpanners(const Chord* chord, const Rendering
                                                 /*excludeCollisions*/ true);
 
     for (const auto& interval : intervals) {
-        Spanner* spanner = interval.value;
+        const Spanner* spanner = interval.value;
 
         if (!SpannersMetaParser::isAbleToParse(spanner)) {
             continue;
@@ -128,7 +121,7 @@ void ChordArticulationsParser::parseSpanners(const Chord* chord, const Rendering
         }
 
         RenderingContext spannerContext = ctx;
-        spannerContext.nominalTimestamp = timestampFromTicks(score, interval.start + ctx.positionTickOffset);
+        spannerContext.nominalTimestamp = timestampFromTicks(ctx.score, interval.start + ctx.positionTickOffset);
         spannerContext.nominalPositionStartTick = interval.start;
         spannerContext.nominalDurationTicks = SpannerFilter::spannerActualDurationTicks(spanner, interval.stop - interval.start);
         spannerContext.nominalPositionEndTick = spannerContext.nominalPositionStartTick + spannerContext.nominalDurationTicks;
@@ -137,30 +130,11 @@ void ChordArticulationsParser::parseSpanners(const Chord* chord, const Rendering
     }
 }
 
-void ChordArticulationsParser::parseBends(const Chord* chord, const RenderingContext& ctx, mpe::ArticulationMap& result)
-{
-    for (const Note* note : chord->notes()) {
-        for (const Spanner* spanner : note->spannerBack()) {
-            if (spanner->isGuitarBend()) {
-                SpannersMetaParser::parse(spanner, ctx, result);
-            }
-        }
-
-        for (const Spanner* spanner : note->spannerFor()) {
-            if (spanner->isGuitarBend()) {
-                SpannersMetaParser::parse(spanner, ctx, result);
-            }
-        }
-    }
-}
-
 void ChordArticulationsParser::parseArticulationSymbols(const Chord* chord, const RenderingContext& ctx, mpe::ArticulationMap& result)
 {
     for (const Articulation* articulation : chord->articulations()) {
         SymbolsMetaParser::parse(articulation, ctx, result);
     }
-
-    ChordFilter::validateArticulations(chord, result);
 }
 
 void ChordArticulationsParser::parseAnnotations(const Chord* chord, const RenderingContext& ctx, mpe::ArticulationMap& result)
@@ -196,7 +170,6 @@ void ChordArticulationsParser::parseTremolo(const Chord* chord, const RenderingC
 void ChordArticulationsParser::parseArpeggio(const Chord* chord, const RenderingContext& ctx, mpe::ArticulationMap& result)
 {
     const Arpeggio* arpeggio = chord->arpeggio();
-
     if (!arpeggio) {
         return;
     }
@@ -218,7 +191,6 @@ void ChordArticulationsParser::parseGraceNotes(const Chord* chord, const Renderi
 void ChordArticulationsParser::parseChordLine(const Chord* chord, const RenderingContext& ctx, mpe::ArticulationMap& result)
 {
     const ChordLine* chordLine = chord->chordLine();
-
     if (!chordLine || !chordLine->playChordLine()) {
         return;
     }

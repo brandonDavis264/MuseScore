@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -35,7 +35,7 @@
 #include "log.h"
 
 using namespace mu;
-using namespace mu::draw;
+using namespace muse::draw;
 using namespace mu::engraving;
 
 namespace mu::engraving {
@@ -61,7 +61,7 @@ static const ElementStyle stretchedBendStyle {
 //   forward declarations of static functions
 //---------------------------------------------------------
 
-static RectF textBoundingRect(const mu::draw::FontMetrics& fm, const PointF& pos, const String& text);
+static RectF textBoundingRect(const FontMetrics& fm, const PointF& pos, const String& text);
 static int bendTone(int notePitch);
 static std::pair<Note*, Note*> getLowestAndHighestNote(const std::vector<Note*>& notes);
 
@@ -85,9 +85,9 @@ StretchedBend::StretchedBend(Chord* parent)
 //   font
 //---------------------------------------------------------
 
-mu::draw::Font StretchedBend::font(double sp) const
+Font StretchedBend::font(double sp) const
 {
-    mu::draw::Font f(_fontFace, Font::Type::Unknown);
+    Font f(_fontFace, Font::Type::Unknown);
     f.setBold(_fontStyle & FontStyle::Bold);
     f.setItalic(_fontStyle & FontStyle::Italic);
     f.setUnderline(_fontStyle & FontStyle::Underline);
@@ -101,7 +101,7 @@ mu::draw::Font StretchedBend::font(double sp) const
 
 int StretchedBend::textFlags()
 {
-    return draw::AlignHCenter | draw::AlignBottom | draw::TextDontClip;
+    return muse::draw::AlignHCenter | muse::draw::AlignBottom | muse::draw::TextDontClip;
 }
 
 String StretchedBend::toneToLabel(int tone)
@@ -146,7 +146,7 @@ bool StretchedBend::setProperty(Pid id, const PropertyValue& v)
         _fontStyle = FontStyle(v.toInt());
         break;
     case Pid::LINE_WIDTH:
-        _lineWidth = v.value<Millimetre>();
+        _lineWidth = v.value<Spatium>();
         break;
     default:
         return EngravingItem::setProperty(id, v);
@@ -462,6 +462,10 @@ void StretchedBend::fillStretchedSegments(bool untilNextSegment)
         }
     }
 
+    if (!untilNextSegment) {
+        return;
+    }
+
     /// adjust coordinate to bend of tied back note
     StretchedBend* backTiedBend = backTiedStretchedBend();
     if (backTiedBend) {
@@ -474,6 +478,11 @@ void StretchedBend::fillStretchedSegments(bool untilNextSegment)
             for (EngravingItem* item : tiedBackChord->el()) {
                 if (item->isStretchedBend()) {
                     StretchedBend* bendToAdjust = toStretchedBend(item);
+                    IF_ASSERT_FAILED(!bendToAdjust->m_bendSegmentsStretched.empty()) {
+                        LOGE() << "wrong bend data while adjusting coordinates";
+                        return;
+                    }
+
                     PointF& tiedBendEndPoint = bendToAdjust->m_bendSegmentsStretched.back().dest;
                     tiedBendEndPoint.setX(newX);
                 }
@@ -482,7 +491,7 @@ void StretchedBend::fillStretchedSegments(bool untilNextSegment)
     }
 }
 
-mu::RectF StretchedBend::calculateBoundingRect() const
+RectF StretchedBend::calculateBoundingRect() const
 {
     RectF bRect;
     double sp = spatium();
@@ -499,7 +508,7 @@ mu::RectF StretchedBend::calculateBoundingRect() const
             bRect.unite(RectF(src.x(), src.y(), dest.x() - src.x(), dest.y() - src.y()));
             bRect.unite(m_arrows.up.translated(dest).boundingRect());
 
-            mu::draw::FontMetrics fm(font(sp));
+            FontMetrics fm(font(sp));
             bRect.unite(textBoundingRect(fm, dest, text));
             /// TODO: remove after fixing bRect
             bRect.setHeight(bRect.height() + sp);
@@ -520,7 +529,7 @@ mu::RectF StretchedBend::calculateBoundingRect() const
             bRect.unite(arrowPath.translated(dest).boundingRect());
 
             if (bendUp && !isTextDrawn) {
-                mu::draw::FontMetrics fm(font(sp));
+                FontMetrics fm(font(sp));
                 bRect.unite(textBoundingRect(fm, dest - PointF(sp, 0), text));
                 /// TODO: remove after fixing bRect
                 bRect.setHeight(bRect.height() + sp);
@@ -542,7 +551,7 @@ mu::RectF StretchedBend::calculateBoundingRect() const
         }
     }
 
-    double lw = lineWidth();
+    double lw = absoluteFromSpatium(lineWidth());
     bRect.adjust(-lw, -lw, lw, lw);
 
     return bRect;
@@ -572,7 +581,7 @@ void StretchedBend::fillArrows(double width)
 //   textBoundingRect
 //---------------------------------------------------------
 
-RectF textBoundingRect(const mu::draw::FontMetrics& fm, const PointF& pos, const String& text)
+RectF textBoundingRect(const FontMetrics& fm, const PointF& pos, const String& text)
 {
     return fm.boundingRect(RectF(pos.x(), pos.y(), 0, 0), StretchedBend::textFlags(), text);
 }

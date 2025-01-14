@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -50,6 +50,7 @@
 #include "notation/lines/vibratosettingsmodel.h"
 #include "notation/lines/slurandtiesettingsmodel.h"
 #include "notation/lines/gradualtempochangesettingsmodel.h"
+#include "notation/lines/notelinesettingsmodel.h"
 #include "notation/stafftype/stafftypesettingsmodel.h"
 #include "notation/frames/textframesettingsmodel.h"
 #include "notation/frames/verticalframesettingsmodel.h"
@@ -74,6 +75,7 @@
 #include "notation/dynamics/dynamicsettingsmodel.h"
 #include "notation/expressions/expressionsettingsmodel.h"
 #include "notation/stringtunings/stringtuningssettingsmodel.h"
+#include "notation/symbols/symbolsettingsmodel.h"
 
 using namespace mu::inspector;
 
@@ -139,6 +141,8 @@ AbstractInspectorModel* InspectorModelCreator::newInspectorModel(InspectorModelT
         return new LetRingSettingsModel(parent, repository);
     case InspectorModelType::TYPE_TEXT_LINE:
         return new TextLineSettingsModel(parent, repository);
+    case mu::inspector::InspectorModelType::TYPE_NOTELINE:
+        return new NoteLineSettingsModel(parent, repository);
     case InspectorModelType::TYPE_GRADUAL_TEMPO_CHANGE:
         return new GradualTempoChangeSettingsModel(parent, repository);
     case InspectorModelType::TYPE_VIBRATO:
@@ -147,6 +151,10 @@ AbstractInspectorModel* InspectorModelCreator::newInspectorModel(InspectorModelT
         return new SlurAndTieSettingsModel(parent, repository, SlurAndTieSettingsModel::Slur);
     case InspectorModelType::TYPE_TIE:
         return new SlurAndTieSettingsModel(parent, repository, SlurAndTieSettingsModel::Tie);
+    case InspectorModelType::TYPE_LAISSEZ_VIB:
+        return new SlurAndTieSettingsModel(parent, repository, SlurAndTieSettingsModel::LaissezVib);
+    case InspectorModelType::TYPE_PARTIAL_TIE:
+        return new SlurAndTieSettingsModel(parent, repository, SlurAndTieSettingsModel::PartialTie);
     case InspectorModelType::TYPE_STAFF_TYPE_CHANGES:
         return new StaffTypeSettingsModel(parent, repository);
     case InspectorModelType::TYPE_TEXT_FRAME:
@@ -195,6 +203,8 @@ AbstractInspectorModel* InspectorModelCreator::newInspectorModel(InspectorModelT
         return new ExpressionSettingsModel(parent, repository);
     case InspectorModelType::TYPE_STRING_TUNINGS:
         return new StringTuningsSettingsModel(parent, repository);
+    case InspectorModelType::TYPE_SYMBOL:
+        return new SymbolSettingsModel(parent, repository);
     case InspectorModelType::TYPE_BREATH:
     case InspectorModelType::TYPE_ARPEGGIO:
     case InspectorModelType::TYPE_UNDEFINED:

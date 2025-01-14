@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<museScore version="4.20">
+<museScore version="4.50">
   <Score>
     <Division>480</Division>
     <Style>
@@ -11,6 +11,7 @@
       <pageEvenBottomMargin>0.590551</pageEvenBottomMargin>
       <pageOddTopMargin>0.590551</pageOddTopMargin>
       <pageOddBottomMargin>0.590551</pageOddBottomMargin>
+      <romanNumeralFontFace>Edwin</romanNumeralFontFace>
       <nashvilleNumberFontSize>10</nashvilleNumberFontSize>
       <hideEmptyStaves>1</hideEmptyStaves>
       <dontHideStavesInFirstSystem>0</dontHideStavesInFirstSystem>
@@ -33,7 +34,9 @@
       <bendFontSize>10</bendFontSize>
       <headerFontSize>10</headerFontSize>
       <footerFontSize>10</footerFontSize>
-      <Spatium>1.75</Spatium>
+      <copyrightFontSize>10</copyrightFontSize>
+      <pageNumberFontSize>10</pageNumberFontSize>
+      <spatium>1.75</spatium>
       </Style>
     <showInvisible>1</showInvisible>
     <showUnprintable>1</showUnprintable>
@@ -123,7 +126,7 @@
       </Part>
     <Staff id="1">
       <VBox>
-        <height>12.5</height>
+        <height>10</height>
         <Text>
           <style>title</style>
           <offset x="0" y="-0.07525"/>
@@ -136,8 +139,6 @@
           </Text>
         <Text>
           <style>composer</style>
-          <align>right,top</align>
-          <offset x="0" y="17.4247"/>
           <text>Henry Ives</text>
           </Text>
         </VBox>
@@ -744,7 +745,7 @@
           <Beam>
             <StemDirection>down</StemDirection>
             <l1>80</l1>
-            <l2>76</l2>
+            <l2>74</l2>
             </Beam>
           <Chord>
             <BeamMode>begin</BeamMode>
@@ -809,7 +810,7 @@
         <voice>
           <Beam>
             <StemDirection>down</StemDirection>
-            <l1>32</l1>
+            <l1>30</l1>
             <l2>34</l2>
             </Beam>
           <Chord>
@@ -1154,7 +1155,7 @@
         <voice>
           <Beam>
             <StemDirection>down</StemDirection>
-            <l1>38</l1>
+            <l1>40</l1>
             <l2>42</l2>
             </Beam>
           <Chord>
@@ -1227,7 +1228,7 @@
         <voice>
           <Beam>
             <StemDirection>up</StemDirection>
-            <l1>-6</l1>
+            <l1>-8</l1>
             <l2>-12</l2>
             </Beam>
           <Chord>
@@ -1658,7 +1659,7 @@
         <voice>
           <Beam>
             <StemDirection>up</StemDirection>
-            <l1>-14</l1>
+            <l1>-16</l1>
             <l2>-20</l2>
             </Beam>
           <Chord>

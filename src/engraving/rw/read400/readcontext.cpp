@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -36,8 +36,13 @@ using namespace mu;
 using namespace mu::engraving;
 using namespace mu::engraving::read400;
 
+ReadContext::ReadContext(const muse::modularity::ContextPtr& iocCtx)
+    : muse::Injectable(iocCtx)
+{
+}
+
 ReadContext::ReadContext(Score* score)
-    : m_score(score)
+    : muse::Injectable(score ? score->iocContext() : muse::modularity::globalCtx()), m_score(score)
 {
 }
 
@@ -137,6 +142,11 @@ double ReadContext::spatium() const
     return m_score->style().spatium();
 }
 
+void ReadContext::setSpatium(double v)
+{
+    m_score->style().set(Sid::spatium, v);
+}
+
 compat::DummyElement* ReadContext::dummy() const
 {
     return m_score->dummy();
@@ -159,7 +169,7 @@ void ReadContext::addSpanner(Spanner* s)
 
 bool ReadContext::undoStackActive() const
 {
-    return m_score->undoStack()->active();
+    return m_score->undoStack()->hasActiveCommand();
 }
 
 bool ReadContext::isSameScore(const EngravingObject* obj) const
@@ -403,7 +413,7 @@ void ReadContext::removeSpanner(const Spanner* s)
 {
     for (auto i : _spanner) {
         if (i.second == s) {
-            mu::remove(_spanner, i);
+            muse::remove(_spanner, i);
             return;
         }
     }
@@ -550,7 +560,7 @@ void ReadContext::clearOrphanedConnectors()
 
     for (auto& it : m_staffLinkedElements) {
         std::vector<std::pair<LinkedObjects*, Location> >& vector = it.second;
-        mu::remove_if(vector, [&deletedLinks](std::pair<LinkedObjects*, Location>& pair){
+        muse::remove_if(vector, [&deletedLinks](std::pair<LinkedObjects*, Location>& pair){
             return deletedLinks.count(pair.first);
         });
     }

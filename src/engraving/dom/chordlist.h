@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -26,12 +26,12 @@
 #include <map>
 
 #include "global/allocator.h"
-#include "types/string.h"
-#include "containers.h"
-#include "io/iodevice.h"
+#include "global/types/string.h"
+#include "global/containers.h"
+#include "global/io/iodevice.h"
 
 #include "modularity/ioc.h"
-#include "iengravingconfiguration.h"
+#include "../iengravingconfiguration.h"
 
 namespace mu::engraving::compat {
 class ReadChordListHook;
@@ -219,11 +219,11 @@ struct ChordDescription {
                              // that will by recognized from keyboard entry (without root/base)
     std::list<ParsedChord> parsedChords;
     // parsed forms of primary name (optionally also include parsed forms of other names)
-    String xmlKind;          // MusicXml: kind
-    String xmlText;          // MusicXml: kind text=
-    String xmlSymbols;       // MusicXml: kind use-symbols=
-    String xmlParens;        // MusicXml: kind parentheses-degrees=
-    StringList xmlDegrees;   // MusicXml: list of degrees (if any)
+    String xmlKind;          // MusicXML: kind
+    String xmlText;          // MusicXML: kind text=
+    String xmlSymbols;       // MusicXML: kind use-symbols=
+    String xmlParens;        // MusicXML: kind parentheses-degrees=
+    StringList xmlDegrees;   // MusicXML: list of degrees (if any)
     HChord chord;             // C based chord
     std::list<RenderAction> renderList;
     bool generated = false;
@@ -273,8 +273,6 @@ class ChordList : public std::map<int, ChordDescription>
 {
     OBJECT_ALLOCATOR(engraving, ChordList)
 
-    INJECT(IEngravingConfiguration, configuration)
-
 public:
     std::list<ChordFont> fonts;
     std::list<RenderAction> renderListRoot;
@@ -289,26 +287,25 @@ public:
     void configureAutoAdjust(double emag = 1.0, double eadjust = 0.0, double mmag = 1.0, double madjust = 0.0);
     double position(const StringList& names, ChordTokenClass ctc) const;
 
-    bool read(const String&);
-    bool read(io::IODevice* device);
+    void checkChordList(const muse::io::path_t& appDataPath, const MStyle& style);
+    bool read(const muse::io::path_t& appDataPath, const String& name);
+    bool read(muse::io::IODevice* device);
     bool write(const String&) const;
-    bool write(io::IODevice* device) const;
+    bool write(muse::io::IODevice* device) const;
     bool loaded() const;
     void unload();
 
     const ChordDescription* description(int id) const;
-    ChordSymbol symbol(const String& s) const { return mu::value(m_symbols, s); }
+    ChordSymbol symbol(const String& s) const { return muse::value(m_symbols, s); }
 
     void setCustomChordList(bool t) { m_customChordList = t; }
     bool customChordList() const { return m_customChordList; }
-
-    void checkChordList(const MStyle& style);
 
 private:
 
     friend class compat::ReadChordListHook;
 
-    void read(XmlReader&);
+    void read(XmlReader& xml, int mscVersion);
     void write(XmlWriter& xml) const;
 
     std::map<String, ChordSymbol> m_symbols;

@@ -23,12 +23,10 @@
 
 #include <QGuiApplication>
 
-static constexpr int INTERVAL = 500;
+using namespace muse::ui;
 
-using namespace mu::ui;
-
-QmlToolTip::QmlToolTip(QObject* parent)
-    : QObject(parent)
+QmlToolTip::QmlToolTip(QObject* parent, const modularity::ContextPtr& iocCtx)
+    : QObject(parent), Injectable(iocCtx)
 {
     connect(&m_openTimer, &QTimer::timeout, this, &QmlToolTip::doShow);
 
@@ -55,10 +53,12 @@ void QmlToolTip::show(QQuickItem* item, const QString& title, const QString& des
     m_item = item;
     m_shouldBeClosed = false;
 
-    if (toolTipNotOpened || openTimerStarted) {
-        connect(m_item, &QObject::destroyed, this, &QmlToolTip::doHide);
+    if (m_item) {
+        connect(m_item, &QObject::destroyed, this, &QmlToolTip::onItemDestruction);
+    }
 
-        m_openTimer.start(INTERVAL);
+    if (toolTipNotOpened || openTimerStarted) {
+        m_openTimer.start(uiConfiguration()->tooltipDelay());
     } else {
         doShow();
     }
@@ -77,7 +77,7 @@ void QmlToolTip::hide(QQuickItem* item, bool force)
         return;
     }
 
-    m_closeTimer.start(INTERVAL);
+    m_closeTimer.start(uiConfiguration()->tooltipDelay());
 }
 
 void QmlToolTip::init()
@@ -98,12 +98,17 @@ void QmlToolTip::doShow()
     }
 
     if (m_shouldBeClosed) {
-        m_item = nullptr;
-        m_shouldBeClosed = false;
+        clear();
         return;
     }
 
     emit showToolTip(m_item, m_title, m_description, m_shortcut);
+}
+
+void QmlToolTip::onItemDestruction()
+{
+    m_shouldBeClosed = true;
+    doHide();
 }
 
 void QmlToolTip::doHide()
@@ -112,17 +117,10 @@ void QmlToolTip::doHide()
         return;
     }
 
-    if (m_item) {
-        disconnect(m_item, &QObject::destroyed, this, &QmlToolTip::doHide);
-    }
-
     m_openTimer.stop();
     m_closeTimer.stop();
 
-    m_item = nullptr;
-    m_title = QString();
-    m_description = QString();
-    m_shortcut = QString();
+    clear();
 
     emit hideToolTip();
 }
@@ -135,4 +133,18 @@ bool QmlToolTip::eventFilter(QObject*, QEvent* event)
     }
 
     return false;
+}
+
+void QmlToolTip::clear()
+{
+    if (m_item) {
+        disconnect(m_item, &QObject::destroyed, this, &QmlToolTip::onItemDestruction);
+    }
+
+    m_item = nullptr;
+    m_title = QString();
+    m_description = QString();
+    m_shortcut = QString();
+
+    m_shouldBeClosed = false;
 }

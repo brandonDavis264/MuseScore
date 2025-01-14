@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -23,8 +23,8 @@ import QtQuick 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Controls 2.15
 
-import MuseScore.Ui 1.0
-import MuseScore.UiComponents 1.0
+import Muse.Ui 1.0
+import Muse.UiComponents 1.0
 import MuseScore.NotationScene 1.0
 import MuseScore.Braille 1.0
 
@@ -44,7 +44,7 @@ FocusScope {
 
     property alias defaultNavigationControl: fakeNavCtrl
 
-    property NavigationPanel navigationPanel: tabPanel.navigationPanel // first panel
+    readonly property alias navigationSection: navSec
 
     NavigationSection {
         id: navSec
@@ -88,9 +88,15 @@ FocusScope {
 
             orientation: notationNavigator.orientation === Qt.Horizontal ? Qt.Vertical : Qt.Horizontal
 
-            NotationScrollAndZoomArea {
+            StyledViewScrollAndZoomArea {
                 SplitView.fillWidth: true
                 SplitView.fillHeight: true
+
+                horizontalScrollbarSize: view.horizontalScrollbarSize
+                startHorizontalScrollPosition: view.startHorizontalScrollPosition
+
+                verticalScrollbarSize: view.verticalScrollbarSize
+                startVerticalScrollPosition: view.startVerticalScrollPosition
 
                 NotationPaintView {
                     id: notationView
@@ -116,7 +122,7 @@ FocusScope {
                             if (fakeNavCtrl.active) {
                                 notationView.forceFocusIn()
 
-                                if (navigationPanel.highlight) {
+                                if (notationView.navigationPanel.highlight) {
                                     notationView.selectOnNavigationActive()
                                 }
                             } else {
@@ -128,6 +134,14 @@ FocusScope {
                     NavigationFocusBorder {
                         navigationCtrl: fakeNavCtrl
                         drawOutsideParent: false
+                    }
+
+                    Rectangle {
+                        id: playbackCursor
+
+                        Component.onCompleted: {
+                            notationView.setPlaybackCursorItem(playbackCursor)
+                        }
                     }
 
                     onActiveFocusRequested: {
@@ -176,6 +190,18 @@ FocusScope {
                         onClosed: paintView.onElementPopupIsOpenChanged(false)
                     }
                 }
+
+                onPinchToZoom: function(scale, pos) {
+                    view.pinchToZoom(scale, pos)
+                }
+
+                onScrollHorizontal: function(newPos) {
+                    view.scrollHorizontal(newPos)
+                }
+
+                onScrollVertical: function(newPos) {
+                    view.scrollVertical(newPos)
+                }
             }
 
             Loader {
@@ -215,7 +241,7 @@ FocusScope {
                     navigationPanel.section: navSec
                     navigationPanel.order: brailleViewLoader.navigationOrder
 
-                    navigationPanel.onActiveChanged: {
+                    navigationPanel.onActiveChanged: function (active) {
                         if (active) {
                             notationView.navigationPanel.setActive(false);
                             fakeNavCtrl.setActive(false);

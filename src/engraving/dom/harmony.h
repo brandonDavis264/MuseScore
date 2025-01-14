@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -41,22 +41,22 @@ class ParsedChord;
 //---------------------------------------------------------
 
 struct TextSegment {
-    mu::draw::Font m_font;
+    muse::draw::Font m_font;
     String text;
     double x, y = 0;         // Position of segments relative to each other.
-    mu::PointF offset;       // Offset for placing within the TextBase.
+    PointF offset;       // Offset for placing within the TextBase.
     bool select = false;
 
     double width() const;
-    mu::RectF boundingRect() const;
-    mu::RectF tightBoundingRect() const;
-    mu::PointF pos() const { return mu::PointF(x, y) + offset; }
+    RectF boundingRect() const;
+    RectF tightBoundingRect() const;
+    PointF pos() const { return PointF(x, y) + offset; }
 
     TextSegment() { select = false; x = y = 0.0; }
-    TextSegment(const mu::draw::Font& f, double _x, double _y)
+    TextSegment(const muse::draw::Font& f, double _x, double _y)
         : m_font(f), x(_x), y(_y), select(false) {}
-    TextSegment(const String&, const mu::draw::Font&, double x, double y);
-    void set(const String&, const mu::draw::Font&, double x, double y, mu::PointF offset);
+    TextSegment(const String&, const muse::draw::Font&, double x, double y);
+    void set(const String&, const muse::draw::Font&, double x, double y, PointF offset);
     void setText(const String& t) { text = t; }
 };
 
@@ -128,10 +128,10 @@ public:
     void textChanged();
 
     bool isEditable() const override { return true; }
-    void startEdit(EditData&) override;
-    bool isEditAllowed(EditData&) const override;
-    bool edit(EditData&) override;
-    void endEdit(EditData&) override;
+    void startEditTextual(EditData&) override;
+    bool isTextualEditAllowed(EditData&) const override;
+    bool editTextual(EditData&) override;
+    void endEditTextual(EditData&) override;
 
     bool isRealizable() const;
 
@@ -207,7 +207,7 @@ private:
 
     void determineRootBaseSpelling();
 
-    void drawEditMode(mu::draw::Painter* p, EditData& ed, double currentViewScaling) override;
+    void drawEditMode(muse::draw::Painter* p, EditData& ed, double currentViewScaling) override;
     void render(const String&, double&, double&);
     void render(const std::list<RenderAction>& renderList, double&, double&, int tpc,
                 NoteSpellingType noteSpelling = NoteSpellingType::STANDARD, NoteCaseType noteCase = NoteCaseType::AUTO);
@@ -231,7 +231,7 @@ private:
     mutable RealizedHarmony m_realizedHarmony; // the realized harmony used for playback
 
     std::vector<HDegree> m_degreeList;
-    std::vector<mu::draw::Font> m_fontList; // temp values used in render()
+    std::vector<muse::draw::Font> m_fontList; // temp values used in render()
     std::vector<TextSegment*> m_textList;   // rendered chord
 
     bool m_leftParen = false;

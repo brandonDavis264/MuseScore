@@ -20,28 +20,18 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_AUDIO_AUDIOMATHUTILS_H
-#define MU_AUDIO_AUDIOMATHUTILS_H
+#ifndef MUSE_AUDIO_AUDIOMATHUTILS_H
+#define MUSE_AUDIO_AUDIOMATHUTILS_H
 
 #include <cstdlib>
 #include <limits>
 
-#include "audiotypes.h"
+#include "../../audiotypes.h"
 
-namespace mu::audio::dsp {
+namespace muse::audio::dsp {
 inline float balanceGain(const balance_t balance, const int audioChannelNumber)
 {
     return (audioChannelNumber * 2 - 1) * balance + 1.f;
-}
-
-inline float linearFromDecibels(const volume_dbfs_t volumeLevelDb)
-{
-    return std::pow(10.0f, volumeLevelDb * 0.05f);
-}
-
-inline volume_dbfs_t dbFromSample(const float signalValue)
-{
-    return 20 * std::log10(std::abs(signalValue));
 }
 
 inline float samplesRootMeanSquare(const float squaredSum, const samples_t sampleCount)
@@ -77,4 +67,4 @@ constexpr T convertFloatSamples(float value)
 }
 }
 
-#endif // MU_AUDIO_AUDIOMATHUTILS_H
+#endif // MUSE_AUDIO_AUDIOMATHUTILS_H

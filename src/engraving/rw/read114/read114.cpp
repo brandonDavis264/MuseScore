@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -82,6 +82,7 @@
 #include "dom/timesig.h"
 #include "dom/tremolotwochord.h"
 #include "dom/tremolosinglechord.h"
+#include "dom/trill.h"
 #include "dom/tuplet.h"
 #include "dom/utils.h"
 #include "dom/volta.h"
@@ -169,133 +170,6 @@ static const PaperSize* getPaperSize114(const String& name)
     }
     LOGD("unknown paper size");
     return &paperSizes114[0];
-}
-
-//---------------------------------------------------------
-//   convertFromHtml
-//---------------------------------------------------------
-
-static String convertFromHtml(const String& in_html)
-{
-    if (in_html.isEmpty()) {
-        return in_html;
-    }
-
-    std::string html = in_html.toStdString();
-
-    //! NOTE Get body
-    auto body_b = html.find("<body");
-    auto body_e = html.find_last_of("</body>");
-    if (body_b == std::string::npos || body_e == std::string::npos) {
-        return in_html;
-    }
-    std::string body = html.substr(body_b, body_e - body_b);
-
-    std::vector<std::string> blocks;
-
-    //! NOTE Split blocks
-    std::string::size_type p_b = 0;
-    std::string::size_type p_e = 0;
-    while (true) {
-        p_b = body.find("<p", p_e);
-        p_e = body.find("/p>", p_b);
-        if (p_b == std::string::npos || p_e == std::string::npos) {
-            break;
-        }
-
-        std::string block = body.substr(p_b, p_e - p_b);
-        blocks.push_back(block);
-    }
-
-    if (blocks.empty()) {
-        blocks.push_back(body);
-    }
-
-    //! NOTE Format blocks
-    auto extractText = [](const std::string& block) {
-        std::string text;
-        bool isTag = false;
-        for (const char& c : block) {
-            if (c == '<') {
-                isTag = true;
-            } else if (c == '>') {
-                isTag = false;
-            } else if (!isTag) {
-                text += c;
-            }
-        }
-        return text;
-    };
-
-    auto extractFont = [](const std::string& block) {
-        auto fontsize_b = block.find("font-size");
-        if (fontsize_b != std::string::npos) {
-            std::string fontSize;
-            bool started = false;
-            for (auto i = fontsize_b; i < block.size(); ++i) {
-                const char& c = block.at(i);
-                if (strchr(".0123456789", c) != nullptr) {
-                    started = true;
-                    fontSize += c;
-                } else if (started) {
-                    break;
-                }
-            }
-
-            return std::string("<font size=\"") + fontSize + std::string("\"/>");
-        }
-        return std::string();
-    };
-
-    auto formatRichText = [extractText, extractFont](const std::string& block) {
-        std::string text = extractText(block);
-        std::string font = extractFont(block);
-        if (!font.empty()) {
-            text = font + text;
-        }
-        return text;
-    };
-
-    //! NOTE Format rich text from blocks
-    std::string text;
-    for (const std::string& block : blocks) {
-        if (!text.empty()) {
-            text += "\n";
-        }
-
-        text += formatRichText(block);
-    }
-
-    auto replaceSym = [](std::string& str, int cc, const char* sym) {
-        std::string code;
-        code.resize(3);
-        code[2] = static_cast<char>(cc);
-        code[1] = static_cast<char>(cc >> 8);
-        code[0] = static_cast<char>(cc >> 16);
-
-        auto pos = str.find(code);
-        if (pos != std::string::npos) {
-            str.replace(pos, 3, sym);
-        }
-    };
-
-    //! NOTE replace utf8 code /*utf16 code*/ on sym
-    replaceSym(text, 0xee848e /*0xe10e*/, "<sym>accidentalNatural</sym>");        //natural
-    replaceSym(text, 0xee848c /*0xe10c*/, "<sym>accidentalSharp</sym>");          // sharp
-    replaceSym(text, 0xee848d /*0xe10d*/, "<sym>accidentalFlat</sym>");           // flat
-    replaceSym(text, 0xee8484 /*0xe104*/, "<sym>metNoteHalfUp</sym>");            // note2_Sym
-    replaceSym(text, 0xee8485 /*0xe105*/, "<sym>metNoteQuarterUp</sym>");         // note4_Sym
-    replaceSym(text, 0xee8486 /*0xe106*/, "<sym>metNote8thUp</sym>");             // note8_Sym
-    replaceSym(text, 0xee8487 /*0xe107*/, "<sym>metNote16thUp</sym>");            // note16_Sym
-    replaceSym(text, 0xee8488 /*0xe108*/, "<sym>metNote32ndUp</sym>");            // note32_Sym
-    replaceSym(text, 0xee8489 /*0xe109*/, "<sym>metNote64thUp</sym>");            // note64_Sym
-    replaceSym(text, 0xee848a /*0xe10a*/, "<sym>metAugmentationDot</sym>");       // dot
-    replaceSym(text, 0xee848b /*0xe10b*/, "<sym>metAugmentationDot</sym><sym>space</sym><sym>metAugmentationDot</sym>");          // dotdot
-    replaceSym(text, 0xee85a7 /*0xe167*/, "<sym>segno</sym>");                    // segno
-    replaceSym(text, 0xee85a8 /*0xe168*/, "<sym>coda</sym>");                     // coda
-    replaceSym(text, 0xee85a9 /*0xe169*/, "<sym>codaSquare</sym>");               // varcoda
-
-    return String::fromStdString(text);
 }
 
 //---------------------------------------------------------
@@ -392,7 +266,7 @@ static bool readTextProperties(XmlReader& e, ReadContext& ctx, TextBase* t, Engr
         e.skipCurrentElement();
     } else if (tag == "html-data") {
         String ss = e.readXml();
-        String s  = convertFromHtml(ss);
+        String s  = HtmlParser::parse(ss);
 // LOGD("html-data <%s>", muPrintable(s));
         t->setXmlText(s);
     } else if (tag == "foregroundColor") { // same as "color" ?
@@ -562,7 +436,7 @@ static void readAccidental(Accidental* a, XmlReader& e, ReadContext& ctx)
                 }
                 a->setAccidentalType(at);
             } else {
-                const static std::map<String, AccidentalType> accMap = {
+                static const std::map<String, AccidentalType> accMap = {
                     { u"none", AccidentalType::NONE }, { u"sharp", AccidentalType::SHARP },
                     { u"flat", AccidentalType::FLAT }, { u"natural", AccidentalType::NATURAL },
                     { u"double sharp", AccidentalType::SHARP2 }, { u"double flat", AccidentalType::FLAT2 },
@@ -612,8 +486,7 @@ static void readFingering114(XmlReader& e, Fingering* fing)
 
         if (tag == "html-data") {
             auto htmlDdata = HtmlParser::parse(e.readXml());
-            htmlDdata.replace(u" ", u"");
-            fing->setPlainText(htmlDdata);
+            fing->setXmlText(htmlDdata);
         } else if (tag == "subtype") {
             auto subtype = e.readText();
             if (subtype == "StringNumber") {
@@ -1011,10 +884,25 @@ static void readTuplet(Tuplet* tuplet, XmlReader& e, ReadContext& ctx)
 
 static void readTremolo(compat::TremoloCompat* t, XmlReader& e, ReadContext& ctx)
 {
-    auto item = [](compat::TremoloCompat* t) -> EngravingItem* {
+    auto createDefaultTremolo = [](compat::TremoloCompat* t) {
+        t->single = Factory::createTremoloSingleChord(t->parent);
+        t->single->setTrack(t->parent->track());
+        t->single->setTremoloType(TremoloType::R8);
+    };
+
+    auto item = [createDefaultTremolo](compat::TremoloCompat* t) -> EngravingItem* {
         if (t->two) {
             return t->two;
         }
+
+        if (!t->single) {
+            // If no item been created yet at this point,
+            // that means no "subtype" tag was present in the XML file.
+            // In this case, we create a single eighth-note tremolo,
+            // since that was the default.
+            createDefaultTremolo(t);
+        }
+
         return t->single;
     };
 
@@ -1059,6 +947,14 @@ static void readTremolo(compat::TremoloCompat* t, XmlReader& e, ReadContext& ctx
         } else if (!TRead::readItemProperties(item(t), e, ctx)) {
             e.unknown();
         }
+    }
+
+    if (!t->two && !t->single) {
+        // If no item been created yet at this point,
+        // that means no "subtype" tag was present in the XML file.
+        // In this case, we create a single eighth-note tremolo,
+        // since that was the default.
+        createDefaultTremolo(t);
     }
 }
 
@@ -1241,7 +1137,7 @@ static void readVolta114(XmlReader& e, ReadContext& ctx, Volta* volta)
         const AsciiStringView tag(e.name());
         if (tag == "endings") {
             String s = e.readText();
-            StringList sl = s.split(u',', mu::SkipEmptyParts);
+            StringList sl = s.split(u',', muse::SkipEmptyParts);
             volta->endings().clear();
             for (const String& l : sl) {
                 int i = l.simplified().toInt();
@@ -1250,11 +1146,16 @@ static void readVolta114(XmlReader& e, ReadContext& ctx, Volta* volta)
         } else if (tag == "subtype") {
             e.readInt();
         } else if (tag == "lineWidth") {
-            volta->setLineWidth(Millimetre(e.readDouble() * volta->spatium()));
+            volta->setLineWidth(Spatium(e.readDouble()));
             volta->setPropertyFlags(Pid::LINE_WIDTH, PropertyFlags::UNSTYLED);
         } else if (!readTextLineProperties114(e, ctx, volta)) {
             e.unknown();
         }
+    }
+    if (volta->anchor() != Volta::VOLTA_ANCHOR) {
+        // Volta strictly assumes that its anchor is measure, so don't let old scores override this.
+        LOGW("Correcting volta anchor type from %d to %d", int(volta->anchor()), int(Volta::VOLTA_ANCHOR));
+        volta->setAnchor(Volta::VOLTA_ANCHOR);
     }
     volta->setOffset(PointF());          // ignore offsets
     volta->setAutoplace(true);
@@ -1399,7 +1300,7 @@ static void readPedal114(XmlReader& e, ReadContext& ctx, Pedal* pedal)
             pedal->setEndHookHeight(Spatium(e.readDouble()));
             pedal->setPropertyFlags(Pid::END_HOOK_HEIGHT, PropertyFlags::UNSTYLED);
         } else if (tag == "lineWidth") {
-            pedal->setLineWidth(Millimetre(e.readDouble()));
+            pedal->setLineWidth(Spatium(e.readDouble()));
             pedal->setPropertyFlags(Pid::LINE_WIDTH, PropertyFlags::UNSTYLED);
         } else if (tag == "lineStyle") {
             read400::TRead::readProperty(pedal, e, ctx, Pid::LINE_STYLE);
@@ -1762,6 +1663,7 @@ static void readMeasure(Measure* m, int staffIdx, XmlReader& e, ReadContext& ctx
                 mmr->setParent(segment);
                 mmr->setTrack(ctx.track());
                 read400::TRead::read(mmr, e, ctx);
+                mmr->setTicks(m->ticks());
                 segment->add(mmr);
                 lastTick = ctx.tick();
                 ctx.incTick(mmr->actualTicks());
@@ -1819,7 +1721,7 @@ static void readMeasure(Measure* m, int staffIdx, XmlReader& e, ReadContext& ctx
                 // if (spanner->track2() == -1)
                 // the absence of a track tag [?] means the
                 // track is the same as the beginning of the slur
-                if (spanner->track2() == mu::nidx) {
+                if (spanner->track2() == muse::nidx) {
                     spanner->setTrack2(spanner->track() ? spanner->track() : ctx.track());
                 }
             } else {
@@ -1968,7 +1870,6 @@ static void readMeasure(Measure* m, int staffIdx, XmlReader& e, ReadContext& ctx
                 if (t == "no") {
                     l->setNo(e.readInt());
                     if (l->isEven()) {
-                        l->setEven(true);
                         l->initTextStyleType(TextStyleType::LYRICS_EVEN);
                     }
                 } else if (t == "syllabic") {
@@ -2335,27 +2236,38 @@ static bool readBoxProperties(XmlReader& e, ReadContext& ctx, Box* b)
 
 static void readBox(XmlReader& e, ReadContext& ctx, Box* b)
 {
-    b->setLeftMargin(0.0);
-    b->setRightMargin(0.0);
-    b->setTopMargin(0.0);
-    b->setBottomMargin(0.0);
+    b->setAutoSizeEnabled(false);      // didn't exist in Mu1
+
     b->setBoxHeight(Spatium(0));       // override default set in constructor
     b->setBoxWidth(Spatium(0));
-    b->setAutoSizeEnabled(false);
+    bool keepMargins = false;          // whether original margins have to be kept when reading old file
+    System* bSystem = b->system() ? b->system() : ctx.dummy()->system();
 
     while (e.readNextStartElement()) {
         const AsciiStringView tag(e.name());
         if (tag == "HBox") {
-            HBox* hb = Factory::createHBox(b->system());
+            HBox* hb = Factory::createHBox(bSystem);
             readBox(e, ctx, hb);
             b->add(hb);
+            keepMargins = true;           // in old file, box nesting used outer box margins
         } else if (tag == "VBox") {
-            VBox* vb = Factory::createVBox(b->system());
+            VBox* vb = Factory::createVBox(bSystem);
             readBox(e, ctx, vb);
             b->add(vb);
+            keepMargins = true;           // in old file, box nesting used outer box margins
         } else if (!readBoxProperties(e, ctx, b)) {
             e.unknown();
         }
+    }
+
+    // with .msc versions prior to 1.17, box margins were only used when nesting another box inside this box:
+    // for backward compatibility set them to 0.0 in all other cases, the Mu1 defaults of 5.0 just look horrible in Mu3 and Mu4
+
+    if (ctx.mscVersion() <= 114 && (b->isHBox() || b->isVBox()) && !keepMargins) {
+        b->setLeftMargin(0.0);
+        b->setRightMargin(0.0);
+        b->setTopMargin(0.0); // 2.0 would look closest to Mu1 and Mu2, but 0.0 is the default since Mu2
+        b->setBottomMargin(0.0); // 1.0 would look closest to Mu1 and Mu2, but 0.0 is the default since Mu2
     }
 }
 
@@ -2817,6 +2729,10 @@ Err Read114::readScore(Score* score, XmlReader& e, ReadInOutData* out)
     }
 
     ReadContext ctx(score);
+    if (out && out->overriddenSpatium.has_value()) {
+        ctx.setSpatium(out->overriddenSpatium.value());
+        ctx.setOverrideSpatium(true);
+    }
 
     DEFER {
         if (out) {
@@ -2828,7 +2744,7 @@ Err Read114::readScore(Score* score, XmlReader& e, ReadInOutData* out)
 
     TempoMap tm;
     while (e.readNextStartElement()) {
-        ctx.setTrack(mu::nidx);
+        ctx.setTrack(muse::nidx);
         const AsciiStringView tag(e.name());
         if (tag == "Staff") {
             readStaffContent(masterScore, e, ctx);
@@ -2874,7 +2790,16 @@ Err Read114::readScore(Score* score, XmlReader& e, ReadInOutData* out)
         } else if (tag == "SyntiSettings") {
             masterScore->m_synthesizerState.read(e);
         } else if (tag == "Spatium") {
-            masterScore->style().setSpatium(e.readDouble() * DPMM);
+            if (ctx.overrideSpatium()) {
+                masterScore->style().setSpatium(ctx.spatium());
+                if (out) {
+                    out->originalSpatium = e.readDouble() * DPMM;
+                } else {
+                    e.skipCurrentElement();
+                }
+            } else {
+                masterScore->style().setSpatium(e.readDouble() * DPMM);
+            }
         } else if (tag == "Division") {
             masterScore->m_fileDivision = e.readInt();
         } else if (tag == "showInvisible") {
@@ -2893,9 +2818,7 @@ Err Read114::readScore(Score* score, XmlReader& e, ReadInOutData* out)
             if (masterScore->style().styleB(Sid::useGermanNoteNames)) {
                 masterScore->style().set(Sid::useStandardNoteNames, false);
             }
-            if (masterScore->layoutMode() == LayoutMode::FLOAT) {
-                // style should not change spatium in
-                // float mode
+            if (ctx.overrideSpatium()) {
                 masterScore->style().setSpatium(sp);
             }
         } else if (tag == "TextStyle") {
@@ -2945,12 +2868,14 @@ Err Read114::readScore(Score* score, XmlReader& e, ReadInOutData* out)
             } else if (tag == "Pedal") {
                 readPedal114(e, ctx, toPedal(s));
             } else if (tag == "Trill") {
+                Ornament* ornament = Factory::createOrnament(score->dummy()->chord());
+                toTrill(s)->setOrnament(ornament);
                 Read206::readTrill206(e, ctx, toTrill(s));
             } else {
                 assert(tag == "HairPin");
                 Read206::readHairpin206(e, ctx, toHairpin(s));
             }
-            if (s->track() == mu::nidx) {
+            if (s->track() == muse::nidx) {
                 s->setTrack(ctx.track());
             } else {
                 ctx.setTrack(s->track());               // update current track
@@ -2960,7 +2885,7 @@ Err Read114::readScore(Score* score, XmlReader& e, ReadInOutData* out)
             } else {
                 ctx.setTick(s->tick());              // update current tick
             }
-            if (s->track2() == mu::nidx) {
+            if (s->track2() == muse::nidx) {
                 s->setTrack2(s->track());
             }
             if (s->ticks().isZero()) {
@@ -2988,8 +2913,8 @@ Err Read114::readScore(Score* score, XmlReader& e, ReadInOutData* out)
         }
     }
 
-    if (e.error() != XmlStreamReader::NoError) {
-        LOGD("%lld %lld: %s ", e.lineNumber(), e.columnNumber(), muPrintable(e.errorString()));
+    if (e.error() != muse::XmlStreamReader::NoError) {
+        LOGD() << e.lineNumber() << " " << e.columnNumber() << ": " << e.errorString();
         return Err::FileBadFormat;
     }
 
@@ -3138,7 +3063,7 @@ Err Read114::readScore(Score* score, XmlReader& e, ReadInOutData* out)
     for (MeasureBase* mb = masterScore->first(); mb; mb = mb->next()) {
         if (mb->isVBox()) {
             VBox* b  = toVBox(mb);
-            Millimetre y = masterScore->style().styleMM(Sid::staffUpperBorder);
+            Spatium y = masterScore->style().styleS(Sid::staffUpperBorder);
             b->setBottomGap(y);
         }
     }
@@ -3232,6 +3157,20 @@ Err Read114::readScore(Score* score, XmlReader& e, ReadInOutData* out)
     masterScore->updateChannel();
 
     CompatUtils::assignInitialPartToExcerpts(masterScore->excerpts());
+
+    // Cleanup invalid spanners
+    std::vector<Spanner*> invalidSpanners;
+    auto spanners = score->spanner();
+    for (auto iter = spanners.begin(); iter != spanners.end(); ++iter) {
+        Spanner* spanner = (*iter).second;
+        bool invalid = spanner->tick().negative() || spanner->track() == muse::nidx;
+        if (invalid) {
+            invalidSpanners.push_back(spanner);
+        }
+    }
+    for (Spanner* invalidSpanner : invalidSpanners) {
+        score->removeElement(invalidSpanner);
+    }
 
     return Err::NoError;
 }

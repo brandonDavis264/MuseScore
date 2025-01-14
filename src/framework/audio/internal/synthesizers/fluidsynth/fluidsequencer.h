@@ -20,35 +20,36 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_AUDIO_FLUIDSEQUENCER_H
-#define MU_AUDIO_FLUIDSEQUENCER_H
+#ifndef MUSE_AUDIO_FLUIDSEQUENCER_H
+#define MUSE_AUDIO_FLUIDSEQUENCER_H
 
-#include "async/channel.h"
+#include "global/async/channel.h"
 #include "midi/midievent.h"
 #include "mpe/events.h"
 
 #include "../../abstracteventsequencer.h"
 #include "soundmapping.h"
 
-namespace mu::audio {
+namespace muse::audio {
 class FluidSequencer : public AbstractEventSequencer<midi::Event>
 {
 public:
-    void init(const mpe::PlaybackSetupData& setupData, const std::optional<midi::Program>& programOverride);
+    void init(const mpe::PlaybackSetupData& setupData, const std::optional<midi::Program>& programOverride, bool useDynamicEvents);
 
     int currentExpressionLevel() const;
-
-    void updateOffStreamEvents(const mpe::PlaybackEventsMap& events, const mpe::PlaybackParamMap& params) override;
-    void updateMainStreamEvents(const mpe::PlaybackEventsMap& events, const mpe::DynamicLevelMap& dynamics,
-                                const mpe::PlaybackParamMap& params) override;
+    int naturalExpressionLevel() const;
 
     async::Channel<midi::channel_t, midi::Program> channelAdded() const;
 
     const ChannelMap& channels() const;
 
 private:
+    void updateOffStreamEvents(const mpe::PlaybackEventsMap& events, const mpe::PlaybackParamList& params) override;
+    void updateMainStreamEvents(const mpe::PlaybackEventsMap& events, const mpe::DynamicLevelLayers& dynamics,
+                                const mpe::PlaybackParamLayers& params) override;
+
     void updatePlaybackEvents(EventSequenceMap& destination, const mpe::PlaybackEventsMap& changes);
-    void updateDynamicEvents(EventSequenceMap& destination, const mpe::DynamicLevelMap& changes);
+    void updateDynamicEvents(EventSequenceMap& destination, const mpe::DynamicLevelLayers& changes);
 
     void appendControlSwitch(EventSequenceMap& destination, const mpe::NoteEvent& noteEvent, const mpe::ArticulationTypeSet& appliableTypes,
                              const int midiControlIdx);
@@ -64,7 +65,8 @@ private:
     int pitchBendLevel(const mpe::pitch_level_t pitchLevel) const;
 
     mutable ChannelMap m_channels;
+    bool m_useDynamicEvents = false;
 };
 }
 
-#endif // MU_AUDIO_FLUIDSEQUENCER_H
+#endif // MUSE_AUDIO_FLUIDSEQUENCER_H

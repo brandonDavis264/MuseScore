@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -23,15 +23,16 @@
 
 #include "preferencesmodel.h"
 
-#include "log.h"
 #include "translation.h"
 #include "ui/view/iconcodes.h"
 
+#include "log.h"
+
 using namespace mu::appshell;
-using namespace mu::ui;
+using namespace muse::ui;
 
 PreferencesModel::PreferencesModel(QObject* parent)
-    : QAbstractItemModel(parent)
+    : QAbstractItemModel(parent), muse::Injectable(muse::iocCtxForQmlObject(this))
 {
 }
 
@@ -142,7 +143,12 @@ void PreferencesModel::load(const QString& currentPageId)
     if (!currentPageId.isEmpty()) {
         setCurrentPageId(currentPageId);
     } else {
-        setCurrentPageId("general");
+        const QString& lastOpenedPageId = configuration()->preferencesDialogLastOpenedPageId();
+        if (lastOpenedPageId.isEmpty()) {
+            setCurrentPageId("general");
+        } else {
+            setCurrentPageId(lastOpenedPageId);
+        }
     }
 
     m_rootItem = new PreferencePageItem();
@@ -163,14 +169,17 @@ void PreferencesModel::load(const QString& currentPageId)
         makeItem("note-input", QT_TRANSLATE_NOOP("appshell/preferences", "Note input"), IconCode::Code::EDIT,
                  "Preferences/NoteInputPreferencesPage.qml"),
 
-        makeItem("midi-device-mapping", QT_TRANSLATE_NOOP("appshell/preferences", "MIDI mappings"), IconCode::Code::MIDI_INPUT,
-                 "Preferences/MidiDeviceMappingPreferencesPage.qml"),
-
         makeItem("score", QT_TRANSLATE_NOOP("appshell/preferences", "Score"), IconCode::Code::SCORE,
                  "Preferences/ScorePreferencesPage.qml"),
 
-        makeItem("io", QT_TRANSLATE_NOOP("appshell/preferences", "I/O"), IconCode::Code::AUDIO,
-                 "Preferences/IOPreferencesPage.qml"),
+        makeItem("audio-midi", QT_TRANSLATE_NOOP("appshell/preferences", "Audio & MIDI"), IconCode::Code::AUDIO,
+                 "Preferences/AudioMidiPreferencesPage.qml"),
+
+        makeItem("midi-device-mapping", QT_TRANSLATE_NOOP("appshell/preferences", "MIDI mappings"), IconCode::Code::MIDI_INPUT,
+                 "Preferences/MidiDeviceMappingPreferencesPage.qml"),
+
+        makeItem("percussion", QT_TRANSLATE_NOOP("appshell/preferences", "Percussion"), IconCode::Code::PERCUSSION,
+                 "Preferences/PercussionPreferencesPage.qml"),
 
         makeItem("import", QT_TRANSLATE_NOOP("appshell/preferences", "Import"), IconCode::Code::IMPORT,
                  "Preferences/ImportPreferencesPage.qml"),
@@ -274,10 +283,11 @@ void PreferencesModel::setCurrentPageId(QString currentPageId)
     }
 
     m_currentPageId = currentPageId;
+    configuration()->setPreferencesDialogLastOpenedPageId(currentPageId);
     emit currentPageIdChanged(m_currentPageId);
 }
 
-PreferencePageItem* PreferencesModel::makeItem(const QString& id, const QString& title, mu::ui::IconCode::Code icon,
+PreferencePageItem* PreferencesModel::makeItem(const QString& id, const QString& title, muse::ui::IconCode::Code icon,
                                                const QString& path,
                                                const QList<PreferencePageItem*>& children) const
 {

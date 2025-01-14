@@ -27,10 +27,10 @@
 #include <emscripten/bind.h>
 #include <emscripten/html5.h>
 
-using namespace mu::audio;
+using namespace muse::audio;
 using namespace emscripten;
 
-namespace mu::audio::web {
+namespace muse::audio::web {
 using let = emscripten::val;
 static val context = val::global();
 static IAudioDriver::Spec* format = nullptr;
@@ -143,10 +143,10 @@ std::vector<std::string> WebAudioDriver::availableOutputDevices() const
     return { "default" };
 }
 
-mu::async::Notification WebAudioDriver::availableOutputDevicesChanged() const
+async::Notification WebAudioDriver::availableOutputDevicesChanged() const
 {
     NOT_SUPPORTED;
-    return mu::async::Notification();
+    return async::Notification();
 }
 
 void WebAudioDriver::resume()

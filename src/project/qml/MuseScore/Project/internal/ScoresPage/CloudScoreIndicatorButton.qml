@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2023 MuseScore BVBA and others
+ * Copyright (C) 2023 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -21,8 +21,8 @@
  */
 import QtQuick 2.15
 
-import MuseScore.UiComponents 1.0
-import MuseScore.Ui 1.0
+import Muse.UiComponents 1.0
+import Muse.Ui 1.0
 
 Item {
     id: root
@@ -130,29 +130,31 @@ Item {
         }
     ]
 
-    StyledIconLabel {
-        id: icon
+
+    ItemWithDropShadow {
         anchors.centerIn: parent
 
-        iconCode: root.isProgress ? IconCode.STOP_FILL : IconCode.CLOUD_FILL
-        font.pixelSize: root.isProgress ? 12 : 14
-        color: "white"
-    }
+        implicitWidth: icon.implicitWidth
+        implicitHeight: icon.implicitHeight
 
-    StyledDropShadow {
-        anchors.fill: icon
+        shadow.horizontalOffset: 0
+        shadow.verticalOffset: 1
+        shadow.radius: 4
 
-        horizontalOffset: 0
-        verticalOffset: 1
-        radius: 4
+        StyledIconLabel {
+            id: icon
 
-        source: icon
+            iconCode: root.isProgress ? IconCode.STOP_FILL : IconCode.CLOUD_FILL
+            font.pixelSize: root.isProgress ? 12 : 14
+            color: "white"
+        }
     }
 
     MouseArea {
         id: mouseArea
         anchors.fill: root
 
+        enabled: root.enabled
         hoverEnabled: true
 
         onContainsMouseChanged: {

@@ -26,10 +26,10 @@
 #include <QKeyEvent>
 #include <QWindow>
 
-using namespace mu::uicomponents;
+using namespace muse::uicomponents;
 
 TopLevelDialog::TopLevelDialog(QWidget* parent)
-    : QDialog(parent)
+    : QDialog(parent), muse::Injectable(muse::iocCtxForQWidget(this))
 {
     setWindowFlag(Qt::WindowContextHelpButtonHint, false);
 
@@ -58,11 +58,6 @@ TopLevelDialog::TopLevelDialog(QWidget* parent)
     updateStayOnTopHint();
     connect(qApp, &QApplication::applicationStateChanged, this, updateStayOnTopHint);
 #endif
-}
-
-TopLevelDialog::TopLevelDialog(const TopLevelDialog& dialog)
-    : QDialog(dialog.parentWidget())
-{
 }
 
 bool TopLevelDialog::event(QEvent* e)

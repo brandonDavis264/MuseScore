@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2022 MuseScore BVBA and others
+ * Copyright (C) 2022 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -69,7 +69,7 @@ public:
     String screenReaderInfo() const override;
 
     void setIsDiagram(bool diagram);
-    bool isDiagram() { return m_isDiagram; }
+    bool isDiagram() const { return m_isDiagram; }
 
     std::array<PedalPosition, HARP_STRING_NO> getPedalState() const { return m_pedalState; }
     void setPedalState(std::array<PedalPosition, HARP_STRING_NO> state);

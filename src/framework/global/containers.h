@@ -19,8 +19,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef MU_GLOBAL_CONTAINERS_H
-#define MU_GLOBAL_CONTAINERS_H
+#pragma once
 
 #include <algorithm>
 #include <vector>
@@ -32,7 +31,7 @@
 
 //! NOTE useful functions for containers
 
-namespace mu {
+namespace muse {
 static constexpr size_t nidx = static_cast<size_t>(-1);
 
 // vector
@@ -109,7 +108,7 @@ inline void swapItemsAt(std::vector<T>& vec, size_t idx1, size_t idx2)
 template<typename T>
 inline bool moveItem(std::vector<T>& vec, size_t oldIdx, size_t newIdx)
 {
-    if (oldIdx == mu::nidx || oldIdx == newIdx) {
+    if (oldIdx == muse::nidx || oldIdx == newIdx) {
         return false;
     }
 
@@ -227,6 +226,15 @@ inline bool contains(const std::unordered_set<T>& s, const T& v)
 }
 
 // ===========================
+// Array
+// ===========================
+template<typename T, size_t size>
+inline bool contains(const std::array<T, size>& s, const T& v)
+{
+    return std::find(s.begin(), s.end(), v) != s.cend();
+}
+
+// ===========================
 // General
 // ===========================
 
@@ -237,7 +245,7 @@ inline size_t indexOf(const Container& c, const T& v)
     if (it != c.cend()) {
         return std::distance(c.cbegin(), it);
     }
-    return mu::nidx;
+    return muse::nidx;
 }
 
 template<typename K, typename V>
@@ -449,5 +457,3 @@ inline std::set<T>& operator<<(std::set<T>& s, const T& v)
     s.insert(v);
     return s;
 }
-
-#endif // MU_GLOBAL_CONTAINERS_H

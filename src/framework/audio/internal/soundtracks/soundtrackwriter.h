@@ -20,34 +20,35 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_AUDIO_SOUNDTRACKWRITER_H
-#define MU_AUDIO_SOUNDTRACKWRITER_H
+#ifndef MUSE_AUDIO_SOUNDTRACKWRITER_H
+#define MUSE_AUDIO_SOUNDTRACKWRITER_H
 
 #include <vector>
-#include <cstdio>
 
-#include "async/asyncable.h"
-#include "modularity/ioc.h"
+#include "global/async/asyncable.h"
+#include "global/modularity/ioc.h"
 
-#include "audio/iaudioconfiguration.h"
 #include "audiotypes.h"
 #include "iaudiosource.h"
-#include "internal/encoders/abstractaudioencoder.h"
+#include "../worker/iaudioengine.h"
+#include "../encoders/abstractaudioencoder.h"
 
-namespace mu::audio::soundtrack {
-class SoundTrackWriter : public async::Asyncable
+namespace muse::audio::soundtrack {
+class SoundTrackWriter : public muse::Injectable, public async::Asyncable
 {
-    INJECT_STATIC(IAudioConfiguration, config)
+    muse::Inject<IAudioEngine> audioEngine = { this };
+
 public:
-    SoundTrackWriter(const io::path_t& destination, const SoundTrackFormat& format, const msecs_t totalDuration, IAudioSourcePtr source);
+    SoundTrackWriter(const io::path_t& destination, const SoundTrackFormat& format, const msecs_t totalDuration, IAudioSourcePtr source,
+                     const muse::modularity::ContextPtr& iocCtx);
+    ~SoundTrackWriter() override;
 
     Ret write();
     void abort();
 
-    framework::Progress progress();
+    Progress progress();
 
 private:
-    encode::AbstractAudioEncoderPtr createEncoder(const SoundTrackType& type) const;
     Ret generateAudioData();
 
     void sendStepProgress(int step, int64_t current, int64_t total);
@@ -56,12 +57,13 @@ private:
 
     std::vector<float> m_inputBuffer;
     std::vector<float> m_intermBuffer;
+    samples_t m_renderStep = 0;
 
     encode::AbstractAudioEncoderPtr m_encoderPtr = nullptr;
 
-    framework::Progress m_progress;
+    Progress m_progress;
     std::atomic<bool> m_isAborted = false;
 };
 }
 
-#endif // MU_AUDIO_SOUNDTRACKWRITER_H
+#endif // MUSE_AUDIO_SOUNDTRACKWRITER_H

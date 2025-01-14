@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -39,36 +39,49 @@
 #include "engraving/dom/box.h"
 #include "engraving/dom/keysig.h"
 #include "engraving/dom/rest.h"
+#include "engraving/dom/sig.h"
 #include "engraving/dom/tempotext.h"
 #include "engraving/dom/undo.h"
 
 #include "excerptnotation.h"
 #include "masternotationparts.h"
+
+#ifdef MUE_BUILD_ENGRAVING_PLAYBACK
 #include "notationplayback.h"
+#else
+#include "notationplaybackstub.h"
+#endif
+
 #include "../notationerrors.h"
 
 using namespace mu::notation;
-using namespace mu::async;
 using namespace mu::engraving;
+using namespace muse;
+using namespace muse::async;
 
 static ExcerptNotation* get_impl(const IExcerptNotationPtr& excerpt)
 {
     return static_cast<ExcerptNotation*>(excerpt.get());
 }
 
-static IExcerptNotationPtr createAndInitExcerptNotation(mu::engraving::Excerpt* excerpt)
+static IExcerptNotationPtr createAndInitExcerptNotation(mu::engraving::Excerpt* excerpt, const muse::modularity::ContextPtr& iocCtx)
 {
-    auto excerptNotation = std::make_shared<ExcerptNotation>(excerpt);
+    auto excerptNotation = std::make_shared<ExcerptNotation>(excerpt, iocCtx);
     excerptNotation->init();
 
     return excerptNotation;
 }
 
-MasterNotation::MasterNotation()
-    : Notation()
+MasterNotation::MasterNotation(const muse::modularity::ContextPtr& iocCtx)
+    : Notation(iocCtx)
 {
     m_parts = std::make_shared<MasterNotationParts>(this, interaction(), undoStack());
-    m_notationPlayback = std::make_shared<NotationPlayback>(this, m_notationChanged);
+
+#ifdef MUE_BUILD_ENGRAVING_PLAYBACK
+    m_notationPlayback = std::make_shared<NotationPlayback>(this, m_notationChanged, iocCtx);
+#else
+    m_notationPlayback = std::make_shared<NotationPlaybackStub>();
+#endif
 
     m_parts->partsChanged().onNotify(this, [this]() {
         notifyAboutNotationChanged();
@@ -258,11 +271,13 @@ static void createMeasures(mu::engraving::Score* score, const ScoreCreateOptions
                     if (!linkedToPrevious) {
                         puRests.clear();
                     }
-                    std::vector<mu::engraving::TDuration> dList = mu::engraving::toDurationList(measure->ticks(), false);
+                    std::vector<mu::engraving::TDuration> dList = mu::engraving::toRhythmicDurationList(
+                        measure->ticks(), true, mu::engraving::Fraction(0, 1),
+                        measure->score()->sigmap()->timesig(measure->tick().ticks()).nominal(), measure, 0);
                     if (!dList.empty()) {
                         mu::engraving::Fraction ltick = tick;
                         int k = 0;
-                        foreach (mu::engraving::TDuration d, dList) {
+                        for (mu::engraving::TDuration d : dList) {
                             mu::engraving::Segment* seg = measure->getSegment(mu::engraving::SegmentType::ChordRest, ltick);
                             if (k < puRests.count()) {
                                 rest = static_cast<mu::engraving::Rest*>(puRests[k]->linkedClone());
@@ -271,7 +286,7 @@ static void createMeasures(mu::engraving::Score* score, const ScoreCreateOptions
                                 puRests.append(rest);
                             }
                             rest->setScore(_score);
-                            rest->setTicks(d.fraction());
+                            rest->setTicks(d.isMeasure() ? measure->ticks() : d.fraction());
                             rest->setTrack(staffIdx * mu::engraving::VOICES);
                             seg->add(rest);
                             ltick += rest->actualTicks();
@@ -297,7 +312,7 @@ static void createMeasures(mu::engraving::Score* score, const ScoreCreateOptions
 
 //! NOTE: this method with all of its dependencies was copied from MU3
 //! source: file.cpp, MuseScore::getNewFile()
-mu::Ret MasterNotation::setupNewScore(mu::engraving::MasterScore* score, const ScoreCreateOptions& scoreOptions)
+Ret MasterNotation::setupNewScore(mu::engraving::MasterScore* score, const ScoreCreateOptions& scoreOptions)
 {
     TRACEFUNC;
 
@@ -331,7 +346,7 @@ void MasterNotation::applyOptions(mu::engraving::MasterScore* score, const Score
         mu::engraving::MeasureBase* mb = score->first();
         if (mb && mb->isVBox()) {
             mu::engraving::VBox* tvb = toVBox(mb);
-            nvb = new mu::engraving::VBox(score->dummy()->system());
+            nvb = Factory::createTitleVBox(score->dummy()->system());
             nvb->setBoxHeight(tvb->boxHeight());
             nvb->setBoxWidth(tvb->boxWidth());
             nvb->setTopGap(tvb->topGap());
@@ -368,7 +383,7 @@ void MasterNotation::applyOptions(mu::engraving::MasterScore* score, const Score
         if (!title.isEmpty() || !subtitle.isEmpty() || !composer.isEmpty() || !lyricist.isEmpty()) {
             mu::engraving::MeasureBase* measure = score->measures()->first();
             if (measure->type() != ElementType::VBOX) {
-                mu::engraving::MeasureBase* nm = nvb ? nvb : new mu::engraving::VBox(score->dummy()->system());
+                mu::engraving::MeasureBase* nm = nvb ? nvb : Factory::createTitleVBox(score->dummy()->system());
                 nm->setTick(mu::engraving::Fraction(0, 1));
                 nm->setExcludeFromOtherParts(false);
                 nm->setNext(measure);
@@ -474,7 +489,9 @@ void MasterNotation::applyOptions(mu::engraving::MasterScore* score, const Score
 
     {
         mu::engraving::ScoreLoad sl;
-        score->doLayout();
+        for (mu::engraving::Score* s : score->scoreList()) {
+            s->doLayout();
+        }
     }
 }
 
@@ -518,7 +535,7 @@ void MasterNotation::setExcerpts(const ExcerptNotationList& excerpts)
         return;
     }
 
-    undoStack()->prepareChanges();
+    undoStack()->prepareChanges(TranslatableString("undoableAction", "Add/remove parts"));
 
     // Delete old excerpts (that are not included in the new list)
     for (IExcerptNotationPtr excerptNotation : m_excerpts) {
@@ -538,7 +555,7 @@ void MasterNotation::setExcerpts(const ExcerptNotationList& excerpts)
         auto it = std::find(m_excerpts.cbegin(), m_excerpts.cend(), excerptNotation);
         if (it != m_excerpts.end()) {
             std::vector<Excerpt*>& msExcerpts = score->excerpts();
-            mu::moveItem(msExcerpts, mu::indexOf(msExcerpts, excerptNotationImpl->excerpt()), i);
+            muse::moveItem(msExcerpts, muse::indexOf(msExcerpts, excerptNotationImpl->excerpt()), i);
             continue;
         }
 
@@ -561,7 +578,7 @@ void MasterNotation::resetExcerpt(IExcerptNotationPtr excerptNotation)
 
     TRACEFUNC;
 
-    undoStack()->prepareChanges();
+    undoStack()->prepareChanges(TranslatableString("undoableAction", "Reset part"));
 
     mu::engraving::Excerpt* oldExcerpt = get_impl(excerptNotation)->excerpt();
     masterScore()->deleteExcerpt(oldExcerpt);
@@ -601,8 +618,8 @@ void MasterNotation::sortExcerpts(ExcerptNotationList& excerpts)
         const ID& initialPart1 = get_impl(f)->excerpt()->initialPartId();
         const ID& initialPart2 = get_impl(s)->excerpt()->initialPartId();
 
-        size_t index1 = mu::indexOf(partIdList, initialPart1);
-        size_t index2 = mu::indexOf(partIdList, initialPart2);
+        size_t index1 = muse::indexOf(partIdList, initialPart1);
+        size_t index2 = muse::indexOf(partIdList, initialPart2);
 
         return index1 < index2;
     });
@@ -649,7 +666,7 @@ void MasterNotation::updateExcerpts()
     for (IExcerptNotationPtr excerptNotation : m_excerpts) {
         ExcerptNotation* impl = get_impl(excerptNotation);
 
-        if (mu::contains(excerpts, impl->excerpt())) {
+        if (muse::contains(excerpts, impl->excerpt())) {
             updatedExcerpts.push_back(excerptNotation);
             continue;
         }
@@ -661,7 +678,7 @@ void MasterNotation::updateExcerpts()
             continue;
         }
 
-        IExcerptNotationPtr excerptNotation = createAndInitExcerptNotation(excerpt);
+        IExcerptNotationPtr excerptNotation = createAndInitExcerptNotation(excerpt, iocContext());
         bool open = excerpt->excerptScore()->isOpen();
         if (open) {
             excerptNotation->notation()->elements()->msScore()->doLayout();
@@ -707,7 +724,7 @@ void MasterNotation::updatePotentialExcerpts() const
     std::vector<mu::engraving::Excerpt*> excerpts = mu::engraving::Excerpt::createExcerptsFromParts(partsWithoutExcerpt, masterScore());
 
     for (mu::engraving::Excerpt* excerpt : excerpts) {
-        auto excerptNotation = std::make_shared<ExcerptNotation>(excerpt);
+        auto excerptNotation = std::make_shared<ExcerptNotation>(excerpt, iocContext());
         potentialExcerpts.push_back(excerptNotation);
     }
 
@@ -717,7 +734,7 @@ void MasterNotation::updatePotentialExcerpts() const
 
 bool MasterNotation::containsExcerpt(const mu::engraving::Excerpt* excerpt) const
 {
-    for (IExcerptNotationPtr excerptNotation : m_excerpts) {
+    for (const IExcerptNotationPtr& excerptNotation : m_excerpts) {
         if (get_impl(excerptNotation)->excerpt() == excerpt) {
             return true;
         }
@@ -734,7 +751,7 @@ void MasterNotation::onPartsChanged()
 
 IExcerptNotationPtr MasterNotation::createEmptyExcerpt(const QString& name) const
 {
-    auto excerptNotation = std::make_shared<ExcerptNotation>(new mu::engraving::Excerpt(masterScore()));
+    auto excerptNotation = std::make_shared<ExcerptNotation>(new mu::engraving::Excerpt(masterScore()), iocContext());
     excerptNotation->setName(name);
 
     return excerptNotation;
@@ -745,7 +762,7 @@ const ExcerptNotationList& MasterNotation::excerpts() const
     return m_excerpts;
 }
 
-async::Notification MasterNotation::excerptsChanged() const
+muse::async::Notification MasterNotation::excerptsChanged() const
 {
     return m_excerptsChanged;
 }
@@ -788,7 +805,7 @@ void MasterNotation::initExcerptNotations(const std::vector<mu::engraving::Excer
             masterScore()->initEmptyExcerpt(excerpt);
         }
 
-        IExcerptNotationPtr excerptNotation = createAndInitExcerptNotation(excerpt);
+        IExcerptNotationPtr excerptNotation = createAndInitExcerptNotation(excerpt, iocContext());
         notationExcerpts.push_back(excerptNotation);
     }
 

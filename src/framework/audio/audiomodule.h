@@ -19,26 +19,27 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef MU_AUDIO_AUDIOMODULE_H
-#define MU_AUDIO_AUDIOMODULE_H
+#ifndef MUSE_AUDIO_AUDIOMODULE_H
+#define MUSE_AUDIO_AUDIOMODULE_H
 
 #include <memory>
 
 #include "modularity/imodulesetup.h"
-#include "async/asyncable.h"
+#include "global/async/asyncable.h"
 
 #include "iaudiodriver.h"
 
-namespace mu::audio::fx {
+namespace muse::audio::fx {
 class FxResolver;
 }
 
-namespace mu::audio::synth  {
+namespace muse::audio::synth  {
 class SynthResolver;
 }
 
-namespace mu::audio {
+namespace muse::audio {
 class AudioConfiguration;
+class AudioEngine;
 class AudioThread;
 class AudioBuffer;
 class AudioOutputDeviceController;
@@ -57,16 +58,16 @@ public:
     void registerResources() override;
     void registerUiTypes() override;
     void resolveImports() override;
-    void onInit(const framework::IApplication::RunMode& mode) override;
-    void onDelayedInit() override;
+    void onInit(const IApplication::RunMode& mode) override;
     void onDeinit() override;
     void onDestroy() override;
 
 private:
-    void setupAudioDriver(const framework::IApplication::RunMode& mode);
+    void setupAudioDriver(const IApplication::RunMode& mode);
     void setupAudioWorker(const IAudioDriver::Spec& activeSpec);
 
     std::shared_ptr<AudioConfiguration> m_configuration;
+    std::shared_ptr<AudioEngine> m_audioEngine;
     std::shared_ptr<AudioThread> m_audioWorker;
     std::shared_ptr<AudioBuffer> m_audioBuffer;
     std::shared_ptr<AudioOutputDeviceController> m_audioOutputController;
@@ -78,30 +79,8 @@ private:
 
     std::shared_ptr<SoundFontRepository> m_soundFontRepository;
 
-    std::shared_ptr<KnownAudioPluginsRegister> m_knownAudioPluginsRegister;
-    std::shared_ptr<RegisterAudioPluginsScenario> m_registerAudioPluginsScenario;
-
-    #ifdef Q_OS_LINUX
     std::shared_ptr<IAudioDriver> m_audioDriver;
-    #endif
-    #ifdef Q_OS_FREEBSD
-    std::shared_ptr<IAudioDriver> m_audioDriver;
-    #endif
-
-    #ifdef Q_OS_WIN
-    //std::shared_ptr<IAudioDriver> m_audioDriver;
-    //std::shared_ptr<IAudioDriver> m_audioDriver;
-    std::shared_ptr<IAudioDriver> m_audioDriver;
-    #endif
-
-    #ifdef Q_OS_MACOS
-    std::shared_ptr<IAudioDriver> m_audioDriver;
-    #endif
-
-    #ifdef Q_OS_WASM
-    std::shared_ptr<IAudioDriver> m_audioDriver;
-    #endif
 };
 }
 
-#endif // MU_AUDIO_AUDIOMODULE_H
+#endif // MUSE_AUDIO_AUDIOMODULE_H

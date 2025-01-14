@@ -26,9 +26,9 @@
 
 #include "log.h"
 
-using namespace mu::vst;
-using namespace mu::audio;
-using namespace mu::audio::fx;
+using namespace muse::vst;
+using namespace muse::audio;
+using namespace muse::audio::fx;
 
 AudioResourceMetaList VstFxResolver::resolveResources() const
 {

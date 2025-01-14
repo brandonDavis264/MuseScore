@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -30,8 +30,8 @@
 #include "engraving/dom/utils.h"
 
 using namespace mu::notation;
-using namespace mu::uicomponents;
-using namespace mu::framework;
+using namespace muse;
+using namespace muse::uicomponents;
 
 namespace mu::notation {
 static StringList collectExcerptLowerNames(const QList<IExcerptNotationPtr>& allExcerpts)
@@ -47,7 +47,8 @@ static StringList collectExcerptLowerNames(const QList<IExcerptNotationPtr>& all
 }
 
 PartListModel::PartListModel(QObject* parent)
-    : QAbstractListModel(parent), m_selectionModel(new ItemMultiSelectionModel(this))
+    : QAbstractListModel(parent), muse::Injectable(muse::iocCtxForQmlObject(this)),
+    m_selectionModel(new ItemMultiSelectionModel(this))
 {
     connect(m_selectionModel, &ItemMultiSelectionModel::selectionChanged, this, &PartListModel::selectionChanged);
 }
@@ -125,7 +126,7 @@ void PartListModel::createNewPart()
 {
     TRACEFUNC;
 
-    QString name = mu::engraving::formatUniqueExcerptName(mtrc("notation", "Part"), collectExcerptLowerNames(m_excerpts)).toQString();
+    QString name = mu::engraving::formatUniqueExcerptName(muse::mtrc("notation", "Part"), collectExcerptLowerNames(m_excerpts)).toQString();
     IExcerptNotationPtr newExcerpt = masterNotation()->createEmptyExcerpt(name);
 
     int index = m_excerpts.size();
@@ -151,7 +152,7 @@ void PartListModel::resetPart(int partIndex)
     }
 
     if (!m_excerpts[partIndex]->isEmpty()) {
-        std::string question = mu::trc("notation", "Are you sure you want to reset this part?");
+        std::string question = muse::trc("notation", "Are you sure you want to reset this part?");
 
         IInteractive::Button btn = interactive()->question("", question, {
             IInteractive::Button::Yes, IInteractive::Button::No
@@ -183,7 +184,7 @@ void PartListModel::removePart(int partIndex)
     }
 
     if (!m_excerpts[partIndex]->isEmpty()) {
-        std::string question = mu::trc("notation", "Are you sure you want to delete this part?");
+        std::string question = muse::trc("notation", "Are you sure you want to delete this part?");
 
         IInteractive::Button btn = interactive()->question("", question, {
             IInteractive::Button::Yes, IInteractive::Button::No
@@ -208,7 +209,7 @@ void PartListModel::doRemovePart(int partIndex)
     beginRemoveRows(QModelIndex(), partIndex, partIndex);
 
     ExcerptNotationList excerpts = masterNotation()->excerpts();
-    if (mu::remove(excerpts, m_excerpts.at(partIndex))) {
+    if (muse::remove(excerpts, m_excerpts.at(partIndex))) {
         masterNotation()->setExcerpts(excerpts);
     }
 
@@ -225,7 +226,7 @@ QString PartListModel::validatePartTitle(int partIndex, const QString& title) co
     return QString::fromStdString(doValidatePartTitle(partIndex, title).text());
 }
 
-mu::Ret PartListModel::doValidatePartTitle(int partIndex, const QString& title) const
+Ret PartListModel::doValidatePartTitle(int partIndex, const QString& title) const
 {
     if (title.isEmpty()) {
         return false;
@@ -239,7 +240,7 @@ mu::Ret PartListModel::doValidatePartTitle(int partIndex, const QString& title) 
         }
 
         if (m_excerpts[i]->name().toLower() == titleLower) {
-            return make_ret(Ret::Code::UnknownError, trc("notation", "Name already exists"));
+            return make_ret(Ret::Code::UnknownError, muse::trc("notation", "Name already exists"));
         }
     }
 
@@ -280,7 +281,7 @@ void PartListModel::copyPart(int partIndex)
     }
 
     IExcerptNotationPtr copy = m_excerpts[partIndex]->clone();
-    String baseName = String::fromQString(copy->name()) + u" " + mtrc("notation", "(copy)");
+    String baseName = String::fromQString(copy->name()) + u" " + muse::mtrc("notation", "(copy)");
     copy->setName(mu::engraving::formatUniqueExcerptName(baseName, collectExcerptLowerNames(m_excerpts)));
 
     insertNewExcerpt(partIndex + 1, copy);
@@ -334,12 +335,12 @@ void PartListModel::openExcerpts(const QList<int>& rows) const
             continue;
         }
 
-        size_t idx = mu::indexOf(newExcerpts, excerpt);
-        if (idx == mu::nidx) {
+        size_t idx = muse::indexOf(newExcerpts, excerpt);
+        if (idx == muse::nidx) {
             newExcerpts.push_back(excerpt);
         } else {
             // Move to the end of the list if already exists
-            mu::moveItem(newExcerpts, idx, newExcerpts.size());
+            muse::moveItem(newExcerpts, idx, newExcerpts.size());
         }
     }
 

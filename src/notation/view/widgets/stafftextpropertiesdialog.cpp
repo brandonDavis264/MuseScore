@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -36,7 +36,7 @@ using namespace mu::engraving;
 static const QString STAFF_TEXT_PROPERTIES_DIALOG_NAME("StaffTextPropertiesDialog");
 
 StaffTextPropertiesDialog::StaffTextPropertiesDialog(QWidget* parent)
-    : QDialog(parent)
+    : QDialog(parent), muse::Injectable(muse::iocCtxForQWidget(this))
 {
     setObjectName(STAFF_TEXT_PROPERTIES_DIALOG_NAME);
     setupUi(this);
@@ -53,9 +53,9 @@ StaffTextPropertiesDialog::StaffTextPropertiesDialog(QWidget* parent)
     m_originStaffText = st;
 
     if (st->systemFlag()) {
-        setWindowTitle(qtrc("notation/stafftextproperties", "System text properties"));
+        setWindowTitle(muse::qtrc("notation/stafftextproperties", "System text properties"));
     } else {
-        setWindowTitle(qtrc("notation/stafftextproperties", "Staff text properties"));
+        setWindowTitle(muse::qtrc("notation/stafftextproperties", "Staff text properties"));
     }
 
     setWindowFlags(this->windowFlags() & ~Qt::WindowContextHelpButtonHint);
@@ -84,12 +84,7 @@ StaffTextPropertiesDialog::StaffTextPropertiesDialog(QWidget* parent)
 
     connect(this, &QDialog::accepted, this, &StaffTextPropertiesDialog::saveValues);
 
-    ui::WidgetStateStore::restoreGeometry(this);
-}
-
-StaffTextPropertiesDialog::StaffTextPropertiesDialog(const StaffTextPropertiesDialog& other)
-    : QDialog(other.parentWidget())
-{
+    muse::ui::WidgetStateStore::restoreGeometry(this);
 }
 
 StaffTextPropertiesDialog::~StaffTextPropertiesDialog()
@@ -99,13 +94,8 @@ StaffTextPropertiesDialog::~StaffTextPropertiesDialog()
 
 void StaffTextPropertiesDialog::hideEvent(QHideEvent* event)
 {
-    ui::WidgetStateStore::saveGeometry(this);
+    muse::ui::WidgetStateStore::saveGeometry(this);
     QDialog::hideEvent(event);
-}
-
-int StaffTextPropertiesDialog::static_metaTypeId()
-{
-    return QMetaType::type(STAFF_TEXT_PROPERTIES_DIALOG_NAME.toStdString().c_str());
 }
 
 //---------------------------------------------------------
@@ -151,7 +141,7 @@ void StaffTextPropertiesDialog::saveValues()
     StaffTextBase* nt = toStaffTextBase(m_staffText->clone());
     nt->setScore(score);
 
-    stack->prepareChanges();
+    stack->prepareChanges(muse::TranslatableString("undoableAction", "Edit staff text properties"));
     score->undoChangeElement(m_originStaffText, nt);
     score->masterScore()->updateChannel();
     score->updateSwing();

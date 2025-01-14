@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2023 MuseScore BVBA and others
+ * Copyright (C) 2023 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -22,26 +22,31 @@
 import QtQuick 2.15
 import QtQuick.Layouts 1.15
 
-import MuseScore.Ui 1.0
-import MuseScore.UiComponents 1.0
+import Muse.Ui 1.0
+import Muse.UiComponents 1.0
 import MuseScore.NotationScene 1.0
 
 StyledPopupView {
     id: root
 
-    property NavigationSection notationViewNavigationSection: null
-    property int navigationOrderStart: 0
-    property int navigationOrderEnd: navPanel.order
+    property alias notationViewNavigationSection: navPanel.section
+    property alias navigationOrderStart: navPanel.order
+    readonly property alias navigationOrderEnd: navPanel.order
+
+    property QtObject model: stringTuningsModel
+
 
     contentWidth: content.width
     contentHeight: content.height
 
     showArrow: false
 
-    function updatePosition(elementRect) {
+    signal elementRectChanged(var elementRect)
+
+    function updatePosition() {
         var h = Math.max(root.contentHeight, 360)
-        root.x = elementRect.x + elementRect.width + 12
-        root.y = elementRect.y - h / 2
+        root.x = root.parent.width + 12
+        root.y = (root.parent.y + (root.parent.height / 2)) - root.parent.y - h / 2 + root.padding * 2
     }
 
     ColumnLayout {
@@ -55,7 +60,7 @@ StyledPopupView {
             id: stringTuningsModel
 
             onItemRectChanged: function(rect) {
-                updatePosition(rect)
+                root.elementRectChanged(rect)
             }
         }
 

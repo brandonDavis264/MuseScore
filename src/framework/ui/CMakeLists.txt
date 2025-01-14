@@ -18,7 +18,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-set(MODULE ui)
+declare_module(muse_ui)
+set(MODULE_ALIAS muse::ui)
 
 set(MODULE_QRC ui.qrc)
 set(MODULE_QML_IMPORT ${CMAKE_CURRENT_LIST_DIR}/qml)
@@ -65,12 +66,22 @@ set(MODULE_SRC
     ${CMAKE_CURRENT_LIST_DIR}/iuiconfiguration.h
     ${CMAKE_CURRENT_LIST_DIR}/uierrors.h
     ${CMAKE_CURRENT_LIST_DIR}/uitypes.h
+    ${CMAKE_CURRENT_LIST_DIR}/uiaction.h
     ${CMAKE_CURRENT_LIST_DIR}/imainwindow.h
     ${CMAKE_CURRENT_LIST_DIR}/iuiactionsregister.h
     ${CMAKE_CURRENT_LIST_DIR}/iuiactionsmodule.h
     ${CMAKE_CURRENT_LIST_DIR}/iuicontextresolver.h
     ${CMAKE_CURRENT_LIST_DIR}/inavigation.h
     ${CMAKE_CURRENT_LIST_DIR}/inavigationcontroller.h
+    ${CMAKE_CURRENT_LIST_DIR}/graphicsapiprovider.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/graphicsapiprovider.h
+
+    ${CMAKE_CURRENT_LIST_DIR}/api/themeapi.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/api/themeapi.h
+    ${CMAKE_CURRENT_LIST_DIR}/api/navigationapi.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/api/navigationapi.h
+    ${CMAKE_CURRENT_LIST_DIR}/api/keyboardapi.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/api/keyboardapi.h
 
     ${CMAKE_CURRENT_LIST_DIR}/internal/interactiveuriregister.cpp
     ${CMAKE_CURRENT_LIST_DIR}/internal/interactiveuriregister.h
@@ -97,8 +108,6 @@ set(MODULE_SRC
     ${CMAKE_CURRENT_LIST_DIR}/view/interactiveprovider.h
     ${CMAKE_CURRENT_LIST_DIR}/view/qmlapi.cpp
     ${CMAKE_CURRENT_LIST_DIR}/view/qmlapi.h
-    ${CMAKE_CURRENT_LIST_DIR}/view/uitheme.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/view/uitheme.h
     ${CMAKE_CURRENT_LIST_DIR}/view/iconcodes.h
     ${CMAKE_CURRENT_LIST_DIR}/view/musicalsymbolcodes.h
     ${CMAKE_CURRENT_LIST_DIR}/view/qmltranslation.cpp
@@ -146,17 +155,13 @@ set(MODULE_UI
     ${CMAKE_CURRENT_LIST_DIR}/dev/testdialog.ui
     )
 
-set(MODULE_LINK
-    accessibility
-    )
-
 if (OS_IS_MAC)
     find_library(AppKit NAMES AppKit)
     set(MODULE_LINK ${MODULE_LINK} ${AppKit})
 endif()
 
-include(SetupModule)
+setup_module()
 
-if (MUE_BUILD_UI_TESTS)
+if (MUSE_MODULE_UI_TESTS)
     add_subdirectory(tests)
 endif()

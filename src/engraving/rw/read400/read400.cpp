@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -58,6 +58,9 @@ using namespace mu::engraving::read400;
 Err Read400::readScore(Score* score, XmlReader& e, rw::ReadInOutData* data)
 {
     ReadContext ctx(score);
+    if (data && data->overriddenSpatium.has_value()) {
+        ctx.setSpatium(data->overriddenSpatium.value());
+    }
 
     if (!score->isMaster() && data) {
         ctx.initLinks(data->links);
@@ -79,7 +82,7 @@ Err Read400::readScore(Score* score, XmlReader& e, rw::ReadInOutData* data)
             e.skipCurrentElement();
         } else if (tag == "Score") {
             if (!readScore400(score, e, ctx)) {
-                if (e.error() == XmlStreamReader::CustomError) {
+                if (e.error() == muse::XmlStreamReader::CustomError) {
                     return Err::FileCriticallyCorrupted;
                 }
                 return Err::FileBadFormat;
@@ -110,7 +113,7 @@ bool Read400::readScore400(Score* score, XmlReader& e, ReadContext& ctx)
 {
     std::vector<int> sysStaves;
     while (e.readNextStartElement()) {
-        ctx.setTrack(mu::nidx);
+        ctx.setTrack(muse::nidx);
         const AsciiStringView tag(e.name());
         if (tag == "Staff") {
             StaffRead::readStaff(score, e, ctx);
@@ -240,8 +243,8 @@ bool Read400::readScore400(Score* score, XmlReader& e, ReadContext& ctx)
         }
     }
     ctx.reconnectBrokenConnectors();
-    if (e.error() != XmlStreamReader::NoError) {
-        if (e.error() == XmlStreamReader::CustomError) {
+    if (e.error() != muse::XmlStreamReader::NoError) {
+        if (e.error() == muse::XmlStreamReader::CustomError) {
             LOGE() << e.errorString();
         } else {
             LOGE() << String(u"XML read error at line %1, column %2: %3").arg(e.lineNumber(), e.columnNumber())
@@ -708,13 +711,12 @@ bool Read400::pasteStaff(XmlReader& e, Segment* dst, staff_idx_t dstStaff, Fract
             score->setLayout(dstTick, dstTick + tickLen, dstStaff, endStaff, dst);
         }
 
-        //check and add truly invisible rests instead of gaps
         //TODO: look if this could be done different
         Measure* dstM = score->tick2measure(dstTick);
         Measure* endM = score->tick2measure(dstTick + tickLen);
         for (staff_idx_t i = dstStaff; i < endStaff; i++) {
             for (Measure* m = dstM; m && m != endM->nextMeasure(); m = m->nextMeasure()) {
-                m->checkMeasure(i, false);
+                m->checkMeasure(i);
             }
         }
         score->m_selection.setRangeTicks(dstTick, dstTick + tickLen, dstStaff, endStaff);
@@ -852,6 +854,11 @@ void Read400::pasteSymbols(XmlReader& e, ChordRest* dst)
                     d->setParent(destCR->segment());
                     score->undoAddElement(d);
                 } else if (tag == "HairPin") {
+                    if (destTrack >= maxTrack) {
+                        LOGD("PasteSymbols: no track for %s", tag.ascii());
+                        e.skipCurrentElement();
+                        continue;
+                    }
                     Hairpin* h = Factory::createHairpin(score->dummy()->segment());
                     h->setTrack(destTrack);
                     TRead::read(h, e, ctx);

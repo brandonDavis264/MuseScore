@@ -20,22 +20,23 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_AUDIO_SEQUENCETRACKS_H
-#define MU_AUDIO_SEQUENCETRACKS_H
+#ifndef MUSE_AUDIO_SEQUENCETRACKS_H
+#define MUSE_AUDIO_SEQUENCETRACKS_H
 
-#include "modularity/ioc.h"
-#include "async/asyncable.h"
+#include "global/modularity/ioc.h"
+#include "global/async/asyncable.h"
 
 #include "isynthresolver.h"
 #include "itracks.h"
 #include "igettracksequence.h"
 
-namespace mu::audio {
-class TracksHandler : public ITracks, public async::Asyncable
+namespace muse::audio {
+class TracksHandler : public ITracks, public Injectable, public async::Asyncable
 {
-    INJECT(synth::ISynthResolver, resolver)
+    Inject<synth::ISynthResolver> resolver = { this };
+
 public:
-    explicit TracksHandler(IGetTrackSequence* getSequence);
+    explicit TracksHandler(IGetTrackSequence* getSequence, const modularity::ContextPtr& iocCtx);
     ~TracksHandler();
 
     async::Promise<TrackIdList> trackIdList(const TrackSequenceId sequenceId) const override;
@@ -57,7 +58,7 @@ public:
     async::Channel<TrackSequenceId, TrackId> trackRemoved() const override;
 
     async::Promise<AudioResourceMetaList> availableInputResources() const override;
-    async::Promise<SoundPresetList> availableSoundPresets(const TrackSequenceId sequenceId, const TrackId trackId) const override;
+    async::Promise<SoundPresetList> availableSoundPresets(const AudioResourceMeta& resourceMeta) const override;
 
     async::Promise<AudioInputParams> inputParams(const TrackSequenceId sequenceId, const TrackId trackId) const override;
     void setInputParams(const TrackSequenceId sequenceId, const TrackId trackId, const AudioInputParams& params) override;
@@ -77,4 +78,4 @@ private:
 };
 }
 
-#endif // MU_AUDIO_SEQUENCETRACKS_H
+#endif // MUSE_AUDIO_SEQUENCETRACKS_H

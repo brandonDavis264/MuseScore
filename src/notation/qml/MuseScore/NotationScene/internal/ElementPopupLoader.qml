@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2022 MuseScore BVBA and others
+ * Copyright (C) 2022 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -22,16 +22,14 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 
-import MuseScore.Ui 1.0
-import MuseScore.UiComponents 1.0
+import Muse.Ui 1.0
+import Muse.UiComponents 1.0
 import MuseScore.NotationScene 1.0
 
 import MuseScore.Playback 1.0
 
 Item {
     id: container
-
-    anchors.fill: parent
 
     property var popup: loader.item
     property bool isPopupOpened: Boolean(popup) && popup.isOpened
@@ -55,30 +53,30 @@ Item {
             case Notation.TYPE_CAPO: return capoComp
             case Notation.TYPE_STRING_TUNINGS: return stringTuningsComp
             case Notation.TYPE_SOUND_FLAG: return soundFlagComp
+            case Notation.TYPE_DYNAMIC: return dynamicComp
+            case Notation.TYPE_PARTIAL_TIE: return partialTieComp
             }
 
             return null
         }
 
-        function loadPopup() {
-            loader.active = true
-        }
+        function updateContainerPosition(elementRect) {
+            container.x = elementRect.x
+            container.y = elementRect.y
+            container.height = elementRect.height
+            container.width = elementRect.width
 
-        function unloadPopup() {
-            loader.sourceComponent = undefined
-            loader.active = false
-
-            Qt.callLater(container.closed)
+            loader.item.updatePosition()
         }
     }
 
     function show(elementType, elementRect) {
-        prv.loadPopup()
+        close()
 
-        var popup = loader.createPopup(prv.componentByType(elementType), elementRect)
+        var component = prv.componentByType(elementType)
+
+        var popup = loader.loadPopup(component, elementRect)
         popup.open()
-
-        Qt.callLater(container.opened)
     }
 
     function close() {
@@ -90,58 +88,82 @@ Item {
     Loader {
         id: loader
 
+        anchors.fill: parent
         active: false
 
-        function createPopup(comp, elementRect) {
+        function loadPopup(comp, elementRect) {
             loader.sourceComponent = comp
-            loader.item.parent = loader
-            loader.item.updatePosition(elementRect)
+            loader.active = true
+
+            const popup = loader.item
+            console.assert(popup)
+
+            popup.parent = container
+
+            popup.opened.connect(function() {
+                container.opened()
+            })
+
+            popup.closed.connect(function() {
+                loader.unloadPopup()
+                container.closed()
+            })
+
+            prv.updateContainerPosition(elementRect)
+            popup.elementRectChanged.connect(function(elementRect) {
+                prv.updateContainerPosition(elementRect)
+            })
 
             //! NOTE: All navigation panels in popups must be in the notation view section.
             //        This is necessary so that popups do not activate navigation in the new section,
             //        but at the same time, when clicking on the component (text input), the focus in popup's window should be activated
-            loader.item.navigationSection = null
+            popup.navigationSection = null
 
-            loader.item.notationViewNavigationSection = container.notationViewNavigationSection
-            loader.item.navigationOrderStart = container.navigationOrderStart
+            popup.notationViewNavigationSection = container.notationViewNavigationSection
+            popup.navigationOrderStart = container.navigationOrderStart
 
-            return loader.item
+            return popup
+        }
+
+        function unloadPopup() {
+            loader.active = false
+            loader.sourceComponent = null
         }
     }
 
     Component {
         id: harpPedalComp
         HarpPedalPopup {
-            onClosed: {
-                prv.unloadPopup()
-            }
         }
     }
 
     Component {
         id: capoComp
         CapoPopup {
-            onClosed: {
-                prv.unloadPopup()
-            }
         }
     }
 
     Component {
         id: stringTuningsComp
         StringTuningsPopup {
-            onClosed: {
-                prv.unloadPopup()
-            }
         }
     }
 
     Component {
         id: soundFlagComp
         SoundFlagPopup {
-            onClosed: {
-                prv.unloadPopup()
-            }
+        }
+    }
+
+    Component {
+        id: dynamicComp
+        DynamicPopup {
+        }
+    }
+
+    Component {
+        id: partialTieComp
+        PartialTiePopup {
         }
     }
 }

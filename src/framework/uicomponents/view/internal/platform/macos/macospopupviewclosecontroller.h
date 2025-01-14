@@ -20,27 +20,29 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_UICOMPONENTS_MACOSPOPUPVIEWCLOSECONTROLLER_H
-#define MU_UICOMPONENTS_MACOSPOPUPVIEWCLOSECONTROLLER_H
+#ifndef MUSE_UICOMPONENTS_MACOSPOPUPVIEWCLOSECONTROLLER_H
+#define MUSE_UICOMPONENTS_MACOSPOPUPVIEWCLOSECONTROLLER_H
 
 #include <QAbstractNativeEventFilter>
 
 #include "../../popupviewclosecontroller.h"
 
-namespace mu::uicomponents {
+namespace muse::uicomponents {
 class MacOSPopupViewCloseController : public PopupViewCloseController, public QAbstractNativeEventFilter
 {
     Q_OBJECT
 
 public:
-    explicit MacOSPopupViewCloseController(QObject* parent = nullptr);
+    explicit MacOSPopupViewCloseController(const muse::modularity::ContextPtr& iocCtx, QObject* parent = nullptr);
     ~MacOSPopupViewCloseController() override = default;
 
 private:
-    bool nativeEventFilter(const QByteArray& eventType, void* message, long* result) override;
+    bool nativeEventFilter(const QByteArray& eventType, void* message, qintptr* result) override;
 
     void doUpdateEventFilters() override;
+
+    void initWindowMinimizedObserver();
 };
 }
 
-#endif // MU_UICOMPONENTS_MACOSPOPUPVIEWCLOSECONTROLLER_H
+#endif // MUSE_UICOMPONENTS_MACOSPOPUPVIEWCLOSECONTROLLER_H

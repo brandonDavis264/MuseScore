@@ -20,10 +20,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_AUDIO_TRACKSEQUENCE_H
-#define MU_AUDIO_TRACKSEQUENCE_H
+#ifndef MUSE_AUDIO_TRACKSEQUENCE_H
+#define MUSE_AUDIO_TRACKSEQUENCE_H
 
-#include "async/asyncable.h"
+#include "global/async/asyncable.h"
+#include "modularity/ioc.h"
+#include "iaudioengine.h"
 
 #include "itracksequence.h"
 #include "igettracks.h"
@@ -31,12 +33,14 @@
 #include "track.h"
 #include "audiotypes.h"
 
-namespace mu::audio {
+namespace muse::audio {
 class Mixer;
-class TrackSequence : public ITrackSequence, public IGetTracks, public async::Asyncable
+class TrackSequence : public ITrackSequence, public IGetTracks, public muse::Injectable, public async::Asyncable
 {
+    Inject<IAudioEngine> audioEngine = { this };
+
 public:
-    TrackSequence(const TrackSequenceId id);
+    TrackSequence(const TrackSequenceId id, const muse::modularity::ContextPtr& iocCtx);
     ~TrackSequence();
 
     // ITrackSequence
@@ -91,4 +95,4 @@ private:
 };
 }
 
-#endif // MU_AUDIO_TRACKSEQUENCE_H
+#endif // MUSE_AUDIO_TRACKSEQUENCE_H

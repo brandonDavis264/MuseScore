@@ -20,34 +20,42 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_AUDIO_SEQUENCEPLAYER_H
-#define MU_AUDIO_SEQUENCEPLAYER_H
+#ifndef MUSE_AUDIO_SEQUENCEPLAYER_H
+#define MUSE_AUDIO_SEQUENCEPLAYER_H
 
-#include "async/asyncable.h"
+#include "global/async/asyncable.h"
+
+#include "modularity/ioc.h"
+#include "iaudioengine.h"
 
 #include "isequenceplayer.h"
 #include "igettracks.h"
 #include "iclock.h"
 
-namespace mu::audio {
-class SequencePlayer : public ISequencePlayer, public async::Asyncable
+namespace muse::audio {
+class SequencePlayer : public ISequencePlayer, public Injectable, public async::Asyncable
 {
+    Inject<IAudioEngine> audioEngine = { this };
+
 public:
-    explicit SequencePlayer(IGetTracks* getTracks, IClockPtr clock);
+    explicit SequencePlayer(IGetTracks* getTracks, IClockPtr clock, const modularity::ContextPtr& iocCtx);
 
     void play() override;
-    void seek(const msecs_t newPositionMsecs) override;
+    void seek(const secs_t newPosition) override;
     void stop() override;
     void pause() override;
     void resume() override;
+
+    PlaybackStatus playbackStatus() const override;
+    async::Channel<PlaybackStatus> playbackStatusChanged() const override;
 
     msecs_t duration() const override;
     void setDuration(const msecs_t duration) override;
     Ret setLoop(const msecs_t fromMsec, const msecs_t toMsec) override;
     void resetLoop() override;
 
-    async::Channel<msecs_t> playbackPositionMSecs() const override;
-    async::Channel<PlaybackStatus> playbackStatusChanged() const override;
+    secs_t playbackPosition() const override;
+    async::Channel<secs_t> playbackPositionChanged() const override;
 
 private:
     void setAllTracksActive(bool active);
@@ -58,4 +66,4 @@ private:
 };
 }
 
-#endif // MU_AUDIO_SEQUENCEPLAYER_H
+#endif // MUSE_AUDIO_SEQUENCEPLAYER_H

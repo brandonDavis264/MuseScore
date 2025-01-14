@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -24,8 +24,10 @@
 #include "types/translatablestring.h"
 #include "types/typesconv.h"
 
+#include "anchors.h"
 #include "dynamichairpingroup.h"
 #include "expression.h"
+#include "hairpin.h"
 #include "measure.h"
 #include "mscore.h"
 #include "score.h"
@@ -81,6 +83,10 @@ const std::vector<Dyn> Dynamic::DYN_LIST = {
     { DynamicType::SFF,     126, -18, true, "<sym>dynamicSforzando</sym><sym>dynamicForte</sym><sym>dynamicForte</sym>" },
     { DynamicType::SFFZ,    126, -18, true,
       "<sym>dynamicSforzando</sym><sym>dynamicForte</sym><sym>dynamicForte</sym><sym>dynamicZ</sym>" },
+    { DynamicType::SFFF,    127, -18, true,
+      "<sym>dynamicSforzando</sym><sym>dynamicForte</sym><sym>dynamicForte</sym><sym>dynamicForte</sym>" },
+    { DynamicType::SFFFZ,   127, -18, true,
+      "<sym>dynamicSforzando</sym><sym>dynamicForte</sym><sym>dynamicForte</sym><sym>dynamicForte</sym><sym>dynamicZ</sym>" },
     { DynamicType::SFP,     112, -47, true, "<sym>dynamicSforzando</sym><sym>dynamicForte</sym><sym>dynamicPiano</sym>" },
     { DynamicType::SFPP,    112, -79, true,
       "<sym>dynamicSforzando</sym><sym>dynamicForte</sym><sym>dynamicPiano</sym><sym>dynamicPiano</sym>" },
@@ -101,7 +107,6 @@ const std::vector<Dyn> Dynamic::DYN_LIST = {
 //---------------------------------------------------------
 
 static const ElementStyle dynamicsStyle {
-    { Sid::dynamicsPlacement, Pid::PLACEMENT },
     { Sid::dynamicsMinDistance, Pid::MIN_DISTANCE },
     { Sid::avoidBarLines, Pid::AVOID_BARLINES },
     { Sid::dynamicsSize, Pid::DYNAMICS_SIZE },
@@ -143,6 +148,13 @@ Dynamic::Dynamic(const Dynamic& d)
 int Dynamic::velocity() const
 {
     return m_velocity <= 0 ? DYN_LIST[int(dynamicType())].velocity : m_velocity;
+}
+
+void Dynamic::setDynRange(DynamicRange range)
+{
+    m_dynRange = range;
+
+    setVoiceAssignment(dynamicRangeToVoiceAssignment(range));
 }
 
 //---------------------------------------------------------
@@ -208,6 +220,8 @@ bool Dynamic::isVelocityChangeAvailable() const
     case DynamicType::SFZ:
     case DynamicType::SFF:
     case DynamicType::SFFZ:
+    case DynamicType::SFFF:
+    case DynamicType::SFFFZ:
     case DynamicType::SFP:
     case DynamicType::SFPP:
     case DynamicType::RFZ:
@@ -302,7 +316,7 @@ double Dynamic::customTextOffset() const
 
 void Dynamic::manageBarlineCollisions()
 {
-    if (!_avoidBarLines || score()->nstaves() <= 1) {
+    if (!_avoidBarLines || score()->nstaves() <= 1 || anchorToEndOfPrevious() || !isStyled(Pid::OFFSET)) {
         return;
     }
 
@@ -316,7 +330,7 @@ void Dynamic::manageBarlineCollisions()
         return;
     }
 
-    staff_idx_t barLineStaff = mu::nidx;
+    staff_idx_t barLineStaff = muse::nidx;
     if (placeAbove()) {
         // need to find the barline from the staff above
         // taking into account there could be invisible staves
@@ -333,7 +347,7 @@ void Dynamic::manageBarlineCollisions()
         barLineStaff = staffIdx();
     }
 
-    if (barLineStaff == mu::nidx) {
+    if (barLineStaff == muse::nidx) {
         return;
     }
 
@@ -372,6 +386,7 @@ void Dynamic::manageBarlineCollisions()
             break;
         }
     }
+
     if (rightBarLineSegment) {
         EngravingItem* e = rightBarLineSegment->elementAt(barLineStaff * VOICES);
         if (e) {
@@ -392,18 +407,33 @@ void Dynamic::manageBarlineCollisions()
 
 void Dynamic::setDynamicType(const String& tag)
 {
+    const auto dynamicInfo = parseDynamicText(tag);
+
+    if (dynamicInfo.first == DynamicType::OTHER) {
+        LOGD("setDynamicType: other <%s>", muPrintable(tag));
+    }
+
+    setDynamicType(dynamicInfo.first);
+    setXmlText(dynamicInfo.second);
+}
+
+std::pair<DynamicType, String> Dynamic::parseDynamicText(const String& tag) const
+{
     std::string utf8Tag = tag.toStdString();
-    size_t n = DYN_LIST.size();
-    for (size_t i = 0; i < n; ++i) {
-        if (TConv::toXml(DynamicType(i)).ascii() == utf8Tag || DYN_LIST[i].text == utf8Tag) {
-            setDynamicType(DynamicType(i));
-            setXmlText(String::fromUtf8(DYN_LIST[i].text));
-            return;
+    const std::regex dynamicRegex(R"((?:<sym>.*?</sym>)+|(?:\b)[fmnprsz]+(?:\b(?=[^>]|$)))");
+    auto begin = std::sregex_iterator(utf8Tag.begin(), utf8Tag.end(), dynamicRegex);
+    for (auto it = begin; it != std::sregex_iterator(); ++it) {
+        const std::smatch match = *it;
+        const std::string matchStr = match.str();
+        size_t n = DYN_LIST.size();
+        for (size_t i = 0; i < n; ++i) {
+            if (TConv::toXml(DynamicType(i)).ascii() == matchStr || DYN_LIST[i].text == matchStr) {
+                utf8Tag.replace(match.position(0), match.length(0), DYN_LIST[i].text);
+                return { DynamicType(i), String::fromStdString(utf8Tag) };
+            }
         }
     }
-    LOGD("setDynamicType: other <%s>", muPrintable(tag));
-    setDynamicType(DynamicType::OTHER);
-    setXmlText(tag);
+    return { DynamicType::OTHER, tag };
 }
 
 String Dynamic::dynamicText(DynamicType t)
@@ -411,57 +441,94 @@ String Dynamic::dynamicText(DynamicType t)
     return String::fromUtf8(DYN_LIST[int(t)].text);
 }
 
+Expression* Dynamic::snappedExpression() const
+{
+    EngravingItem* item = ldata()->itemSnappedAfter();
+    return item && item->isExpression() ? toExpression(item) : nullptr;
+}
+
+HairpinSegment* Dynamic::findSnapBeforeHairpinAcrossSystemBreak() const
+{
+    /* Normally it is the hairpin which looks for a snappable dynamic. Except if this dynamic
+     * is on the first beat of next system, in which case it needs to look back for a hairpin. */
+    Segment* seg = segment();
+    Measure* measure = seg ? seg->measure() : nullptr;
+    System* system = measure ? measure->system() : nullptr;
+    bool isOnFirstBeatOfSystem = system && system->firstMeasure() == measure && seg->rtick().isZero();
+    if (!isOnFirstBeatOfSystem) {
+        return nullptr;
+    }
+
+    Measure* prevMeasure = measure->prevMeasure();
+    System* prevSystem = prevMeasure ? prevMeasure->system() : nullptr;
+    if (!prevSystem) {
+        return nullptr;
+    }
+
+    for (SpannerSegment* spannerSeg : prevSystem->spannerSegments()) {
+        if (!spannerSeg->isHairpinSegment() || spannerSeg->track() != track() || spannerSeg->spanner()->tick2() != tick()) {
+            continue;
+        }
+        HairpinSegment* hairpinSeg = toHairpinSegment(spannerSeg);
+        if (hairpinSeg->findElementToSnapAfter() == this) {
+            return hairpinSeg;
+        }
+    }
+
+    return nullptr;
+}
+
 bool Dynamic::acceptDrop(EditData& ed) const
 {
     ElementType droppedType = ed.dropElement->type();
-    return droppedType == ElementType::DYNAMIC || droppedType == ElementType::EXPRESSION;
+    return droppedType == ElementType::DYNAMIC || droppedType == ElementType::EXPRESSION || droppedType == ElementType::HAIRPIN;
 }
 
 EngravingItem* Dynamic::drop(EditData& ed)
 {
     EngravingItem* item = ed.dropElement;
-    if (!(item->isDynamic() || item->isExpression())) {
-        return nullptr;
+
+    if (item->isHairpin()) {
+        score()->addHairpinToDynamic(toHairpin(item), this);
+        return item;
     }
 
-    item->setTrack(track());
-    item->setParent(segment());
-    score()->undoAddElement(item);
-    item->undoChangeProperty(Pid::PLACEMENT, placement(), PropertyFlags::UNSTYLED);
     if (item->isDynamic()) {
-        score()->undoRemoveElement(this); // swap this dynamic for the newly added one
+        Dynamic* dynamic = toDynamic(item);
+        undoChangeProperty(Pid::DYNAMIC_TYPE, dynamic->dynamicType());
+        undoChangeProperty(Pid::TEXT, dynamic->xmlText());
+        delete dynamic;
+        ed.dropElement = this;
+        return this;
     }
-    return item;
+
+    if (item->isExpression()) {
+        item->setTrack(track());
+        item->setParent(segment());
+        toExpression(item)->setVoiceAssignment(voiceAssignment());
+        score()->undoAddElement(item);
+        return item;
+    }
+
+    return nullptr;
+}
+
+int Dynamic::dynamicVelocity(DynamicType t)
+{
+    return DYN_LIST[int(t)].velocity;
 }
 
 TranslatableString Dynamic::subtypeUserName() const
 {
-    return TranslatableString::untranslatable(TConv::toXml(dynamicType()).ascii());
-}
-
-String Dynamic::translatedSubtypeUserName() const
-{
-    return String::fromAscii(TConv::toXml(dynamicType()).ascii());
-}
-
-//---------------------------------------------------------
-//   startEdit
-//---------------------------------------------------------
-
-void Dynamic::startEdit(EditData& ed)
-{
-    TextBase::startEdit(ed);
-}
-
-//---------------------------------------------------------
-//   endEdit
-//---------------------------------------------------------
-
-void Dynamic::endEdit(EditData& ed)
-{
-    TextBase::endEdit(ed);
-    if (!xmlText().contains(String::fromUtf8(DYN_LIST[int(m_dynamicType)].text))) {
-        m_dynamicType = DynamicType::OTHER;
+    if (dynamicType() == DynamicType::OTHER) {
+        String s = plainText().simplified();
+        if (s.size() > 20) {
+            s.truncate(20);
+            s += u"…";
+        }
+        return TranslatableString::untranslatable(s);
+    } else {
+        return TConv::userName(dynamicType());
     }
 }
 
@@ -471,7 +538,13 @@ void Dynamic::endEdit(EditData& ed)
 
 void Dynamic::reset()
 {
+    undoResetProperty(Pid::DIRECTION);
+    undoResetProperty(Pid::CENTER_BETWEEN_STAVES);
     TextBase::reset();
+    Expression* snappedExp = snappedExpression();
+    if (snappedExp && snappedExp->getProperty(Pid::OFFSET) != snappedExp->propertyDefault(Pid::OFFSET)) {
+        snappedExp->reset();
+    }
 }
 
 //---------------------------------------------------------
@@ -493,49 +566,6 @@ std::unique_ptr<ElementGroup> Dynamic::getDragGroup(std::function<bool(const Eng
 }
 
 //---------------------------------------------------------
-//   drag
-//---------------------------------------------------------
-
-mu::RectF Dynamic::drag(EditData& ed)
-{
-    RectF f = EngravingItem::drag(ed);
-
-    //
-    // move anchor
-    //
-    KeyboardModifiers km = ed.modifiers;
-    if (km != (ShiftModifier | ControlModifier)) {
-        staff_idx_t si = staffIdx();
-        Segment* seg = segment();
-        score()->dragPosition(canvasPos(), &si, &seg);
-        if (seg != segment() || staffIdx() != si) {
-            const PointF oldOffset = offset();
-            PointF pos1(canvasPos());
-            score()->undoChangeParent(this, seg, si);
-            setOffset(PointF());
-
-            renderer()->layoutItem(this);
-
-            PointF pos2(canvasPos());
-            const PointF newOffset = pos1 - pos2;
-            setOffset(newOffset);
-            ElementEditDataPtr eed = ed.getData(this);
-            eed->initOffset += newOffset - oldOffset;
-        }
-    }
-    return f;
-}
-
-//---------------------------------------------------------
-//   undoSetDynRange
-//---------------------------------------------------------
-
-void Dynamic::undoSetDynRange(DynamicRange v)
-{
-    TextBase::undoChangeProperty(Pid::DYNAMIC_RANGE, v);
-}
-
-//---------------------------------------------------------
 //   getProperty
 //---------------------------------------------------------
 
@@ -544,8 +574,6 @@ PropertyValue Dynamic::getProperty(Pid propertyId) const
     switch (propertyId) {
     case Pid::DYNAMIC_TYPE:
         return m_dynamicType;
-    case Pid::DYNAMIC_RANGE:
-        return m_dynRange;
     case Pid::VELOCITY:
         return velocity();
     case Pid::SUBTYPE:
@@ -566,6 +594,8 @@ PropertyValue Dynamic::getProperty(Pid propertyId) const
         return _centerOnNotehead;
     case Pid::PLAY:
         return playDynamic();
+    case Pid::ANCHOR_TO_END_OF_PREVIOUS:
+        return anchorToEndOfPrevious();
     default:
         return TextBase::getProperty(propertyId);
     }
@@ -579,10 +609,11 @@ bool Dynamic::setProperty(Pid propertyId, const PropertyValue& v)
 {
     switch (propertyId) {
     case Pid::DYNAMIC_TYPE:
-        m_dynamicType = v.value<DynamicType>();
-        break;
-    case Pid::DYNAMIC_RANGE:
-        m_dynRange = v.value<DynamicRange>();
+        if (v.type() == P_TYPE::DYNAMIC_TYPE) {
+            setDynamicType(v.value<DynamicType>());
+            break;
+        }
+        setDynamicType(v.value<String>());
         break;
     case Pid::VELOCITY:
         m_velocity = v.toInt();
@@ -610,6 +641,9 @@ bool Dynamic::setProperty(Pid propertyId, const PropertyValue& v)
     case Pid::PLAY:
         setPlayDynamic(v.toBool());
         break;
+    case Pid::ANCHOR_TO_END_OF_PREVIOUS:
+        setAnchorToEndOfPrevious(v.toBool());
+        break;
     default:
         if (!TextBase::setProperty(propertyId, v)) {
             return false;
@@ -629,8 +663,6 @@ PropertyValue Dynamic::propertyDefault(Pid id) const
     switch (id) {
     case Pid::TEXT_STYLE:
         return TextStyleType::DYNAMICS;
-    case Pid::DYNAMIC_RANGE:
-        return DynamicRange::PART;
     case Pid::VELOCITY:
         return -1;
     case Pid::VELO_CHANGE:
@@ -643,19 +675,20 @@ PropertyValue Dynamic::propertyDefault(Pid id) const
         return DynamicSpeed::NORMAL;
     case Pid::PLAY:
         return true;
+    case Pid::ANCHOR_TO_END_OF_PREVIOUS:
+        return false;
     default:
         return TextBase::propertyDefault(id);
     }
 }
 
-void Dynamic::undoChangeProperty(Pid id, const PropertyValue& v, PropertyFlags ps)
+Sid Dynamic::getPropertyStyle(Pid pid) const
 {
-    TextBase::undoChangeProperty(id, v, ps);
-    if (m_snappedExpression) {
-        if ((id == Pid::OFFSET && m_snappedExpression->offset() != v.value<PointF>())
-            || (id == Pid::PLACEMENT && m_snappedExpression->placement() != v.value<PlacementV>())) {
-            m_snappedExpression->undoChangeProperty(id, v, ps);
-        }
+    switch (pid) {
+    case Pid::PLACEMENT:
+        return Sid::dynamicsPlacement;
+    default:
+        return TextBase::getPropertyStyle(pid);
     }
 }
 
@@ -665,18 +698,7 @@ void Dynamic::undoChangeProperty(Pid id, const PropertyValue& v, PropertyFlags p
 
 String Dynamic::accessibleInfo() const
 {
-    String s;
-
-    if (dynamicType() == DynamicType::OTHER) {
-        s = plainText().simplified();
-        if (s.size() > 20) {
-            s.truncate(20);
-            s += u"…";
-        }
-    } else {
-        s = TConv::translatedUserName(dynamicType());
-    }
-    return String(u"%1: %2").arg(EngravingItem::accessibleInfo(), s);
+    return String(u"%1: %2").arg(EngravingItem::accessibleInfo(), translatedSubtypeUserName());
 }
 
 //---------------------------------------------------------

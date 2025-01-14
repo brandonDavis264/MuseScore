@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -36,7 +36,8 @@
 #include "log.h"
 
 using namespace mu;
-using namespace mu::io;
+using namespace muse::io;
+using namespace muse::draw;
 using namespace mu::engraving;
 using namespace mu::engraving::read400;
 
@@ -68,7 +69,7 @@ void Score::linkMeasures(Score* score)
 //   createThumbnail
 //---------------------------------------------------------
 
-std::shared_ptr<mu::draw::Pixmap> Score::createThumbnail()
+std::shared_ptr<Pixmap> Score::createThumbnail()
 {
     TRACEFUNC;
 
@@ -76,7 +77,7 @@ std::shared_ptr<mu::draw::Pixmap> Score::createThumbnail()
     switchToPageMode();
 
     Page* page = pages().at(0);
-    RectF fr = page->abbox();
+    RectF fr = page->pageBoundingRect();
     double mag = 256.0 / std::max(fr.width(), fr.height());
     int w = int(fr.width() * mag);
     int h = int(fr.height() * mag);
@@ -89,7 +90,7 @@ std::shared_ptr<mu::draw::Pixmap> Score::createThumbnail()
     MScore::pixelRatio = 1.0;
 
     auto painterProvider = imageProvider()->painterForImage(pixmap);
-    mu::draw::Painter p(painterProvider, "thumbnail");
+    Painter p(painterProvider, "thumbnail");
 
     p.setAntialiasing(true);
     p.scale(mag, mag);
@@ -120,7 +121,7 @@ bool Score::loadStyle(const String& fn, bool ign, const bool overlap)
             undo(new ChangeStyle(this, st, overlap));
             return true;
         } else {
-            LOGE() << "The style file is not compatible with this version of MuseScore.";
+            LOGE() << "The style file is not compatible with this version of MuseScore Studio.";
             return false;
         }
     }
@@ -159,12 +160,12 @@ bool Score::saveStyle(const String& name)
 //   print
 //---------------------------------------------------------
 
-void Score::print(mu::draw::Painter* painter, int pageNo)
+void Score::print(Painter* painter, int pageNo)
 {
     m_printing  = true;
     MScore::pdfPrinting = true;
     Page* page = pages().at(pageNo);
-    RectF fr  = page->abbox();
+    RectF fr  = page->pageBoundingRect();
 
     std::vector<EngravingItem*> ell = page->items(fr);
     std::sort(ell.begin(), ell.end(), elementLessThan);
@@ -174,7 +175,7 @@ void Score::print(mu::draw::Painter* painter, int pageNo)
         }
         painter->save();
         painter->translate(e->pagePos());
-        EngravingItem::renderer()->drawItem(e, painter);
+        renderer()->drawItem(e, painter);
         painter->restore();
     }
     MScore::pdfPrinting = false;

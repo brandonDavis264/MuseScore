@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -28,9 +28,11 @@
 #include "log.h"
 
 using namespace mu;
-using namespace mu::ui;
-using namespace mu::draw;
 using namespace mu::notation;
+using namespace muse;
+using namespace muse::ui;
+using namespace muse::draw;
+using namespace muse::actions;
 
 static constexpr qreal SCROLL_LIMIT_OFF_OVERSCROLL_FACTOR = 0.75;
 
@@ -40,11 +42,10 @@ static void compensateFloatPart(RectF& rect)
 }
 
 AbstractNotationPaintView::AbstractNotationPaintView(QQuickItem* parent)
-    : uicomponents::QuickPaintedView(parent)
+    : muse::uicomponents::QuickPaintedView(parent), muse::Injectable(muse::iocCtxForQmlObject(this))
 {
     setFlag(ItemHasContents, true);
     setFlag(ItemAcceptsDrops, true);
-    setFlag(ItemAcceptsInputMethod, true);
     setAcceptedMouseButtons(Qt::AllButtons);
 
     connect(this, &QQuickPaintedItem::widthChanged, this, &AbstractNotationPaintView::onViewSizeChanged);
@@ -56,21 +57,6 @@ AbstractNotationPaintView::AbstractNotationPaintView(QQuickItem* parent)
 
     connect(this, &AbstractNotationPaintView::verticalScrollChanged, [this]() {
         m_previousVerticalScrollPosition = startVerticalScrollPosition();
-    });
-
-    m_inputController = std::make_unique<NotationViewInputController>(this);
-    m_playbackCursor = std::make_unique<PlaybackCursor>();
-    m_playbackCursor->setVisible(false);
-    m_noteInputCursor = std::make_unique<NoteInputCursor>();
-
-    m_loopInMarker = std::make_unique<LoopMarker>(LoopBoundaryType::LoopIn);
-    m_loopOutMarker = std::make_unique<LoopMarker>(LoopBoundaryType::LoopOut);
-
-    m_continuousPanel = std::make_unique<ContinuousPanel>();
-
-    //! NOTE For diagnostic tools
-    dispatcher()->reg(this, "diagnostic-notationview-redraw", [this]() {
-        scheduleRedraw();
     });
 
     m_enableAutoScrollTimer.setSingleShot(true);
@@ -93,6 +79,24 @@ void AbstractNotationPaintView::load()
 {
     TRACEFUNC;
 
+    m_inputController = std::make_unique<NotationViewInputController>(this, iocContext());
+    m_playbackCursor = std::make_unique<PlaybackCursor>(iocContext());
+    m_playbackCursor->setVisible(false);
+    m_noteInputCursor = std::make_unique<NoteInputCursor>();
+
+    m_loopInMarker = std::make_unique<LoopMarker>(LoopBoundaryType::LoopIn, iocContext());
+    m_loopOutMarker = std::make_unique<LoopMarker>(LoopBoundaryType::LoopOut, iocContext());
+
+    m_continuousPanel = std::make_unique<ContinuousPanel>(iocContext());
+
+    //! NOTE For diagnostic tools
+    if (!dispatcher()->isReg(this)) {
+        dispatcher()->reg(this, "diagnostic-notationview-redraw", [this]() {
+            scheduleRedraw();
+        });
+    }
+
+    m_inputController->setReadonly(m_readonly);
     m_inputController->init();
 
     onNotationSetup();
@@ -123,7 +127,7 @@ void AbstractNotationPaintView::initBackground()
 
 void AbstractNotationPaintView::initNavigatorOrientation()
 {
-    configuration()->canvasOrientation().ch.onReceive(this, [this](framework::Orientation) {
+    configuration()->canvasOrientation().ch.onReceive(this, [this](muse::Orientation) {
         moveCanvasToPosition(PointF(0, 0));
     });
 }
@@ -196,7 +200,7 @@ void AbstractNotationPaintView::selectOnNavigationActive()
     interaction->selectFirstElement(false);
 }
 
-bool AbstractNotationPaintView::canReceiveAction(const actions::ActionCode& actionCode) const
+bool AbstractNotationPaintView::canReceiveAction(const ActionCode& actionCode) const
 {
     if (actionCode == "diagnostic-notationview-redraw") {
         return true;
@@ -226,6 +230,7 @@ void AbstractNotationPaintView::onLoadNotation(INotationPtr)
 {
     if (viewport().isValid() && !m_notation->viewState()->isMatrixInited()) {
         m_inputController->initZoom();
+        m_inputController->initCanvasPos();
     }
 
     if (publishMode()) {
@@ -243,8 +248,18 @@ void AbstractNotationPaintView::onLoadNotation(INotationPtr)
     });
 
     onNoteInputStateChanged();
+    if (isNoteEnterMode()) {
+        emit activeFocusRequested();
+    }
+
     interaction->noteInput()->stateChanged().onNotify(this, [this]() {
         onNoteInputStateChanged();
+    });
+
+    interaction->noteInput()->noteInputStarted().onReceive(this, [this](bool focusNotation) {
+        if (focusNotation) {
+            emit activeFocusRequested();
+        }
     });
 
     interaction->selectionChanged().onNotify(this, [this]() {
@@ -256,9 +271,15 @@ void AbstractNotationPaintView::onLoadNotation(INotationPtr)
     });
 
     interaction->textEditingStarted().onNotify(this, [this]() {
-        if (!hasActiveFocus()) {
-            forceFocusIn();
-        }
+        setFlag(ItemAcceptsInputMethod, true);
+        setFocus(false); // Remove focus once so that the IME reloads the state
+        forceFocusIn();
+    });
+
+    interaction->textEditingEnded().onReceive(this, [this](const engraving::TextBase*) {
+        setFlag(ItemAcceptsInputMethod, false);
+        setFocus(false); // Remove focus once so that the IME reloads the state
+        forceFocusIn();
     });
 
     interaction->dropChanged().onNotify(this, [this]() {
@@ -355,6 +376,8 @@ void AbstractNotationPaintView::onMatrixChanged(const Transform& oldMatrix, cons
     emit horizontalScrollChanged();
     emit verticalScrollChanged();
     emit viewportChanged();
+
+    onPlaybackCursorRectChanged();
 }
 
 void AbstractNotationPaintView::onViewSizeChanged()
@@ -368,6 +391,7 @@ void AbstractNotationPaintView::onViewSizeChanged()
     if (viewport().isValid()) {
         if (!notation()->viewState()->isMatrixInited()) {
             m_inputController->initZoom();
+            m_inputController->initCanvasPos();
         } else {
             m_inputController->updateZoomAfterSizeChange();
         }
@@ -380,6 +404,8 @@ void AbstractNotationPaintView::onViewSizeChanged()
     emit horizontalScrollChanged();
     emit verticalScrollChanged();
     emit viewportChanged();
+
+    onPlaybackCursorRectChanged();
 }
 
 void AbstractNotationPaintView::updateLoopMarkers()
@@ -441,12 +467,7 @@ void AbstractNotationPaintView::onNoteInputStateChanged()
 {
     TRACEFUNC;
 
-    bool noteEnterMode = isNoteEnterMode();
-    setAcceptHoverEvents(noteEnterMode);
-
-    if (noteEnterMode) {
-        emit activeFocusRequested();
-    }
+    setAcceptHoverEvents(isNoteEnterMode());
 
     if (INotationInteractionPtr interaction = notationInteraction()) {
         interaction->hideShadowNote();
@@ -565,8 +586,8 @@ void AbstractNotationPaintView::paint(QPainter* qp)
     RectF rect = RectF::fromQRectF(qp->clipBoundingRect());
     rect = correctDrawRect(rect);
 
-    mu::draw::Painter mup(qp, objectName().toStdString());
-    mu::draw::Painter* painter = &mup;
+    muse::draw::Painter mup(qp, objectName().toStdString());
+    muse::draw::Painter* painter = &mup;
 
     paintBackground(rect, painter);
 
@@ -583,7 +604,6 @@ void AbstractNotationPaintView::paint(QPainter* qp)
     bool isPrinting = publishMode() || m_inputController->readonly();
     notation()->painting()->paintView(painter, toLogical(rect), isPrinting);
 
-    m_playbackCursor->paint(painter);
     m_noteInputCursor->paint(painter);
     m_loopInMarker->paint(painter);
     m_loopOutMarker->paint(painter);
@@ -612,7 +632,7 @@ void AbstractNotationPaintView::onNotationSetup()
         onPlayingChanged();
     });
 
-    playbackController()->midiTickPlayed().onReceive(this, [this](uint32_t tick) {
+    playbackController()->currentPlaybackPositionChanged().onReceive(this, [this](audio::secs_t, midi::tick_t tick) {
         movePlaybackCursor(tick);
     });
 
@@ -629,7 +649,7 @@ void AbstractNotationPaintView::onNotationSetup()
     });
 }
 
-void AbstractNotationPaintView::paintBackground(const RectF& rect, draw::Painter* painter)
+void AbstractNotationPaintView::paintBackground(const RectF& rect, muse::draw::Painter* painter)
 {
     TRACEFUNC;
 
@@ -973,7 +993,7 @@ bool AbstractNotationPaintView::doMoveCanvas(qreal dx, qreal dy)
     return true;
 }
 
-void AbstractNotationPaintView::scheduleRedraw(const mu::RectF& rect)
+void AbstractNotationPaintView::scheduleRedraw(const muse::RectF& rect)
 {
     QRect qrect = correctDrawRect(rect).toQRect();
     update(qrect);
@@ -1156,6 +1176,13 @@ void AbstractNotationPaintView::keyPressEvent(QKeyEvent* event)
     return;
 }
 
+void AbstractNotationPaintView::keyReleaseEvent(QKeyEvent* event)
+{
+    if (isInited()) {
+        m_inputController->keyReleaseEvent(event);
+    }
+}
+
 bool AbstractNotationPaintView::event(QEvent* event)
 {
     QEvent::Type eventType = event->type();
@@ -1235,7 +1262,10 @@ void AbstractNotationPaintView::setNotation(INotationPtr notation)
 
 void AbstractNotationPaintView::setReadonly(bool readonly)
 {
-    m_inputController->setReadonly(readonly);
+    m_readonly = readonly;
+    if (m_inputController) {
+        m_inputController->setReadonly(m_readonly);
+    }
 }
 
 void AbstractNotationPaintView::clear()
@@ -1303,19 +1333,23 @@ void AbstractNotationPaintView::onPlayingChanged()
     bool isPlaying = playbackController()->isPlaying();
     m_playbackCursor->setVisible(isPlaying);
 
+    if (m_playbackCursorItem) {
+        m_playbackCursorItem->setVisible(isPlaying);
+    }
+
     m_autoScrollEnabled = true;
     m_enableAutoScrollTimer.stop();
 
     if (isPlaying) {
-        float playPosSec = playbackController()->playbackPositionInSeconds();
-        midi::tick_t tick = notationPlayback()->secToTick(playPosSec);
+        audio::secs_t pos = globalContext()->playbackState()->playbackPosition();
+        muse::midi::tick_t tick = notationPlayback()->secToTick(pos);
         movePlaybackCursor(tick);
     } else {
         scheduleRedraw();
     }
 }
 
-void AbstractNotationPaintView::movePlaybackCursor(midi::tick_t tick)
+void AbstractNotationPaintView::movePlaybackCursor(muse::midi::tick_t tick)
 {
     TRACEFUNC;
 
@@ -1326,6 +1360,10 @@ void AbstractNotationPaintView::movePlaybackCursor(midi::tick_t tick)
     RectF oldCursorRect = m_playbackCursor->rect();
     m_playbackCursor->move(tick);
     const RectF& newCursorRect = m_playbackCursor->rect();
+
+    if (newCursorRect != oldCursorRect) {
+        onPlaybackCursorRectChanged();
+    }
 
     if (!m_playbackCursor->visible() || newCursorRect.isNull()) {
         return;
@@ -1343,21 +1381,6 @@ void AbstractNotationPaintView::movePlaybackCursor(midi::tick_t tick)
                 return;
             }
         }
-    }
-
-    //! NOTE: redraw in a slightly larger area than the cursor rect to avoid graphical artifacts
-    RectF dirtyRect1 = fromLogical(oldCursorRect).adjusted(-1, -1, 2, 1);
-    RectF dirtyRect2 = fromLogical(newCursorRect).adjusted(-1, -1, 2, 1);
-
-    double dx = std::abs(dirtyRect2.x() - dirtyRect1.x());
-    double dy = std::abs(dirtyRect2.y() - dirtyRect1.y());
-
-    //! NOTE: the difference between the old cursor rect and the new one is not big, so we redraw their united rect
-    if (dx < 1.0 && dy < 1.0) {
-        scheduleRedraw(dirtyRect1.united(dirtyRect2));
-    } else {
-        scheduleRedraw(dirtyRect1);
-        scheduleRedraw(dirtyRect2);
     }
 }
 
@@ -1381,6 +1404,23 @@ bool AbstractNotationPaintView::needAdjustCanvasVerticallyWhilePlayback(const Re
     }
 
     return nonEmptySystemCount > 1;
+}
+
+void AbstractNotationPaintView::onPlaybackCursorRectChanged()
+{
+    if (!m_playbackCursor || !m_playbackCursorItem) {
+        return;
+    }
+
+    QRectF cursorRect = fromLogical(m_playbackCursor->rect()).toQRectF();
+    cursorRect.setWidth(std::max(std::round(cursorRect.width()), 1.0)); // makes it move more smoothly
+
+    QRectF viewRect(0.0, 0.0, width(), height());
+    QRectF newRect = cursorRect.intersected(viewRect);
+
+    m_playbackCursorItem->setX(newRect.x());
+    m_playbackCursorItem->setY(newRect.y());
+    m_playbackCursorItem->setSize(newRect.size());
 }
 
 const Page* AbstractNotationPaintView::pageByPoint(const PointF& point) const
@@ -1443,4 +1483,23 @@ void AbstractNotationPaintView::setIsMainView(bool isMainView)
 
     m_isMainView = isMainView;
     emit isMainViewChanged(m_isMainView);
+}
+
+void AbstractNotationPaintView::setPlaybackCursorItem(QQuickItem* cursor)
+{
+    if (m_playbackCursorItem == cursor) {
+        return;
+    }
+
+    m_playbackCursorItem = cursor;
+
+    if (m_playbackCursorItem) {
+        m_playbackCursorItem->setVisible(playbackController()->isPlaying());
+        m_playbackCursorItem->setEnabled(false); // ignore mouse & keyboard events
+        m_playbackCursorItem->setProperty("color", configuration()->playbackCursorColor());
+
+        connect(m_playbackCursorItem, &QObject::destroyed, this, [this]() {
+            m_playbackCursorItem = nullptr;
+        });
+    }
 }

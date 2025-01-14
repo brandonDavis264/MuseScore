@@ -20,20 +20,23 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_MUSESAMPLER_MUSESAMPLERCONFIGURATION_H
-#define MU_MUSESAMPLER_MUSESAMPLERCONFIGURATION_H
+#ifndef MUSE_MUSESAMPLER_MUSESAMPLERCONFIGURATION_H
+#define MUSE_MUSESAMPLER_MUSESAMPLERCONFIGURATION_H
 
 #include "modularity/ioc.h"
 #include "iglobalconfiguration.h"
 
 #include "imusesamplerconfiguration.h"
 
-namespace mu::musesampler {
-class MuseSamplerConfiguration : public IMuseSamplerConfiguration
+namespace muse::musesampler {
+class MuseSamplerConfiguration : public IMuseSamplerConfiguration, public Injectable
 {
-    INJECT(framework::IGlobalConfiguration, globalConfig)
+    Inject<IGlobalConfiguration> globalConfig = { this };
 
 public:
+    MuseSamplerConfiguration(const modularity::ContextPtr& iocCtx)
+        : Injectable(iocCtx) {}
+
     void init();
 
     // Preferred local user install path; try this first.
@@ -42,9 +45,13 @@ public:
     // Backup location for system-wide sampler install
     io::path_t fallbackLibraryPath() const override;
 
+    bool shouldShowBuildNumber() const override;
+
+    bool useLegacyAudition() const override;
+
 private:
     io::path_t defaultPath() const;
 };
 }
 
-#endif // MU_MUSESAMPLER_MUSESAMPLERCONFIGURATION_H
+#endif // MUSE_MUSESAMPLER_MUSESAMPLERCONFIGURATION_H

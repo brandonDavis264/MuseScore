@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -23,8 +23,9 @@
 #define MU_NOTATION_INOTATIONNOTEINPUT_H
 
 #include "async/notification.h"
+#include "types/ret.h"
+
 #include "notationtypes.h"
-#include "types/retval.h"
 
 namespace mu::notation {
 class INotationNoteInput
@@ -36,15 +37,15 @@ public:
 
     virtual NoteInputState state() const = 0;
 
-    virtual void startNoteInput() = 0;
-    virtual void endNoteInput() = 0;
+    virtual void startNoteInput(bool focusNotation = true) = 0;
+    virtual void endNoteInput(bool resetState = false) = 0;
     virtual void toggleNoteInputMethod(NoteInputMethod method) = 0;
     virtual void addNote(NoteName noteName, NoteAddingMode addingMode) = 0;
     virtual void padNote(const Pad& pad)  = 0;
-    virtual Ret putNote(const PointF& pos, bool replace, bool insert) = 0;
-    virtual void removeNote(const PointF& pos) = 0;
-    virtual async::Notification noteInputStarted() const = 0;
-    virtual async::Notification noteInputEnded() const = 0;
+    virtual muse::Ret putNote(const muse::PointF& pos, bool replace, bool insert) = 0;
+    virtual void removeNote(const muse::PointF& pos) = 0;
+    virtual muse::async::Channel</*focusNotation*/ bool> noteInputStarted() const = 0;
+    virtual muse::async::Notification noteInputEnded() const = 0;
 
     virtual void addTuplet(const TupletOptions& options) = 0;
 
@@ -56,18 +57,18 @@ public:
 
     virtual void addTie() = 0;
 
+    virtual void addLaissezVib() = 0;
+
     virtual void setAccidental(AccidentalType accidentalType) = 0;
     virtual void setArticulation(SymbolId articulationSymbolId) = 0;
     virtual void setDrumNote(int note) = 0;
     virtual void setCurrentVoice(voice_idx_t voiceIndex) = 0;
     virtual void setCurrentTrack(track_idx_t trackIndex) = 0;
 
-    virtual void resetInputPosition() = 0;
+    virtual muse::RectF cursorRect() const = 0;
 
-    virtual RectF cursorRect() const = 0;
-
-    virtual async::Notification noteAdded() const = 0;
-    virtual async::Notification stateChanged() const = 0;
+    virtual muse::async::Notification noteAdded() const = 0;
+    virtual muse::async::Notification stateChanged() const = 0;
 };
 
 using INotationNoteInputPtr = std::shared_ptr<INotationNoteInput>;

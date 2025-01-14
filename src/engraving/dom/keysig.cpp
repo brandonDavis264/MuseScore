@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -186,6 +186,17 @@ void KeySig::undoSetMode(KeyMode v)
     undoChangeProperty(Pid::KEYSIG_MODE, int(v));
 }
 
+PointF KeySig::staffOffset() const
+{
+    const Segment* seg = segment();
+    const Measure* meas = seg ? seg->measure() : nullptr;
+    if (meas && meas->endTick() == tick()) {
+        // Courtesy key sig should be adjusted by the following staffType's offset
+        return EngravingItem::staffOffset();
+    }
+    return PointF(0.0, 0.0);
+}
+
 //---------------------------------------------------------
 //   getProperty
 //---------------------------------------------------------
@@ -295,5 +306,14 @@ String KeySig::accessibleInfo() const
 {
     String keySigType = TConv::translatedUserName(key(), isAtonal(), isCustom());
     return String(u"%1: %2").arg(EngravingItem::accessibleInfo(), keySigType);
+}
+
+//---------------------------------------------------------
+//   translatedSubtypeUserName
+//---------------------------------------------------------
+
+muse::TranslatableString KeySig::subtypeUserName() const
+{
+    return TConv::userName(key(), isAtonal(), isCustom());
 }
 }

@@ -19,17 +19,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef MU_ACTIONS_ACTIONTYPES_H
-#define MU_ACTIONS_ACTIONTYPES_H
+#ifndef MUSE_ACTIONS_ACTIONTYPES_H
+#define MUSE_ACTIONS_ACTIONTYPES_H
 
 #include <string>
 #include <vector>
 #include <memory>
 #include <QString>
+#include "global/types/uri.h"
 
-namespace mu::actions {
+namespace muse::actions {
 using ActionCode = std::string;
 using ActionCodeList = std::vector<ActionCode>;
+
+using ActionUri = Uri;
+using ActionQuery = UriQuery;
 
 inline bool containsAction(const ActionCodeList& list, const ActionCode& actionCode)
 {
@@ -116,4 +120,4 @@ private:
 };
 }
 
-#endif // MU_ACTIONS_ACTIONTYPES_H
+#endif // MUSE_ACTIONS_ACTIONTYPES_H

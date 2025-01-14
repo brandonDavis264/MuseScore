@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<museScore version="4.20">
+<museScore version="4.50">
   <Score>
     <Division>480</Division>
     <Style>
-      <Spatium>1.76389</Spatium>
+      <scaleRythmicSpacingForSmallNotes>0</scaleRythmicSpacingForSmallNotes>
+      <pageNumberFontSize>9</pageNumberFontSize>
+      <pageNumberFontStyle>0</pageNumberFontStyle>
+      <spatium>1.76389</spatium>
       </Style>
     <showInvisible>1</showInvisible>
     <showUnprintable>1</showUnprintable>
@@ -642,8 +645,8 @@
               </Note>
             </Chord>
           <Beam>
-            <l1>-10</l1>
-            <l2>-10</l2>
+            <l1>42</l1>
+            <l2>42</l2>
             </Beam>
           <Chord>
             <durationType>eighth</durationType>
@@ -671,8 +674,8 @@
               </Note>
             </Chord>
           <Beam>
-            <l1>-10</l1>
-            <l2>-10</l2>
+            <l1>42</l1>
+            <l2>42</l2>
             </Beam>
           <Chord>
             <durationType>eighth</durationType>
@@ -724,8 +727,8 @@
               </Note>
             </Chord>
           <Beam>
-            <l1>-10</l1>
-            <l2>-10</l2>
+            <l1>42</l1>
+            <l2>42</l2>
             </Beam>
           <Chord>
             <durationType>eighth</durationType>
@@ -753,8 +756,8 @@
               </Note>
             </Chord>
           <Beam>
-            <l1>-10</l1>
-            <l2>-10</l2>
+            <l1>42</l1>
+            <l2>42</l2>
             </Beam>
           <Chord>
             <durationType>eighth</durationType>
@@ -890,8 +893,8 @@
               </Note>
             </Chord>
           <Beam>
-            <l1>18</l1>
-            <l2>18</l2>
+            <l1>50</l1>
+            <l2>50</l2>
             </Beam>
           <Chord>
             <durationType>eighth</durationType>
@@ -919,8 +922,8 @@
               </Note>
             </Chord>
           <Beam>
-            <l1>18</l1>
-            <l2>18</l2>
+            <l1>50</l1>
+            <l2>50</l2>
             </Beam>
           <Chord>
             <durationType>eighth</durationType>

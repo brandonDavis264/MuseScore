@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2024 MuseScore BVBA and others
+ * Copyright (C) 2024 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -22,8 +22,8 @@
 import QtQuick 2.15
 import QtQuick.Layouts 1.15
 
-import MuseScore.Ui 1.0
-import MuseScore.UiComponents 1.0
+import Muse.Ui 1.0
+import Muse.UiComponents 1.0
 
 import MuseScore.Playback 1.0
 
@@ -32,33 +32,45 @@ import "internal/SoundFlag"
 StyledPopupView {
     id: root
 
-    property NavigationSection notationViewNavigationSection: null
-    property int navigationOrderStart: 0
-    property int navigationOrderEnd: navPanel.order
+    property alias notationViewNavigationSection: navPanel.section
+    property alias navigationOrderStart: navPanel.order
+    readonly property alias navigationOrderEnd: museSoundsParams.navigationPanelOrderEnd
+
+    property QtObject model: soundFlagModel
 
     contentWidth: content.width
-    contentHeight: content.height
+    contentHeight: content.childrenRect.height
+    onContentHeightChanged: {
+        root.updatePosition()
+    }
 
     showArrow: false
 
-    function updatePosition(elementRect) {
-        var h = Math.max(root.contentHeight, 360)
-        root.x = elementRect.x + elementRect.width + 12
-        root.y = elementRect.y - h / 2
+    openPolicies: PopupView.Default | PopupView.OpenOnContentReady
+    isContentReady: soundFlagModel.inited
+
+    signal elementRectChanged(var elementRect)
+
+    function updatePosition() {
+        var popupHeight = root.contentHeight + root.margins * 2 + root.padding * 2
+        root.y = -popupHeight
+        root.x = (root.parent.width / 2) - (root.width / 2) + root.margins
+
+        root.setOpensUpward(true)
     }
 
     Column {
         id: content
 
-        width: 300
+        width: 294
 
         spacing: 12
 
         SoundFlagSettingsModel {
             id: soundFlagModel
 
-            onItemRectChanged: function(rect) {
-                updatePosition(rect)
+            onIconRectChanged: function(rect) {
+                root.elementRectChanged(rect)
             }
         }
 
@@ -66,21 +78,24 @@ StyledPopupView {
             soundFlagModel.init()
         }
 
-        NavigationPanel {
-            id: navPanel
-            name: "SoundFlagSettings"
-            direction: NavigationPanel.Vertical
-            section: root.notationViewNavigationSection
-            order: root.navigationOrderStart
-            accessible.name: qsTrc("notation", "Sound flag settings")
-        }
-
         RowLayout {
             width: parent.width
 
             spacing: 6
 
+            NavigationPanel {
+                id: navPanel
+                name: "SoundFlagSettings"
+                direction: NavigationPanel.Vertical
+                section: root.notationViewNavigationSection
+                order: root.navigationOrderStart
+                accessible.name: qsTrc("playback", "Sound flag settings")
+            }
+
             StyledIconLabel {
+                Layout.preferredWidth: 24
+                Layout.preferredHeight: width
+
                 iconCode: IconCode.AUDIO
             }
 
@@ -90,77 +105,56 @@ StyledPopupView {
                 Layout.fillWidth: true
 
                 text: soundFlagModel.title
-                font: ui.theme.bodyBoldFont
+                font: ui.theme.largeBodyBoldFont
                 horizontalAlignment: Text.AlignLeft
+
+                NavigationControl {
+                    id: navCtrl
+                    name: "SoundFlagTitle"
+                    enabled: titleLabel.enabled && titleLabel.visible
+                    panel: navPanel
+
+                    order: 1
+
+                    accessible.role: MUAccessible.StaticText
+                    accessible.visualItem: titleLabel
+                    accessible.name: titleLabel.text
+                }
+
+                NavigationFocusBorder {
+                    navigationCtrl: navCtrl
+                }
+            }
+
+            MenuButton {
+                Layout.preferredWidth: 24
+                Layout.preferredHeight: width
+
+                menuModel: soundFlagModel.contextMenuModel
+
+                enabled: !museSoundsParams.noOptions
+
+                navigation.panel: navPanel
+                navigation.order: 2
+                navigation.accessible.name: qsTrc("playback", "Sound flag menu")
+
+                onHandleMenuItem: function(itemId) {
+                    soundFlagModel.handleContextMenuItem(itemId)
+                }
             }
         }
 
-        Loader {
-            id: loader
+        MuseSoundsParams {
+            id: museSoundsParams
 
             width: parent.width
-            height: Boolean(loader.item) ? loader.item.height : 0
 
-            sourceComponent: {
-                switch (soundFlagModel.sourceType) {
-                case SoundFlagSettingsModel.MuseSounds:
-                    return museSoundsComp
-                case SoundFlagSettingsModel.VST:
-                    return vstComp
-                case SoundFlagSettingsModel.SoundFonts:
-                    return soundFontsComp
-                case SoundFlagSettingsModel.Undefined:
-                    return undefined
-                }
-            }
+            model: soundFlagModel
 
-            Component {
-                id: museSoundsComp
-                MuseSoundsParams {
-                }
-            }
+            visible: soundFlagModel.inited
 
-            Component {
-                id: vstComp
-                VSTParams {
-                }
-            }
-
-            Component {
-                id: soundFontsComp
-                SoundFontsParams {
-                }
-            }
-
-        }
-
-        SeparatorLine {}
-
-        Column {
-            width: parent.width
-
-            spacing: 12
-
-            CheckBox {
-                id: showTextCheckbox
-                text: qsTrc("notation", "Show text")
-                checked: soundFlagModel.showText
-
-                onClicked: {
-                    soundFlagModel.showText = !checked
-                }
-            }
-
-            TextInputField {
-                Layout.preferredWidth: parent.width
-
-                currentText: soundFlagModel.text
-                visible: showTextCheckbox.checked
-
-                onTextEditingFinished: function(newTextValue) {
-                    soundFlagModel.text = newTextValue
-                }
-            }
+            navigationPanelSection: root.notationViewNavigationSection
+            navigationPanelOrderStart: navPanel.order + 1
         }
     }
 }

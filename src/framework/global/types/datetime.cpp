@@ -21,11 +21,16 @@
  */
 #include "datetime.h"
 
-#include <chrono>
-#include <iomanip>
+#include <algorithm>
 #include <cassert>
+#include <chrono>
+#include <ctime>
+#include <iomanip>
+#include <sstream>
 
-using namespace mu;
+#include "string.h"
+
+using namespace muse;
 // ==================================
 // Format
 // ==================================

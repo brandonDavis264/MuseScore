@@ -9,10 +9,8 @@
 #include "gpdrumsetresolver.h"
 #include "gpmastertracks.h"
 #include "../continiouselementsbuilder.h"
+#include "../guitarbendimport/guitarbendimporter.h"
 #include "types/fraction.h"
-
-#include "engraving/dom/vibrato.h"
-#include "engraving/dom/ottava.h"
 
 #include "iengravingconfiguration.h"
 
@@ -21,12 +19,12 @@ class GPScore;
 class GPTrack;
 class GPDomModel;
 
-class GPConverter
+class GPConverter : public muse::Injectable
 {
-    INJECT(mu::engraving::IEngravingConfiguration, engravingConfiguration);
+    muse::Inject<mu::engraving::IEngravingConfiguration> engravingConfiguration = { this };
 
 public:
-    GPConverter(mu::engraving::Score* score, std::unique_ptr<GPDomModel>&& gpDom);
+    GPConverter(mu::engraving::Score* score, std::unique_ptr<GPDomModel>&& gpDom, const muse::modularity::ContextPtr& iocCtx);
 
     void convertGP();
 
@@ -107,8 +105,8 @@ private:
     void addBend(const GPNote* gpnote, Note* note);
     void setPitch(Note* note, const GPNote::MidiPitch& midiPitch);
     void setTpc(Note* note, int accidental);
-    int calculateDrumPitch(int element, int variation, const String& instrumentName);
-    void addTextToNote(String string, Note* note);
+    int calculateDrumPitch(int element, int variation, const muse::String& instrumentName);
+    void addTextToNote(muse::String string, Note* note);
 
     void addLegato(const GPBeat* beat, ChordRest* cr);
     void addOttava(const GPBeat* gpb, ChordRest* cr);
@@ -195,8 +193,6 @@ private:
     // Index is the number of sharps. Using sharp keysigs for signatures with double flats
     std::vector<int> m_sharpsToFlatKeysConverter{ 0, 1, 2, 3, 4, -7, -6, -5, -4, -3, -2, -1 };
 
-    std::vector<mu::engraving::StretchedBend*> m_stretchedBends;
-
     static constexpr mu::engraving::voice_idx_t VOICES = 4;
 
     bool m_showCapo = true; // TODO-gp : settings
@@ -208,6 +204,7 @@ private:
 
     std::unique_ptr<GPDrumSetResolver> _drumResolver;
     std::unique_ptr<ContiniousElementsBuilder> m_continiousElementsBuilder;
+    std::unique_ptr<GuitarBendImporter> m_guitarBendImporter;
 };
 } // namespace mu::iex::guitarpro
 #endif // MU_IMPORTEXPORT_GPCONVERTER_H

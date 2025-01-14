@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2024 MuseScore BVBA and others
+ * Copyright (C) 2024 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -23,35 +23,65 @@
 #ifndef MU_ENGRAVING_SOUNDFLAG_H
 #define MU_ENGRAVING_SOUNDFLAG_H
 
-#include "textbase.h"
+#include "engravingitem.h"
 
-#include "global/types/val.h"
+#include "draw/types/font.h"
 
 namespace mu::engraving {
-class SoundFlag final : public TextBase
+class SoundFlag final : public EngravingItem
 {
     OBJECT_ALLOCATOR(engraving, SoundFlag)
     DECLARE_CLASSOF(ElementType::SOUND_FLAG)
 
 public:
-    SoundFlag(Segment* parent = nullptr);
+    explicit SoundFlag(EngravingItem* parent = nullptr);
 
     SoundFlag* clone() const override;
+    bool isEditable() const override;
+
+    void setSelected(bool f) override;
+
+    PropertyValue getProperty(Pid id) const override;
+    bool setProperty(Pid id, const PropertyValue& value) override;
+    PropertyValue propertyDefault(Pid id) const override;
+
+    bool canBeExcludedFromOtherParts() const override { return false; }
 
     using PresetCodes = StringList;
-    using Params = std::map<String, Val>;
+    using PlayingTechniqueCode = String;
 
     const PresetCodes& soundPresets() const;
     void setSoundPresets(const PresetCodes& soundPresets);
 
-    const Params& params() const;
-    void setParams(const Params& params);
+    const PlayingTechniqueCode& playingTechnique() const;
+    void setPlayingTechnique(const PlayingTechniqueCode& technique);
 
-    void undoChangeSoundFlag(const PresetCodes& presets, const Params& params);
+    bool play() const;
+    void setPlay(bool play);
+
+    bool applyToAllStaves() const;
+    void setApplyToAllStaves(bool apply);
+
+    void clear();
+
+    bool shouldHide() const;
+
+    void undoChangeSoundFlag(const PresetCodes& presets, const PlayingTechniqueCode& technique);
+
+    char16_t iconCode() const;
+    muse::draw::Font iconFont() const;
+    void setIconFontSize(double size);
+    Color iconBackgroundColor() const;
 
 private:
     PresetCodes m_soundPresets;
-    Params m_params;
+    PlayingTechniqueCode m_playingTechnique;
+
+    muse::draw::Font m_iconFont;
+    bool m_iconFontValid = false;
+
+    bool m_play = true;
+    bool m_applyToAllStaves = true;
 };
 }
 

@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2022 MuseScore BVBA and others
+ * Copyright (C) 2022 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -27,6 +27,7 @@
 
 #include "modularity/ioc.h"
 #include "context/iglobalcontext.h"
+#include "iinteractive.h"
 
 #include "isoundprofilesrepository.h"
 #include "iplaybackconfiguration.h"
@@ -34,22 +35,25 @@
 #include "playbacktypes.h"
 
 namespace mu::playback {
-class SoundProfilesModel : public QAbstractListModel
+class SoundProfilesModel : public QAbstractListModel, public muse::Injectable
 {
     Q_OBJECT
-
-    INJECT_STATIC(ISoundProfilesRepository, profilesRepo)
-    INJECT_STATIC(context::IGlobalContext, context)
-    INJECT_STATIC(IPlaybackConfiguration, config)
-    INJECT_STATIC(IPlaybackController, controller)
 
     Q_PROPERTY(QString activeProfile READ activeProfile WRITE setActiveProfile NOTIFY activeProfileChanged)
     Q_PROPERTY(
         QString defaultProjectsProfile READ defaultProjectsProfile WRITE setDefaultProjectsProfile NOTIFY defaultProjectsProfileChanged)
     Q_PROPERTY(
         QString currentlySelectedProfile READ currentlySelectedProfile WRITE setCurrentlySelectedProfile NOTIFY currentlySelectedProfileChanged)
+
+    muse::Inject<ISoundProfilesRepository> profilesRepo = { this };
+    muse::Inject<context::IGlobalContext> context = { this };
+    muse::Inject<IPlaybackConfiguration> config = { this };
+    muse::Inject<IPlaybackController> controller = { this };
+    muse::Inject<muse::IInteractive> interactive = { this };
 public:
     explicit SoundProfilesModel(QObject* parent = nullptr);
+
+    Q_INVOKABLE void init();
 
     int rowCount(const QModelIndex& parent) const override;
     QVariant data(const QModelIndex& index, int role) const override;
@@ -74,6 +78,10 @@ private:
         RoleTitle = Qt::UserRole + 1,
         RoleEnabled
     };
+
+    mu::notation::INotationPlaybackPtr notationPlayback() const;
+
+    bool askAboutChangingSounds();
 
     std::vector<SoundProfile> m_profiles;
 

@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -28,10 +28,10 @@
 
 using namespace mu::appshell;
 using namespace mu::notation;
-using namespace mu::framework;
-using namespace mu::actions;
-using namespace mu::ui;
-using namespace mu::uicomponents;
+using namespace muse;
+using namespace muse::actions;
+using namespace muse::ui;
+using namespace muse::uicomponents;
 
 static const QString TITLE_KEY("title");
 static const QString ICON_KEY("icon");
@@ -49,7 +49,8 @@ static constexpr int MIN_DISPLAYED_ZOOM_PERCENTAGE = 25;
 static const QMap<ViewMode, ActionCode> ALL_MODE_MAP {
     { ViewMode::PAGE, "view-mode-page" },
     { ViewMode::LINE, "view-mode-continuous" },
-    { ViewMode::SYSTEM, "view-mode-single" }
+    { ViewMode::SYSTEM, "view-mode-single" },
+    { ViewMode::FLOAT, "view-mode-float" },
 };
 
 static ActionCode zoomTypeToActionCode(ZoomType type)
@@ -65,7 +66,7 @@ static ActionCode zoomTypeToActionCode(ZoomType type)
 }
 
 NotationStatusBarModel::NotationStatusBarModel(QObject* parent)
-    : QObject(parent)
+    : QObject(parent), muse::Injectable(muse::iocCtxForQmlObject(this))
 {
 }
 
@@ -90,15 +91,15 @@ QVariant NotationStatusBarModel::currentWorkspaceItem()
     item->setId(QString::fromStdString(item->action().code));
 
     UiAction action;
-    action.title
-        = TranslatableString::untranslatable("%1 %2").arg(TranslatableString("workspace", "Workspace:"),
-                                                          String::fromStdString(workspaceConfiguration()->currentWorkspaceName()));
+    action.title = muse::TranslatableString::untranslatable("%1 %2")
+                   .arg(muse::TranslatableString("workspace", "Workspace:"),
+                        String::fromStdString(workspaceConfiguration()->currentWorkspaceName()));
     item->setAction(action);
 
     return QVariant::fromValue(item);
 }
 
-MenuItem* NotationStatusBarModel::makeMenuItem(const actions::ActionCode& actionCode)
+MenuItem* NotationStatusBarModel::makeMenuItem(const ActionCode& actionCode)
 {
     MenuItem* item = new MenuItem(actionsRegister()->action(actionCode), this);
     item->setId(QString::fromStdString(item->action().code));
@@ -115,7 +116,7 @@ QVariant NotationStatusBarModel::currentViewMode()
         if (ALL_MODE_MAP.key(modeItem->id().toStdString()) == viewMode) {
             if (viewMode == ViewMode::LINE || viewMode == ViewMode::SYSTEM) {
                 // In continuous view, we don't want to see "horizontal" or "vertical" (those should only be visible in the menu)
-                modeItem->setTitle(TranslatableString("notation", "Continuous view"));
+                modeItem->setTitle(muse::TranslatableString("notation", "Continuous view"));
             }
 
             return QVariant::fromValue(modeItem);
@@ -137,6 +138,9 @@ MenuItemList NotationStatusBarModel::makeAvailableViewModeList()
 
     for (const ViewMode& viewMode: ALL_MODE_MAP.keys()) {
         ActionCode code = ALL_MODE_MAP[viewMode];
+        if (viewMode == ViewMode::FLOAT && !globalConfiguration()->devModeEnabled()) {
+            continue;
+        }
         UiAction action = actionsRegister()->action(code);
 
         MenuItem* viewModeItem = new MenuItem(action, this);
@@ -223,7 +227,7 @@ void NotationStatusBarModel::onCurrentNotationChanged()
     }
 
     notation()->undoStack()->changesChannel().onReceive(this, [this](const mu::engraving::ScoreChangesRange& range) {
-        if (mu::contains(range.changedStyleIdSet, mu::engraving::Sid::concertPitch)) {
+        if (muse::contains(range.changedStyleIdSet, mu::engraving::Sid::concertPitch)) {
             emit concertPitchActionChanged();
         }
     });
@@ -285,10 +289,10 @@ MenuItemList NotationStatusBarModel::makeAvailableZoomList()
     ZoomType currZoomType = currentZoomType();
 
     auto zoomPercentageTitle = [](int percentage) {
-        return TranslatableString::untranslatable("%1%").arg(percentage);
+        return muse::TranslatableString::untranslatable("%1%").arg(percentage);
     };
 
-    auto buildZoomItem = [=](ZoomType type, const TranslatableString& title = {}, int value = 0) {
+    auto buildZoomItem = [=](ZoomType type, const muse::TranslatableString& title = {}, int value = 0) {
         MenuItem* menuItem = new MenuItem(this);
         menuItem->setId(QString::number(static_cast<int>(type)) + QString::number(value));
 
@@ -390,7 +394,7 @@ INotationAccessibilityPtr NotationStatusBarModel::accessibility() const
     return notation() ? notation()->accessibility() : nullptr;
 }
 
-void NotationStatusBarModel::dispatch(const actions::ActionCode& code, const actions::ActionData& args)
+void NotationStatusBarModel::dispatch(const ActionCode& code, const ActionData& args)
 {
     dispatcher()->dispatch(code, args);
 }

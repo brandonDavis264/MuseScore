@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -42,8 +42,8 @@
 #include "translation.h"
 #include "types/uri.h"
 
+using namespace muse;
 using namespace mu::palette;
-using namespace mu::framework;
 using namespace mu::engraving;
 
 // ========================================================
@@ -68,9 +68,9 @@ QString PaletteElementEditor::actionName() const
     using Type = Palette::Type;
     switch (_type) {
     case Type::KeySig:
-        return mu::qtrc("palette", "Create key signature");
+        return muse::qtrc("palette", "Create key signature");
     case Type::TimeSig:
-        return mu::qtrc("palette", "Create time signature");
+        return muse::qtrc("palette", "Create time signature");
     default:
         break;
     }
@@ -96,7 +96,7 @@ void PaletteElementEditor::onElementAdded(const ElementPtr element)
 
     if (!_paletteIndex.isValid()
         || !_paletteIndex.data(PaletteTreeModel::VisibleRole).toBool()) {
-        interactive()->info("", mu::trc("palette", "The palette was hidden or changed"));
+        interactive()->info("", muse::trc("palette", "The palette was hidden or changed"));
         return;
     }
 
@@ -112,18 +112,18 @@ void PaletteElementEditor::open()
         return;
     }
 
-    mu::UriQuery uri;
+    muse::UriQuery uri;
 
     using Type = Palette::Type;
     switch (_type) {
     case Type::KeySig: {
-        uri = mu::UriQuery("musescore://notation/keysignatures");
-        uri.addParam("showKeyPalette", mu::Val(false));
+        uri = muse::UriQuery("musescore://notation/keysignatures");
+        uri.addParam("showKeyPalette", Val(false));
     }
     break;
     case Type::TimeSig: {
-        uri = mu::UriQuery("musescore://notation/timesignatures");
-        uri.addParam("showTimePalette", mu::Val(false));
+        uri = muse::UriQuery("musescore://notation/timesignatures");
+        uri.addParam("showTimePalette", Val(false));
     }
     break;
     default:
@@ -131,7 +131,7 @@ void PaletteElementEditor::open()
     }
 
     if (uri.isValid()) {
-        uri.addParam("sync", mu::Val(false));
+        uri.addParam("sync", Val(false));
 
         paletteProvider()->addCustomItemRequested().onReceive(this, [this](ElementPtr item) {
             onElementAdded(item);
@@ -334,8 +334,8 @@ const
     int deleteButton = hideButton + 1;
 
     IInteractive::Result result = interactive()->question(std::string(), question, {
-        IInteractive::ButtonData(hideButton, mu::trc("palette", "Hide")),
-        IInteractive::ButtonData(deleteButton, mu::trc("palette", "Delete permanently")),
+        IInteractive::ButtonData(hideButton, muse::trc("palette", "Hide")),
+        IInteractive::ButtonData(deleteButton, muse::trc("palette", "Delete permanently")),
         interactive()->buttonData(IInteractive::Button::Cancel)
     });
 
@@ -372,15 +372,15 @@ void UserPaletteController::queryRemove(const QModelIndexList& removeIndices, in
     if (isCell) {
         if (visible) {
             std::string question = customCount == 1
-                                   ? mu::trc("palette", "Do you want to hide this custom palette cell or permanently delete it?")
-                                   : mu::trc("palette", "Do you want to hide these custom palette cells or permanently delete them?");
+                                   ? muse::trc("palette", "Do you want to hide this custom palette cell or permanently delete it?")
+                                   : muse::trc("palette", "Do you want to hide these custom palette cells or permanently delete them?");
 
             showHideOrDeleteDialog(question,  [=](RemoveAction action) { remove(removeIndices, action); });
             return;
         } else {
             std::string question = customCount == 1
-                                   ? mu::trc("palette", "Do you want to permanently delete this custom palette cell?")
-                                   : mu::trc("palette", "Do you want to permanently delete these custom palette cells?");
+                                   ? muse::trc("palette", "Do you want to permanently delete this custom palette cell?")
+                                   : muse::trc("palette", "Do you want to permanently delete these custom palette cells?");
 
             IInteractive::Result result = interactive()->question(std::string(), question, {
                 IInteractive::Button::Yes,
@@ -396,8 +396,8 @@ void UserPaletteController::queryRemove(const QModelIndexList& removeIndices, in
     } else {
         if (visible) {
             std::string question = customCount == 1
-                                   ? mu::trc("palette", "Do you want to hide this custom palette or permanently delete it?")
-                                   : mu::trc("palette", "Do you want to hide these custom palettes or permanently delete them?");
+                                   ? muse::trc("palette", "Do you want to hide this custom palette or permanently delete it?")
+                                   : muse::trc("palette", "Do you want to hide these custom palettes or permanently delete them?");
 
             showHideOrDeleteDialog(question,  [=](RemoveAction action) { remove(removeIndices, action); });
             return;
@@ -601,7 +601,6 @@ void PaletteProvider::init()
 
     m_searchFilterModel = new PaletteCellFilterProxyModel(this);
     m_searchFilterModel->setFilterCaseSensitivity(Qt::CaseInsensitive);
-    m_searchFilterModel->setSourceModel(m_masterPaletteModel);
 
     m_visibilityFilterModel = new QSortFilterProxyModel(this);
     m_visibilityFilterModel->setFilterRole(PaletteTreeModel::VisibleRole);
@@ -615,18 +614,31 @@ void PaletteProvider::init()
     configuration()->isSingleClickToOpenPalette().ch.onReceive(this, [this](bool) {
         emit isSingleClickToOpenPaletteChanged();
     });
+
+    configuration()->isPaletteDragEnabled().ch.onReceive(this, [this](bool) {
+        emit isPaletteDragEnabledChanged();
+    });
+}
+
+void PaletteProvider::setFilter(const QString& filter)
+{
+    // Unbind the model when there is no search text so as to return no results
+    // and thus speed up the opening of the palette search. Rebind the model
+    // as soon as the search text is non-empty.
+    // Doing this *trick* also when the search text is non-empty helps
+    // speed up the search in certain other scenarios,
+    // e.g. when deleting search characters (going from fewer to more search results).
+    m_searchFilterModel->setSourceModel(nullptr);
+    m_searchFilterModel->setFilterFixedString(filter);
+    if (!filter.isEmpty()) {
+        m_searchFilterModel->setSourceModel(m_masterPaletteModel);
+    }
 }
 
 void PaletteProvider::setSearching(bool searching)
 {
     if (m_isSearching == searching) {
         return;
-    }
-
-    if (!searching) {
-        if (m_searchFilterModel) {
-            m_searchFilterModel->setFilterFixedString("");
-        }
     }
 
     m_isSearching = searching;
@@ -644,6 +656,11 @@ bool PaletteProvider::isSinglePalette() const
 bool PaletteProvider::isSingleClickToOpenPalette() const
 {
     return configuration()->isSingleClickToOpenPalette().val;
+}
+
+bool PaletteProvider::isPaletteDragEnabled() const
+{
+    return configuration()->isPaletteDragEnabled().val;
 }
 
 QAbstractItemModel* PaletteProvider::mainPaletteModel()
@@ -815,7 +832,7 @@ bool PaletteProvider::removeCustomPalette(const QPersistentModelIndex& index)
         }
 
         IInteractive::Result result
-            = interactive()->question("", mu::trc("palette", "Do you want to permanently delete this custom palette?"), {
+            = interactive()->question("", muse::trc("palette", "Do you want to permanently delete this custom palette?"), {
             IInteractive::Button::Yes, IInteractive::Button::No
         });
 
@@ -836,8 +853,8 @@ bool PaletteProvider::resetPalette(const QModelIndex& index)
     }
 
     IInteractive::Result result
-        = interactive()->question("", mu::trc("palette",
-                                              "Do you want to restore this palette to its default state? All changes to this palette will be lost."), {
+        = interactive()->question("", muse::trc("palette",
+                                                "Do you want to restore this palette to its default state? All changes to this palette will be lost."), {
         IInteractive::Button::No, IInteractive::Button::Yes
     });
     if (result.standardButton() != IInteractive::Button::Yes) {
@@ -898,17 +915,17 @@ QString PaletteProvider::getPaletteFilename(bool open, const QString& name) cons
                  .arg(QCoreApplication::applicationName());
 #endif
     if (open) {
-        title  = mu::qtrc("palette", "Load palette");
-        filter = { mu::trc("palette", "MuseScore palette") + " (*.mpal)" };
+        title  = muse::qtrc("palette", "Load palette");
+        filter = { muse::trc("palette", "MuseScore Studio palette") + " (*.mpal)" };
     } else {
-        title  = mu::qtrc("palette", "Save palette");
-        filter = { mu::trc("palette", "MuseScore palette") + " (*.mpal)" };
+        title  = muse::qtrc("palette", "Save palette");
+        filter = { muse::trc("palette", "MuseScore Studio palette") + " (*.mpal)" };
     }
 
     QFileInfo myPalettes(wd);
     QString defaultPath = myPalettes.absoluteFilePath();
     if (!name.isEmpty()) {
-        QString fname = mu::io::escapeFileName(name).toQString();
+        QString fname = muse::io::escapeFileName(name).toQString();
         QFileInfo myName(fname);
         if (myName.isRelative()) {
             myName.setFile(defaultPath, fname);
@@ -916,7 +933,7 @@ QString PaletteProvider::getPaletteFilename(bool open, const QString& name) cons
         defaultPath = myName.absoluteFilePath();
     }
 
-    mu::io::path_t fn;
+    muse::io::path_t fn;
     if (open) {
         fn = interactive()->selectOpeningFile(title, defaultPath, filter);
     } else {
@@ -983,7 +1000,7 @@ void PaletteProvider::setDefaultPaletteTree(PaletteTreePtr tree)
     }
 }
 
-mu::async::Channel<ElementPtr> PaletteProvider::addCustomItemRequested() const
+muse::async::Channel<ElementPtr> PaletteProvider::addCustomItemRequested() const
 {
     return m_addCustomItemRequested;
 }

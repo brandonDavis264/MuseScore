@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -24,6 +24,7 @@
 #include "translation.h"
 
 #include "../dom/ambitus.h"
+#include "../dom/anchors.h"
 #include "../dom/barline.h"
 #include "../dom/beam.h"
 #include "../dom/breath.h"
@@ -93,8 +94,8 @@ void MeasureRead::readMeasure(Measure* measure, XmlReader& e, ReadContext& ctx, 
         }
         irregular = true;
         if (measure->m_len.numerator() <= 0 || measure->m_len.denominator() <= 0 || measure->m_len.denominator() > 128) {
-            e.raiseError(mtrc("engraving",
-                              "MSCX error at line %1: invalid measure length: %2").arg(e.lineNumber()).arg(measure->m_len.toString()));
+            e.raiseError(muse::mtrc("engraving",
+                                    "MSCX error at line %1: invalid measure length: %2").arg(e.lineNumber()).arg(measure->m_len.toString()));
             return;
         }
         ctx.compatTimeSigMap()->add(measure->tick().ticks(), SigEvent(measure->m_len, measure->m_timesig));
@@ -224,6 +225,9 @@ void MeasureRead::readVoice(Measure* measure, XmlReader& e, ReadContext& ctx, in
             Location loc = Location::relative();
             TRead::read(&loc, e, ctx);
             ctx.setLocation(loc);
+            if (loc.isTimeTick()) {
+                EditTimeTickAnchors::createTimeTickAnchor(measure, ctx.tick() - measure->tick(), track2staff(ctx.track()));
+            }
         } else if (tag == "tick") {             // obsolete?
             LOGD() << "read midi tick";
             ctx.setTick(Fraction::fromTicks(ctx.fileDivision(e.readInt())));
@@ -255,7 +259,7 @@ void MeasureRead::readVoice(Measure* measure, XmlReader& e, ReadContext& ctx, in
             if (barLine) {
                 segment = measure->getSegmentR(st, t);
                 segment->add(barLine);
-                EngravingItem::renderer()->layoutItem(barLine);
+                barLine->renderer()->layoutItem(barLine);
             }
             if (fermata) {
                 segment->add(fermata);
@@ -436,13 +440,13 @@ void MeasureRead::readVoice(Measure* measure, XmlReader& e, ReadContext& ctx, in
         //----------------------------------------------------
         // Annotation
         else if (tag == "Dynamic") {
-            segment = measure->getSegment(SegmentType::ChordRest, ctx.tick());
+            segment = measure->getChordRestOrTimeTickSegment(ctx.tick());
             Dynamic* dyn = Factory::createDynamic(segment);
             dyn->setTrack(ctx.track());
             TRead::read(dyn, e, ctx);
             segment->add(dyn);
         } else if (tag == "Expression") {
-            segment = measure->getSegment(SegmentType::ChordRest, ctx.tick());
+            segment = measure->getChordRestOrTimeTickSegment(ctx.tick());
             Expression* expr = Factory::createExpression(segment);
             expr->setTrack(ctx.track());
             TRead::read(expr, e, ctx);
@@ -519,7 +523,6 @@ void MeasureRead::readVoice(Measure* measure, XmlReader& e, ReadContext& ctx, in
             segment->add(el);
         } else if (tag == "Sticking"
                    || tag == "SystemText"
-                   || tag == "SoundFlag"
                    || tag == "PlayTechAnnotation"
                    || tag == "Capo"
                    || tag == "StringTunings"

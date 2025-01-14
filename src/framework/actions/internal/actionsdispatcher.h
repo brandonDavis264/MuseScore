@@ -19,14 +19,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef MU_ACTIONS_ACTIONSDISPATCHER_H
-#define MU_ACTIONS_ACTIONSDISPATCHER_H
+#ifndef MUSE_ACTIONS_ACTIONSDISPATCHER_H
+#define MUSE_ACTIONS_ACTIONSDISPATCHER_H
 
 #include <map>
 
 #include "../iactionsdispatcher.h"
 
-namespace mu::actions {
+namespace muse::actions {
 class ActionsDispatcher : public IActionsDispatcher
 {
 public:
@@ -35,17 +35,23 @@ public:
 
     void dispatch(const ActionCode& actionCode) override;
     void dispatch(const ActionCode& actionCode, const ActionData& data) override;
+    void dispatch(const ActionQuery& actionQuery) override;
 
     void unReg(Actionable* client) override;
     void reg(Actionable* client, const ActionCode& actionCode, const ActionCallBackWithNameAndData& call) override;
+    void reg(Actionable* client, const ActionQuery& actionQuery, const ActionCallBackWithQuery& call) override;
+    bool isReg(Actionable* client) const override;
+    ActionCodeList actionList() const override;
 
 private:
 
     using CallBacks = std::map<ActionCode, ActionCallBackWithNameAndData>;
     using Clients = std::map<Actionable*, CallBacks>;
 
+    void doDispatch(const Clients& clients, const ActionCode& actionCode, const ActionData& data);
+
     std::map<ActionCode, Clients > m_clients;
 };
 }
 
-#endif // MU_ACTIONS_ACTIONSDISPATCHER_H
+#endif // MUSE_ACTIONS_ACTIONSDISPATCHER_H

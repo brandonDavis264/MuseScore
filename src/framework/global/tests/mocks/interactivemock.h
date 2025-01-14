@@ -19,14 +19,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef MU_FRAMEWORK_INTERACTIVEMOCK_H
-#define MU_FRAMEWORK_INTERACTIVEMOCK_H
+#ifndef MUSE_GLOBAL_INTERACTIVEMOCK_H
+#define MUSE_GLOBAL_INTERACTIVEMOCK_H
 
 #include <gmock/gmock.h>
 
 #include "iinteractive.h"
 
-namespace mu::framework {
+namespace muse {
 class InteractiveMock : public IInteractive
 {
 public:
@@ -50,13 +50,15 @@ public:
     MOCK_METHOD(Result, error, (const std::string&, const Text&, const std::string&, const ButtonDatas&, int, const Options&),
                 (const, override));
 
-    MOCK_METHOD(Ret, showProgress, (const std::string&, framework::Progress*), (const, override));
+    MOCK_METHOD(Ret, showProgress, (const std::string&, Progress*), (const, override));
 
     MOCK_METHOD(io::path_t, selectOpeningFile, (const QString&, const io::path_t&, const std::vector<std::string>&), (override));
     MOCK_METHOD(io::path_t, selectSavingFile, (const QString&, const io::path_t&, const std::vector<std::string>&, bool), (override));
     MOCK_METHOD(io::path_t, selectDirectory, (const QString&, const io::path_t&), (override));
     MOCK_METHOD(io::paths_t, selectMultipleDirectories, (const QString&, const io::path_t&, const io::paths_t&), (override));
+
     MOCK_METHOD(QColor, selectColor, (const QColor&, const QString&), (override));
+    MOCK_METHOD(bool, isSelectColorOpened, (), (const, override));
 
     MOCK_METHOD(RetVal<Val>, open, (const std::string&), (const, override));
     MOCK_METHOD(RetVal<Val>, open, (const Uri&), (const, override));
@@ -80,8 +82,12 @@ public:
     MOCK_METHOD(Ret, openUrl, (const std::string&), (const, override));
     MOCK_METHOD(Ret, openUrl, (const QUrl&), (const, override));
 
+    MOCK_METHOD(Ret, isAppExists, (const std::string&), (const, override));
+    MOCK_METHOD(Ret, canOpenApp, (const Uri&), (const, override));
+    MOCK_METHOD(async::Promise<Ret>, openApp, (const Uri&), (const, override));
+
     MOCK_METHOD(Ret, revealInFileBrowser, (const io::path_t&), (const, override));
 };
 }
 
-#endif // MU_FRAMEWORK_INTERACTIVEMOCK_H
+#endif // MUSE_GLOBAL_INTERACTIVEMOCK_H

@@ -22,12 +22,10 @@
 
 #include "wavencoder.h"
 
-#include <map>
+#include "log.h"
 
-#include "async/async.h"
-
-using namespace mu::audio;
-using namespace mu::audio::encode;
+using namespace muse::audio;
+using namespace muse::audio::encode;
 
 struct WavHeader {
     enum class WavFileType {
@@ -50,7 +48,7 @@ struct WavHeader {
         const uint32_t file_length = headerLength + sampleDataLength;
         const uint32_t overallSize = file_length - 8;
         const uint32_t bytesPerFrame = audioChannelsNumber * bytesPerSample;
-        const uint32_t bytesPerSec = sampleRate * bytesPerSample;
+        const uint32_t bytesPerSec = audioChannelsNumber * sampleRate * bytesPerSample;
 
         stream.write("RIFF", 4); // chunk ID
 

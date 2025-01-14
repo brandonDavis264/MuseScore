@@ -20,22 +20,24 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_UI_IUICONFIGURATION_H
-#define MU_UI_IUICONFIGURATION_H
+#ifndef MUSE_UI_IUICONFIGURATION_H
+#define MUSE_UI_IUICONFIGURATION_H
 
 #include <optional>
 
-#include "types/retval.h"
-#include "async/notification.h"
-
 #include "modularity/imoduleinterface.h"
 
+#include "global/types/retval.h"
+#include "global/types/val.h"
+#include "global/async/notification.h"
+
 #include "uitypes.h"
+#include "uiaction.h"
 
 class QByteArray;
 class QWindow;
 
-namespace mu::ui {
+namespace muse::ui {
 class IUiConfiguration : MODULE_EXPORT_INTERFACE
 {
     INTERFACE_ID(IUiConfiguration)
@@ -109,7 +111,9 @@ public:
     virtual async::Notification toolConfigChanged(const QString& toolName) const = 0;
 
     virtual int flickableMaxVelocity() const = 0;
+
+    virtual int tooltipDelay() const = 0;
 };
 }
 
-#endif // MU_UI_IUICONFIGURATION_H
+#endif // MUSE_UI_IUICONFIGURATION_H

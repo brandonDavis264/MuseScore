@@ -19,15 +19,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef MU_DRAW_QPAINTERPROVIDER_H
-#define MU_DRAW_QPAINTERPROVIDER_H
+#pragma once
 
 #include "../ipaintprovider.h"
 
 class QPainter;
 class QImage;
 
-namespace mu::draw {
+namespace muse::draw {
 class DrawObjectsLogger;
 class QPainterProvider : public IPaintProvider
 {
@@ -103,5 +102,3 @@ private:
     Transform m_transform;
 };
 }
-
-#endif // MU_DRAW_QPAINTERPROVIDER_H

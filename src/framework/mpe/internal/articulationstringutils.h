@@ -20,15 +20,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_MPE_STRINGUTILS_H
-#define MU_MPE_STRINGUTILS_H
+#ifndef MUSE_MPE_STRINGUTILS_H
+#define MUSE_MPE_STRINGUTILS_H
 
 #include <QString>
 #include <unordered_map>
 
 #include "mpetypes.h"
 
-namespace mu::mpe {
+namespace muse::mpe {
 static const std::unordered_map<ArticulationFamily, QString> ARTICULATION_FAMILY_NAMES = {
     { ArticulationFamily::Undefined, "Undefined" },
     { ArticulationFamily::Keyboards, "KeyboardsArticulation" },
@@ -69,9 +69,23 @@ static const std::unordered_map<ArticulationType, QString> ARTICULATION_TYPE_NAM
     { ArticulationType::SulTasto, "SulTasto" },
     { ArticulationType::GhostNote, "GhostNote" },
     { ArticulationType::CrossNote, "CrossNote" },
+    { ArticulationType::CrossLargeNote, "CrossLargeNote" },
+    { ArticulationType::CrossOrnateNote, "CrossOrnateNote" },
     { ArticulationType::CircleNote, "CircleNote" },
-    { ArticulationType::TriangleNote, "TriangleNote" },
+    { ArticulationType::CircleCrossNote, "CircleCrossNote" },
+    { ArticulationType::CircleDotNote, "CircleDotNote" },
+    { ArticulationType::TriangleLeftNote, "TriangleLeftNote" },
+    { ArticulationType::TriangleRightNote, "TriangleRightNote" },
+    { ArticulationType::TriangleUpNote, "TriangleUpNote" },
+    { ArticulationType::TriangleDownNote, "TriangleDownNote" },
+    { ArticulationType::TriangleRoundDownNote, "TriangleRoundDownNote" },
     { ArticulationType::DiamondNote, "DiamondNote" },
+    { ArticulationType::MoonNote, "MoonNote" },
+    { ArticulationType::PlusNote, "PlusNote" },
+    { ArticulationType::SlashNote, "SlashNote" },
+    { ArticulationType::SquareNote, "SquareNote" },
+    { ArticulationType::SlashedBackwardsNote, "SlashedBackwardsNote" },
+    { ArticulationType::SlashedForwardsNote, "SlashedForwardsNote" },
     { ArticulationType::Fall, "Fall" },
     { ArticulationType::QuickFall, "QuickFall" },
     { ArticulationType::Doit, "Doit" },
@@ -102,6 +116,7 @@ static const std::unordered_map<ArticulationType, QString> ARTICULATION_TYPE_NAM
     { ArticulationType::Tremolo16th, "Tremolo16th" },
     { ArticulationType::Tremolo32nd, "Tremolo32nd" },
     { ArticulationType::Tremolo64th, "Tremolo64th" },
+    { ArticulationType::TremoloBuzz, "TremoloBuzz" },
     { ArticulationType::UpperMordent, "ShortTrill" },
     { ArticulationType::Trill, "Trill" },
     { ArticulationType::TrillBaroque, "TrillBaroque" },
@@ -179,4 +194,4 @@ inline QString articulationTypeToString(const ArticulationType type)
 }
 }
 
-#endif // MU_MPE_STRINGUTILS_H
+#endif // MUSE_MPE_STRINGUTILS_H

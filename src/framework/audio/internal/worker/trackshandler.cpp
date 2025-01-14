@@ -22,19 +22,19 @@
 
 #include "trackshandler.h"
 
-#include "log.h"
-#include "async/async.h"
-#include "midi/miditypes.h"
+#include "global/async/async.h"
 
 #include "internal/audiothread.h"
 #include "internal/audiosanitizer.h"
 #include "audioerrors.h"
 
-using namespace mu::audio;
-using namespace mu::async;
+#include "log.h"
 
-TracksHandler::TracksHandler(IGetTrackSequence* getSequence)
-    : m_getSequence(getSequence)
+using namespace muse::audio;
+using namespace muse::async;
+
+TracksHandler::TracksHandler(IGetTrackSequence* getSequence, const modularity::ContextPtr& iocCtx)
+    : Injectable(iocCtx), m_getSequence(getSequence)
 {
 }
 
@@ -195,24 +195,12 @@ Promise<AudioResourceMetaList> TracksHandler::availableInputResources() const
     }, AudioThread::ID);
 }
 
-Promise<SoundPresetList> TracksHandler::availableSoundPresets(const TrackSequenceId sequenceId, const TrackId trackId) const
+Promise<SoundPresetList> TracksHandler::availableSoundPresets(const AudioResourceMeta& resourceMeta) const
 {
-    return Promise<SoundPresetList>([this, sequenceId, trackId](auto resolve, auto reject) {
+    return Promise<SoundPresetList>([this, resourceMeta](auto resolve, auto /*reject*/) {
         ONLY_AUDIO_WORKER_THREAD;
 
-        ITrackSequencePtr s = sequence(sequenceId);
-
-        if (!s) {
-            return reject(static_cast<int>(Err::InvalidSequenceId), "invalid sequence id");
-        }
-
-        RetVal<AudioInputParams> params = s->audioIO()->inputParams(trackId);
-
-        if (!params.ret) {
-            return reject(params.ret.code(), params.ret.text());
-        }
-
-        return resolve(resolver()->resolveAvailableSoundPresets(params.val));
+        return resolve(resolver()->resolveAvailableSoundPresets(resourceMeta));
     }, AudioThread::ID);
 }
 

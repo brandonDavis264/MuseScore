@@ -20,15 +20,17 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_MUSESAMPLER_MUSESAMPLERSEQUENCER_H
-#define MU_MUSESAMPLER_MUSESAMPLERSEQUENCER_H
+#ifndef MUSE_MUSESAMPLER_MUSESAMPLERSEQUENCER_H
+#define MUSE_MUSESAMPLER_MUSESAMPLERSEQUENCER_H
 
 #include "audio/internal/abstracteventsequencer.h"
+#include "imusesamplertracks.h"
 
 #include "internal/apitypes.h"
 #include "internal/libhandler.h"
 
-typedef typename std::variant<mu::mpe::NoteEvent, ms_AuditionStartNoteEvent_3, ms_AuditionStopNoteEvent> MuseSamplerEvent;
+typedef typename std::variant<muse::mpe::NoteEvent, muse::musesampler::AuditionStartNoteEvent,
+                              muse::musesampler::AuditionStopNoteEvent> MuseSamplerEvent;
 
 template<>
 struct std::less<MuseSamplerEvent>
@@ -40,56 +42,89 @@ struct std::less<MuseSamplerEvent>
             return first.index() < second.index();
         }
 
-        if (std::holds_alternative<ms_AuditionStartNoteEvent_3>(first)) {
-            auto& e1 = std::get<ms_AuditionStartNoteEvent_3>(first);
-            auto& e2 = std::get<ms_AuditionStartNoteEvent_3>(second);
-            if (e1._pitch == e2._pitch) {
-                return e1._offset_cents < e2._offset_cents;
+        if (std::holds_alternative<muse::musesampler::AuditionStartNoteEvent>(first)) {
+            auto& e1 = std::get<muse::musesampler::AuditionStartNoteEvent>(first);
+            auto& e2 = std::get<muse::musesampler::AuditionStartNoteEvent>(second);
+            if (e1.msEvent._pitch == e2.msEvent._pitch) {
+                return e1.msEvent._offset_cents < e2.msEvent._offset_cents;
             }
-            return e1._pitch < e2._pitch;
+            return e1.msEvent._pitch < e2.msEvent._pitch;
         }
 
-        if (std::holds_alternative<ms_AuditionStopNoteEvent>(first)) {
-            return std::get<ms_AuditionStopNoteEvent>(first)._pitch < std::get<ms_AuditionStopNoteEvent>(second)._pitch;
+        if (std::holds_alternative<muse::musesampler::AuditionStopNoteEvent>(first)) {
+            return std::get<muse::musesampler::AuditionStopNoteEvent>(first).msEvent._pitch
+                   < std::get<muse::musesampler::AuditionStopNoteEvent>(second).msEvent._pitch;
         }
 
         return false;
     }
 };
 
-namespace mu::musesampler {
-class MuseSamplerSequencer : public audio::AbstractEventSequencer<mu::mpe::NoteEvent, ms_AuditionStartNoteEvent_3, ms_AuditionStopNoteEvent>
+namespace muse::musesampler {
+class MuseSamplerSequencer : public muse::audio::AbstractEventSequencer<mpe::NoteEvent, AuditionStartNoteEvent, AuditionStopNoteEvent>
 {
 public:
-    void init(MuseSamplerLibHandlerPtr samplerLib, ms_MuseSampler sampler, ms_Track track);
-
-    void updateOffStreamEvents(const mpe::PlaybackEventsMap& events, const mpe::PlaybackParamMap& params) override;
-    void updateMainStreamEvents(const mpe::PlaybackEventsMap& events, const mpe::DynamicLevelMap& dynamics,
-                                const mpe::PlaybackParamMap& params) override;
+    void init(MuseSamplerLibHandlerPtr samplerLib, ms_MuseSampler sampler, IMuseSamplerTracks* tracks, std::string&& defaultPresetCode);
 
 private:
-    void loadPresets(const mpe::PlaybackParamMap& changes);
+    void updateOffStreamEvents(const mpe::PlaybackEventsMap& events, const mpe::PlaybackParamList& params) override;
+    void updateMainStreamEvents(const mpe::PlaybackEventsMap& events, const mpe::DynamicLevelLayers& dynamics,
+                                const mpe::PlaybackParamLayers& params) override;
+
+    void clearAllTracks();
+    void finalizeAllTracks();
+
+    ms_Track resolveTrack(mpe::layer_idx_t layerIdx);
+    ms_Track findTrack(mpe::layer_idx_t layerIdx) const;
+
+    const TrackList& allTracks() const;
+
+    void loadParams(const mpe::PlaybackParamLayers& changes);
     void loadNoteEvents(const mpe::PlaybackEventsMap& changes);
-    void loadDynamicEvents(const mpe::DynamicLevelMap& changes);
+    void loadDynamicEvents(const mpe::DynamicLevelLayers& changes);
 
     void addNoteEvent(const mpe::NoteEvent& noteEvent);
-    void addPitchBends(const mpe::NoteEvent& noteEvent, long long noteEventId);
-    void addVibrato(const mpe::NoteEvent& noteEvent, long long noteEventId);
+    void addTextArticulation(const String& articulationCode, long long startUs, ms_Track track);
+    void addPresets(const StringList& presets, long long startUs, ms_Track track);
+    void addSyllable(const String& syllable, long long positionUs, ms_Track track);
+    void addPitchBends(const mpe::NoteEvent& noteEvent, long long noteEventId, ms_Track track);
+    void addVibrato(const mpe::NoteEvent& noteEvent, long long noteEventId, ms_Track track);
 
     void pitchAndTuning(const mpe::pitch_level_t nominalPitch, int& pitch, int& centsOffset) const;
     int pitchLevelToCents(const mpe::pitch_level_t pitchLevel) const;
     double dynamicLevelRatio(const mpe::dynamic_level_t level) const;
 
     ms_NoteArticulation convertArticulationType(mpe::ArticulationType articulation) const;
-    ms_NoteArticulation noteArticulationTypes(const mpe::NoteEvent& noteEvent) const;
-    std::string buildPresetsStr(const mpe::PlaybackParamMap& params) const;
+    void parseArticulations(const mpe::ArticulationMap& articulations, ms_NoteArticulation& articulationFlag, ms_NoteHead& notehead) const;
+
+    struct OffStreamParams {
+        std::string presets;
+        std::string textArticulation;
+        std::string syllable;
+        bool textArticulationStartsAtNote = false;
+        bool syllableStartsAtNote = false;
+
+        void clear()
+        {
+            presets.clear();
+            textArticulation.clear();
+            syllable.clear();
+            textArticulationStartsAtNote = false;
+            syllableStartsAtNote = false;
+        }
+    };
+
+    void parseOffStreamParams(const mpe::PlaybackParamList& params, OffStreamParams& out) const;
 
     MuseSamplerLibHandlerPtr m_samplerLib = nullptr;
     ms_MuseSampler m_sampler = nullptr;
-    ms_Track m_track = nullptr;
+    IMuseSamplerTracks* m_tracks = nullptr;
 
-    std::string m_offStreamPresetsStr;
+    std::unordered_map<mpe::layer_idx_t, track_idx_t> m_layerIdxToTrackIdx;
+
+    std::string m_defaultPresetCode;
+    OffStreamParams m_offStreamCache;
 };
 }
 
-#endif // MU_MUSESAMPLER_MUSESAMPLERSEQUENCER_H
+#endif // MUSE_MUSESAMPLER_MUSESAMPLERSEQUENCER_H

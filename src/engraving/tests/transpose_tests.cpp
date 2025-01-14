@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -51,7 +51,7 @@ TEST_F(Engraving_TransposeTests, undoTranspose)
     score->cmdSelectAll();
 
     // transpose major second up
-    score->startCmd();
+    score->startCmd(TranslatableString::untranslatable("Engraving transpose tests"));
     score->transpose(TransposeMode::BY_INTERVAL, TransposeDirection::UP, Key::C, 4,
                      true, true, true);
     score->endCmd();
@@ -80,7 +80,7 @@ TEST_F(Engraving_TransposeTests, undoDiatonicTranspose)
     score->cmdSelectAll();
 
     // transpose diatonic fourth down
-    score->startCmd();
+    score->startCmd(TranslatableString::untranslatable("Engraving transpose tests"));
     score->transpose(TransposeMode::DIATONICALLY, TransposeDirection::DOWN, Key::C, 3,
                      true, false, false);
     score->endCmd();

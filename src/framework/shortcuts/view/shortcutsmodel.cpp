@@ -29,16 +29,16 @@
 
 #include "log.h"
 
-using namespace mu::shortcuts;
-using namespace mu::ui;
+using namespace muse::shortcuts;
+using namespace muse::ui;
 
 static std::vector<std::string> shortcutsFileFilter()
 {
-    return { mu::trc("shortcuts", "MuseScore shortcuts file") + " (*.xml)" };
+    return { muse::trc("shortcuts", "MuseScore Studio shortcuts file") + " (*.xml)" };
 }
 
 ShortcutsModel::ShortcutsModel(QObject* parent)
-    : QAbstractListModel(parent)
+    : QAbstractListModel(parent), Injectable(muse::iocCtxForQmlObject(this))
 {
 }
 
@@ -102,7 +102,7 @@ void ShortcutsModel::load()
     beginResetModel();
     m_shortcuts.clear();
 
-    for (const UiAction& action : uiactionsRegister()->getActions()) {
+    for (const UiAction& action : uiactionsRegister()->actionList()) {
         Shortcut shortcut = shortcutsRegister()->shortcut(action.code);
         if (!shortcut.isValid()) {
             shortcut.action = action.code;
@@ -127,7 +127,7 @@ bool ShortcutsModel::apply()
 {
     ShortcutList shortcuts;
 
-    for (const Shortcut& shortcut : qAsConst(m_shortcuts)) {
+    for (const Shortcut& shortcut : std::as_const(m_shortcuts)) {
         shortcuts.push_back(shortcut);
     }
 
@@ -183,7 +183,7 @@ void ShortcutsModel::setSelection(const QItemSelection& selection)
 void ShortcutsModel::importShortcutsFromFile()
 {
     io::path_t path = interactive()->selectOpeningFile(
-        qtrc("shortcuts", "Import shortcuts"),
+        muse::qtrc("shortcuts", "Import shortcuts"),
         globalConfiguration()->homePath(),
         shortcutsFileFilter());
 
@@ -195,7 +195,7 @@ void ShortcutsModel::importShortcutsFromFile()
 void ShortcutsModel::exportShortcutsToFile()
 {
     io::path_t path = interactive()->selectSavingFile(
-        qtrc("shortcuts", "Export shortcuts"),
+        muse::qtrc("shortcuts", "Export shortcuts"),
         globalConfiguration()->homePath(),
         shortcutsFileFilter());
 
@@ -283,7 +283,7 @@ QVariantList ShortcutsModel::shortcuts() const
 {
     QVariantList result;
 
-    for (const Shortcut& shortcut : qAsConst(m_shortcuts)) {
+    for (const Shortcut& shortcut : std::as_const(m_shortcuts)) {
         result << shortcutToObject(shortcut);
     }
 
@@ -296,6 +296,7 @@ QVariant ShortcutsModel::shortcutToObject(const Shortcut& shortcut) const
     obj["title"] = actionText(shortcut.action);
     obj["sequence"] = QString::fromStdString(shortcut.sequencesAsString());
     obj["context"] = QString::fromStdString(shortcut.context);
+    obj["autoRepeat"] = shortcut.autoRepeat;
 
     return obj;
 }

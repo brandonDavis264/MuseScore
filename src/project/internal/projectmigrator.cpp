@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -21,20 +21,23 @@
  */
 #include "projectmigrator.h"
 
+#include <QVersionNumber>
+
+#include "mdlmigrator.h"
+
 #include "engraving/types/constants.h"
 #include "engraving/dom/score.h"
 #include "engraving/dom/excerpt.h"
 #include "engraving/dom/undo.h"
-
-#include "rw/compat/readstyle.h"
+#include "engraving/rw/compat/readstyle.h"
 
 #include "log.h"
 
-#include <QVersionNumber>
-
 using namespace mu;
 using namespace mu::project;
+using namespace mu::engraving;
 using namespace mu::engraving::compat;
+using namespace muse;
 
 static const Uri MIGRATION_DIALOG_URI("musescore://project/migration");
 static const QString LELAND_STYLE_PATH(":/engraving/styles/migration-306-style-Leland.mss");
@@ -97,6 +100,8 @@ Ret ProjectMigrator::askAboutMigration(MigrationOptions& out, const QString& app
     query.addParam("migrationType", Val(migrationType));
     query.addParam("isApplyLeland", Val(out.isApplyLeland));
     query.addParam("isApplyEdwin", Val(out.isApplyEdwin));
+    query.addParam("isRemapPercussion", Val(out.isRemapPercussion));
+
     RetVal<Val> rv = interactive()->open(query);
     if (!rv.ret) {
         return rv.ret;
@@ -108,6 +113,7 @@ Ret ProjectMigrator::askAboutMigration(MigrationOptions& out, const QString& app
     out.isAskAgain = vals.value("isAskAgain").toBool();
     out.isApplyLeland = vals.value("isApplyLeland").toBool();
     out.isApplyEdwin = vals.value("isApplyEdwin").toBool();
+    out.isRemapPercussion = vals.value("isRemapPercussion").toBool();
 
     return true;
 }
@@ -133,6 +139,12 @@ void ProjectMigrator::resetStyleSettings(mu::engraving::MasterScore* score)
     score->resetStyleValue(mu::engraving::Sid::measureSpacing);
 }
 
+bool ProjectMigrator::resetCrossBeams(engraving::MasterScore* score)
+{
+    score->setResetCrossBeams();
+    return true;
+}
+
 Ret ProjectMigrator::migrateProject(engraving::EngravingProjectPtr project, const MigrationOptions& opt)
 {
     TRACEFUNC;
@@ -142,7 +154,7 @@ Ret ProjectMigrator::migrateProject(engraving::EngravingProjectPtr project, cons
         return make_ret(Ret::Code::InternalError);
     }
 
-    score->startCmd();
+    score->startCmd(TranslatableString("undoableAction", "Migrate project"));
 
     bool ok = true;
     if (opt.isApplyLeland) {
@@ -155,8 +167,16 @@ Ret ProjectMigrator::migrateProject(engraving::EngravingProjectPtr project, cons
         m_resetStyleSettings = false;
     }
 
+    if (ok && opt.isRemapPercussion) {
+        MdlMigrator(score).remapPercussion();
+    }
+
     if (ok && score->mscVersion() < 300) {
         ok = resetAllElementsPositions(score);
+    }
+
+    if (ok && score->mscVersion() <= 206) {
+        ok = resetCrossBeams(score);
     }
 
     if (ok && score->mscVersion() != mu::engraving::Constants::MSC_VERSION) {
@@ -165,8 +185,8 @@ Ret ProjectMigrator::migrateProject(engraving::EngravingProjectPtr project, cons
 
     if (ok && m_resetStyleSettings) {
         resetStyleSettings(score);
+        score->setLayoutAll();
     }
-    score->setResetDefaults(); // some defaults need to be reset on first layout
     score->endCmd();
 
     return ok ? make_ret(Ret::Code::Ok) : make_ret(Ret::Code::InternalError);

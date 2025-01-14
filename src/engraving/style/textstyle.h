@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -23,7 +23,7 @@
 #define MU_ENGRAVING_TEXTSTYLE_H
 
 #include "styledef.h"
-#include "types/types.h"
+#include "../types/types.h"
 
 namespace mu::engraving {
 enum class TextStylePropertyType : char {
@@ -41,7 +41,8 @@ enum class TextStylePropertyType : char {
     FrameWidth,
     FrameRound,
     FrameBorderColor,
-    FrameFillColor
+    FrameFillColor,
+    MusicalSymbolsScale,
 };
 
 struct TextStyleProperty {
@@ -50,7 +51,7 @@ struct TextStyleProperty {
     Pid pid;
 };
 
-constexpr size_t TEXT_STYLE_SIZE = 14;
+constexpr size_t TEXT_STYLE_SIZE = 15;
 
 typedef std::array<TextStyleProperty, TEXT_STYLE_SIZE> TextStyle;
 

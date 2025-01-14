@@ -23,9 +23,10 @@
 
 #include <QWindow>
 
+#include "global/translation.h"
+
 #include "accessibilitycontroller.h"
 
-#include "translation.h"
 #include "log.h"
 
 //#define MUE_ENABLE_ACCESSIBILITY_TRACE
@@ -37,9 +38,11 @@
 #define MYLOG() LOGN()
 #endif
 
-using namespace mu::accessibility;
+using namespace muse;
+using namespace muse::accessibility;
 
 AccessibleItemInterface::AccessibleItemInterface(AccessibleObject* object)
+    : muse::Injectable(object->item()->iocContext())
 {
     m_object = object;
 }
@@ -253,7 +256,7 @@ QString AccessibleItemInterface::text(QAccessible::Text textType) const
         if (m_object->controller().lock()->needToVoicePanelInfo()) {
             QString panelName = m_object->controller().lock()->currentPanelAccessibleName();
             if (!panelName.isEmpty()) {
-                name.prepend(panelName + " " + qtrc("accessibility", "Panel") + ", ");
+                name.prepend(panelName + " " + muse::qtrc("accessibility", "Panel") + ", ");
             }
         }
         return name;
@@ -388,8 +391,8 @@ QString AccessibleItemInterface::attributes(int, int* startOffset, int* endOffse
 {
     NOT_IMPLEMENTED;
 
-    *startOffset = 0;
-    *endOffset = 0;
+    *startOffset = -1;
+    *endOffset = -1;
     return QString();
 }
 

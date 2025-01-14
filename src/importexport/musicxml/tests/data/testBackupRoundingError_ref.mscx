@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<museScore version="4.20">
+<museScore version="4.50">
   <Score>
     <Division>480</Division>
     <Style>
-      <Spatium>1.74978</Spatium>
+      <spatium>1.74978</spatium>
       </Style>
     <showInvisible>1</showInvisible>
     <showUnprintable>1</showUnprintable>
@@ -35,13 +35,13 @@
         <hideWhenEmpty>3</hideWhenEmpty>
         </Staff>
       <trackName>Piano</trackName>
-      <Instrument id="grand-piano">
+      <Instrument id="piano">
         <trackName>Piano</trackName>
         <minPitchP>21</minPitchP>
         <maxPitchP>108</maxPitchP>
         <minPitchA>21</minPitchA>
         <maxPitchA>108</maxPitchA>
-        <instrumentId>keyboard.piano.grand</instrumentId>
+        <instrumentId>keyboard.piano</instrumentId>
         <clef staff="2">F</clef>
         <Articulation>
           <velocity>100</velocity>
@@ -101,6 +101,9 @@
           <text>MuseScore testfile</text>
           </Text>
         </VBox>
+      <HBox>
+        <width>7</width>
+        </HBox>
       <Measure>
         <voice>
           <Clef>
@@ -197,7 +200,7 @@
             </Chord>
           <Beam>
             <StemDirection>up</StemDirection>
-            <l1>-24</l1>
+            <l1>-26</l1>
             <l2>-36</l2>
             </Beam>
           <Chord>
@@ -616,9 +619,21 @@
           <subtype>line</subtype>
           </LayoutBreak>
         <voice>
-          <StaffText>
-            <text><b>rit.</b></text>
-            </StaffText>
+          <Spanner type="GradualTempoChange">
+            <GradualTempoChange>
+              <tempoChangeType>ritardando</tempoChangeType>
+              <beginHookHeight>1.9</beginHookHeight>
+              <endHookType>0</endHookType>
+              <endHookHeight>1.9</endHookHeight>
+              <beginText>rit.</beginText>
+              <beginTextOffset x="0" y="0"/>
+              </GradualTempoChange>
+            <next>
+              <location>
+                <fractions>1/2</fractions>
+                </location>
+              </next>
+            </Spanner>
           <Chord>
             <durationType>half</durationType>
             <StemDirection>up</StemDirection>
@@ -636,6 +651,13 @@
           <Fermata>
             <subtype>fermataAbove</subtype>
             </Fermata>
+          <Spanner type="GradualTempoChange">
+            <prev>
+              <location>
+                <fractions>-1/2</fractions>
+                </location>
+              </prev>
+            </Spanner>
           <Chord>
             <durationType>quarter</durationType>
             <StemDirection>up</StemDirection>
@@ -652,15 +674,6 @@
               <tpc>14</tpc>
               </Note>
             <Note>
-              <Spanner type="Tie">
-                <prev>
-                  <location>
-                    <voices>1</voices>
-                    <fractions>-1/2</fractions>
-                    <notes>-1</notes>
-                    </location>
-                  </prev>
-                </Spanner>
               <pitch>69</pitch>
               <tpc>17</tpc>
               </Note>
@@ -687,6 +700,7 @@
           <Dynamic>
             <subtype>pp</subtype>
             <velocity>33</velocity>
+            <direction>down</direction>
             </Dynamic>
           <Beam>
             <StemDirection>up</StemDirection>
@@ -708,10 +722,11 @@
           <Spanner type="HairPin">
             <HairPin>
               <subtype>0</subtype>
+              <direction>down</direction>
               </HairPin>
             <next>
               <location>
-                <fractions>1/6</fractions>
+                <fractions>479/1920</fractions>
                 </location>
               </next>
             </Spanner>
@@ -750,13 +765,6 @@
               <tpc>14</tpc>
               </Note>
             </Chord>
-          <Spanner type="HairPin">
-            <prev>
-              <location>
-                <fractions>-1/6</fractions>
-                </location>
-              </prev>
-            </Spanner>
           <Chord>
             <BeamMode>mid</BeamMode>
             <small>1</small>
@@ -769,6 +777,20 @@
               <tpc>16</tpc>
               </Note>
             </Chord>
+          <location>
+            <fractions>-1/1920</fractions>
+            <timeTick>1</timeTick>
+            </location>
+          <Spanner type="HairPin">
+            <prev>
+              <location>
+                <fractions>-479/1920</fractions>
+                </location>
+              </prev>
+            </Spanner>
+          <location>
+            <fractions>1/1920</fractions>
+            </location>
           <Chord>
             <small>1</small>
             <durationType>eighth</durationType>
@@ -921,17 +943,6 @@
             <BeamMode>begin</BeamMode>
             <durationType>eighth</durationType>
             <Note>
-              <Spanner type="Tie">
-                <Tie>
-                  </Tie>
-                <next>
-                  <location>
-                    <voices>-1</voices>
-                    <fractions>1/2</fractions>
-                    <notes>1</notes>
-                    </location>
-                  </next>
-                </Spanner>
               <pitch>69</pitch>
               <tpc>17</tpc>
               </Note>
@@ -1057,6 +1068,7 @@
           <Spanner type="HairPin">
             <HairPin>
               <subtype>0</subtype>
+              <direction>down</direction>
               </HairPin>
             <next>
               <location>
@@ -1070,21 +1082,13 @@
               <Accidental>
                 <subtype>accidentalNatural</subtype>
                 </Accidental>
-              <Spanner type="Tie">
-                <Tie>
-                  </Tie>
-                <next>
-                  <location>
-                    <fractions>13/12</fractions>
-                    </location>
-                  </next>
-                </Spanner>
               <pitch>88</pitch>
               <tpc>18</tpc>
               </Note>
             </Chord>
           <location>
             <fractions>-1/2</fractions>
+            <timeTick>1</timeTick>
             </location>
           <Spanner type="HairPin">
             <prev>
@@ -1126,13 +1130,6 @@
               <Fingering>
                 <text>1</text>
                 </Fingering>
-              <Spanner type="Tie">
-                <prev>
-                  <location>
-                    <fractions>-13/12</fractions>
-                    </location>
-                  </prev>
-                </Spanner>
               <pitch>88</pitch>
               <tpc>18</tpc>
               </Note>
@@ -1192,18 +1189,36 @@
               </Note>
             </Chord>
           <endTuplet/>
-          <StaffText>
-            <text><b>rit.</b></text>
-            </StaffText>
           <Spanner type="HairPin">
             <HairPin>
               <subtype>1</subtype>
+              <direction>down</direction>
               </HairPin>
             <next>
               <location>
                 <fractions>5/12</fractions>
                 </location>
               </next>
+            </Spanner>
+          <Spanner type="GradualTempoChange">
+            <GradualTempoChange>
+              <tempoChangeType>ritardando</tempoChangeType>
+              <beginHookHeight>1.9</beginHookHeight>
+              <endHookType>0</endHookType>
+              <endHookHeight>1.9</endHookHeight>
+              <beginText>rit.</beginText>
+              <beginTextOffset x="0" y="0"/>
+              </GradualTempoChange>
+            <next>
+              <location>
+                </location>
+              </next>
+            </Spanner>
+          <Spanner type="GradualTempoChange">
+            <prev>
+              <location>
+                </location>
+              </prev>
             </Spanner>
           <Tuplet>
             <normalNotes>2</normalNotes>
@@ -1757,8 +1772,17 @@
             </Chord>
           <location>
             <fractions>-1/8</fractions>
+            <timeTick>1</timeTick>
             </location>
           <Spanner type="Pedal">
+            <Pedal>
+              <endHookType>1</endHookType>
+              </Pedal>
+            <next>
+              <location>
+                <fractions>1/4</fractions>
+                </location>
+              </next>
             </Spanner>
           <location>
             <fractions>1/8</fractions>
@@ -1767,8 +1791,6 @@
             <subtype>fermataBelow</subtype>
             <placement>below</placement>
             </Fermata>
-          <Spanner type="Pedal">
-            </Spanner>
           <Chord>
             <durationType>quarter</durationType>
             <StemDirection>up</StemDirection>
@@ -1794,6 +1816,20 @@
               <tpc>16</tpc>
               </Note>
             </Chord>
+          <location>
+            <fractions>-1/8</fractions>
+            <timeTick>1</timeTick>
+            </location>
+          <Spanner type="Pedal">
+            <prev>
+              <location>
+                <fractions>-1/4</fractions>
+                </location>
+              </prev>
+            </Spanner>
+          <location>
+            <fractions>1/8</fractions>
+            </location>
           <Fermata>
             <subtype>fermataAbove</subtype>
             </Fermata>
@@ -1814,6 +1850,15 @@
             <visible>0</visible>
             <durationType>half</durationType>
             </Rest>
+          <location>
+            <fractions>-103/1024</fractions>
+            </location>
+          <Symbol>
+            <name>gClef</name>
+            </Symbol>
+          <location>
+            <fractions>103/1024</fractions>
+            </location>
           <BarLine>
             <visible>0</visible>
             </BarLine>
@@ -1978,6 +2023,15 @@
             <visible>0</visible>
             <durationType>quarter</durationType>
             </Rest>
+          <location>
+            <fractions>-1/12</fractions>
+            </location>
+          <Symbol>
+            <name>fClef</name>
+            </Symbol>
+          <location>
+            <fractions>1/12</fractions>
+            </location>
           <BarLine>
             <subtype>end</subtype>
             </BarLine>
@@ -2007,8 +2061,7 @@
               </Note>
             </Chord>
           <Fermata>
-            <subtype>fermataAbove</subtype>
-            <placement>above</placement>
+            <subtype>fermataBelow</subtype>
             </Fermata>
           <Chord>
             <durationType>half</durationType>

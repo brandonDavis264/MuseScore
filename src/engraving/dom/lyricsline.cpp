@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -24,8 +24,10 @@
 
 #include "draw/types/pen.h"
 
+#include "chord.h"
 #include "chordrest.h"
 #include "measure.h"
+#include "note.h"
 #include "score.h"
 #include "segment.h"
 #include "stafftype.h"
@@ -43,7 +45,7 @@ LyricsLine::LyricsLine(EngravingItem* parent)
 {
     setGenerated(true);             // no need to save it, as it can be re-generated
     setDiagonal(false);
-    setLineWidth(style().styleMM(Sid::lyricsDashLineThickness));
+    setLineWidth(style().styleS(Sid::lyricsDashLineThickness));
     setAnchor(Spanner::Anchor::SEGMENT);
     m_nextLyrics = 0;
 }
@@ -60,7 +62,7 @@ LyricsLine::LyricsLine(const LyricsLine& g)
 
 void LyricsLine::styleChanged()
 {
-    setLineWidth(style().styleMM(Sid::lyricsDashLineThickness));
+    setLineWidth(style().styleS(Sid::lyricsDashLineThickness));
 }
 
 //---------------------------------------------------------
@@ -116,6 +118,20 @@ bool LyricsLine::setProperty(Pid propertyId, const engraving::PropertyValue& v)
     return true;
 }
 
+void LyricsLine::doComputeEndElement()
+{
+    if (!isEndMelisma()) {
+        Spanner::doComputeEndElement();
+        return;
+    }
+
+    setEndElement(score()->findChordRestEndingBeforeTickInTrack(tick2(), track()));
+
+    if (!endElement()) {
+        setEndElement(score()->findChordRestEndingBeforeTickInStaff(tick2(), track2staff(track())));
+    }
+}
+
 //=========================================================
 //   LyricsLineSegment
 //=========================================================
@@ -124,5 +140,15 @@ LyricsLineSegment::LyricsLineSegment(LyricsLine* sp, System* parent)
     : LineSegment(ElementType::LYRICSLINE_SEGMENT, sp, parent, ElementFlag::ON_STAFF | ElementFlag::NOT_SELECTABLE)
 {
     setGenerated(true);
+}
+
+double LyricsLineSegment::baseLineShift() const
+{
+    if (lyricsLine()->isEndMelisma()) {
+        return -0.5 * absoluteFromSpatium(lineWidth());
+    }
+
+    Lyrics* lyrics = lyricsLine()->lyrics();
+    return -style().styleD(Sid::lyricsDashYposRatio) * lyrics->fontMetrics().xHeight();
 }
 }

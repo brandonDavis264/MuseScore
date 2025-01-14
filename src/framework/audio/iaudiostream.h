@@ -19,19 +19,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef MU_AUDIO_IAUDIOSTREAM_H
-#define MU_AUDIO_IAUDIOSTREAM_H
+#ifndef MUSE_AUDIO_IAUDIOSTREAM_H
+#define MUSE_AUDIO_IAUDIOSTREAM_H
 
-#include "io/path.h"
+#include "global/io/path.h"
 
-namespace mu::audio {
+namespace muse::audio {
 class IAudioStream
 {
 public:
     virtual ~IAudioStream() = default;
 
     //! load stream's data from file
-    virtual bool loadFile(const mu::io::path_t& path) = 0;
+    virtual bool loadFile(const io::path_t& path) = 0;
 
     //! return channel count for this stream
     virtual unsigned int channelsCount() const = 0;
@@ -46,4 +46,4 @@ public:
     virtual unsigned int copySamplesToBuffer(float* buffer, unsigned int from, unsigned int sampleCount, unsigned int sampleRate) = 0;
 };
 }
-#endif // MU_AUDIO_IAUDIOSTREAM_H
+#endif // MUSE_AUDIO_IAUDIOSTREAM_H

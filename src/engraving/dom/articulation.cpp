@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -36,12 +36,12 @@
 #include "stafftype.h"
 #include "system.h"
 #include "note.h"
-#include "tie.h"
 
 #include "log.h"
 
 using namespace mu;
 using namespace mu::engraving;
+using namespace muse::draw;
 
 //---------------------------------------------------------
 //   articulationStyle
@@ -66,7 +66,7 @@ Articulation::Articulation(ChordRest* parent, ElementType type)
     m_ornamentStyle = OrnamentStyle::DEFAULT;
     m_playArticulation = true;
 
-    m_font.setFamily(u"FreeSans", draw::Font::Type::Tablature);
+    m_font.setFamily(u"FreeSans", Font::Type::Tablature);
     m_font.setPointSizeF(7.0);
 
     initElementStyle(&articulationStyle);
@@ -101,6 +101,9 @@ void Articulation::setTextType(ArticulationTextType textType)
 
 int Articulation::subtype() const
 {
+    if (m_textType != ArticulationTextType::NO_TEXT) {
+        return int(m_textType);
+    }
     String s = String::fromAscii(SymNames::nameForSymId(m_symId).ascii());
     if (s.endsWith(u"Below")) {
         return int(SymNames::symIdByName(s.left(s.size() - 5) + u"Above"));
@@ -150,22 +153,26 @@ void Articulation::setUp(bool val)
 //   typeUserName
 //---------------------------------------------------------
 
-TranslatableString Articulation::typeUserName() const
+muse::TranslatableString Articulation::typeUserName() const
+{
+    if (m_textType != ArticulationTextType::NO_TEXT) {
+        return TranslatableString("engraving", "Articulation text");
+    }
+
+    return TranslatableString("engraving", "Articulation");
+}
+
+//---------------------------------------------------------
+//   subtypeUserName
+//---------------------------------------------------------
+
+muse::TranslatableString Articulation::subtypeUserName() const
 {
     if (m_textType != ArticulationTextType::NO_TEXT) {
         return TConv::userName(m_textType);
     }
 
-    return TranslatableString("engraving/sym", SymNames::userNameForSymId(symId()));
-}
-
-String Articulation::translatedTypeUserName() const
-{
-    if (m_textType != ArticulationTextType::NO_TEXT) {
-        return TConv::userName(m_textType).translated();
-    }
-
-    return SymNames::translatedUserNameForSymId(symId());
+    return SymNames::userNameForSymId(symId());
 }
 
 //---------------------------------------------------------
@@ -577,6 +584,8 @@ void Articulation::computeCategories()
                          m_symId == SymId::stringsThumbPosition || m_symId == SymId::luteFingeringRHThumb
                          || m_symId == SymId::luteFingeringRHFirst || m_symId == SymId::luteFingeringRHSecond
                          || m_symId == SymId::luteFingeringRHThird);
+    m_categories.setFlag(ArticulationCategory::LAISSEZ_VIB,
+                         m_symId == SymId::articLaissezVibrerAbove || m_symId == SymId::articLaissezVibrerBelow);
 }
 
 bool Articulation::isBasicArticulation() const
@@ -607,7 +616,7 @@ bool Articulation::isBasicArticulation() const
 
 String Articulation::accessibleInfo() const
 {
-    return String(u"%1: %2").arg(EngravingItem::accessibleInfo(), translatedTypeUserName());
+    return String(u"%1: %2").arg(EngravingItem::accessibleInfo(), translatedSubtypeUserName());
 }
 
 void Articulation::setupShowOnTabStyles()

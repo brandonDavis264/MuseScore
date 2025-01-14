@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2022 MuseScore BVBA and others
+ * Copyright (C) 2022 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -21,6 +21,7 @@
  */
 
 #include "abstractelementpopupmodel.h"
+#include "internal/partialtiepopupmodel.h"
 #include "log.h"
 
 using namespace mu::notation;
@@ -30,10 +31,22 @@ static const QMap<mu::engraving::ElementType, PopupModelType> ELEMENT_POPUP_TYPE
     { mu::engraving::ElementType::CAPO, PopupModelType::TYPE_CAPO },
     { mu::engraving::ElementType::STRING_TUNINGS, PopupModelType::TYPE_STRING_TUNINGS },
     { mu::engraving::ElementType::SOUND_FLAG, PopupModelType::TYPE_SOUND_FLAG },
+    { mu::engraving::ElementType::DYNAMIC, PopupModelType::TYPE_DYNAMIC },
+    { mu::engraving::ElementType::TIE_SEGMENT, PopupModelType::TYPE_PARTIAL_TIE },
+    { mu::engraving::ElementType::PARTIAL_TIE_SEGMENT, PopupModelType::TYPE_PARTIAL_TIE }
+};
+
+static const QHash<PopupModelType, mu::engraving::ElementTypeSet> POPUP_DEPENDENT_ELEMENT_TYPES = {
+    { PopupModelType::TYPE_HARP_DIAGRAM, { mu::engraving::ElementType::HARP_DIAGRAM } },
+    { PopupModelType::TYPE_CAPO, { mu::engraving::ElementType::CAPO } },
+    { PopupModelType::TYPE_STRING_TUNINGS, { mu::engraving::ElementType::STRING_TUNINGS } },
+    { PopupModelType::TYPE_SOUND_FLAG, { mu::engraving::ElementType::SOUND_FLAG, mu::engraving::ElementType::STAFF_TEXT } },
+    { PopupModelType::TYPE_DYNAMIC, { mu::engraving::ElementType::DYNAMIC } },
+    { PopupModelType::TYPE_PARTIAL_TIE, { mu::engraving::ElementType::PARTIAL_TIE_SEGMENT, mu::engraving::ElementType::TIE_SEGMENT } },
 };
 
 AbstractElementPopupModel::AbstractElementPopupModel(PopupModelType modelType, QObject* parent)
-    : QObject(parent), m_modelType(modelType)
+    : QObject(parent), muse::Injectable(muse::iocCtxForQmlObject(this)), m_modelType(modelType)
 {
 }
 
@@ -47,9 +60,23 @@ QRect AbstractElementPopupModel::itemRect() const
     return m_itemRect;
 }
 
-bool AbstractElementPopupModel::supportsPopup(const engraving::ElementType& elementType)
+bool AbstractElementPopupModel::supportsPopup(const EngravingItem* element)
 {
-    return modelTypeFromElement(elementType) != PopupModelType::TYPE_UNDEFINED;
+    if (!element) {
+        return false;
+    }
+
+    const PopupModelType modelType = modelTypeFromElement(element->type());
+    if (modelType == PopupModelType::TYPE_UNDEFINED) {
+        return false;
+    }
+
+    switch (modelType) {
+    case PopupModelType::TYPE_PARTIAL_TIE:
+        return PartialTiePopupModel::canOpen(element);
+    default:
+        return true;
+    }
 }
 
 PopupModelType AbstractElementPopupModel::modelTypeFromElement(const engraving::ElementType& elementType)
@@ -57,14 +84,14 @@ PopupModelType AbstractElementPopupModel::modelTypeFromElement(const engraving::
     return ELEMENT_POPUP_TYPES.value(elementType, PopupModelType::TYPE_UNDEFINED);
 }
 
-mu::PointF AbstractElementPopupModel::fromLogical(PointF point) const
+muse::PointF AbstractElementPopupModel::fromLogical(muse::PointF point) const
 {
-    return currentNotation()->viewState() ? currentNotation()->viewState()->matrix().map(point) : PointF();
+    return currentNotation()->viewState() ? currentNotation()->viewState()->matrix().map(point) : muse::PointF();
 }
 
-mu::RectF AbstractElementPopupModel::fromLogical(RectF rect) const
+muse::RectF AbstractElementPopupModel::fromLogical(muse::RectF rect) const
 {
-    return currentNotation()->viewState() ? currentNotation()->viewState()->matrix().map(rect) : RectF();
+    return currentNotation()->viewState() ? currentNotation()->viewState()->matrix().map(rect) : muse::RectF();
 }
 
 INotationUndoStackPtr AbstractElementPopupModel::undoStack() const
@@ -72,16 +99,16 @@ INotationUndoStackPtr AbstractElementPopupModel::undoStack() const
     return currentNotation() ? currentNotation()->undoStack() : nullptr;
 }
 
-void AbstractElementPopupModel::beginCommand()
+void AbstractElementPopupModel::beginCommand(const muse::TranslatableString& actionName)
 {
     if (undoStack()) {
-        undoStack()->prepareChanges();
+        undoStack()->prepareChanges(actionName);
     }
 }
 
-void AbstractElementPopupModel::beginMultiCommands()
+void AbstractElementPopupModel::beginMultiCommands(const muse::TranslatableString& actionName)
 {
-    beginCommand();
+    beginCommand(actionName);
 
     if (undoStack()) {
         undoStack()->lock();
@@ -129,7 +156,7 @@ void AbstractElementPopupModel::changeItemProperty(mu::engraving::Pid id, const 
         flags = mu::engraving::PropertyFlags::UNSTYLED;
     }
 
-    beginCommand();
+    beginCommand(muse::TranslatableString("undoableAction", "Edit element property"));
     m_item->undoChangeProperty(id, value, flags);
     endCommand();
     updateNotation();
@@ -141,7 +168,7 @@ void AbstractElementPopupModel::changeItemProperty(mu::engraving::Pid id, const 
         return;
     }
 
-    beginCommand();
+    beginCommand(muse::TranslatableString("undoableAction", "Edit element property"));
     m_item->undoChangeProperty(id, value, flags);
     endCommand();
     updateNotation();
@@ -176,9 +203,11 @@ void AbstractElementPopupModel::init()
     m_item = selection->element();
 
     undoStack->changesChannel().onReceive(this, [this] (const ChangesRange& range) {
-        if (contains(range.changedTypes, elementType())) {
-            emit dataChanged();
-            updateItemRect();
+        for (ElementType type : dependentElementTypes()) {
+            if (muse::contains(range.changedTypes, type)) {
+                emit dataChanged();
+                updateItemRect();
+            }
         }
     });
 
@@ -188,6 +217,17 @@ void AbstractElementPopupModel::init()
 mu::engraving::ElementType AbstractElementPopupModel::elementType() const
 {
     return ELEMENT_POPUP_TYPES.key(m_modelType, ElementType::INVALID);
+}
+
+const mu::engraving::ElementTypeSet& AbstractElementPopupModel::dependentElementTypes() const
+{
+    auto it = POPUP_DEPENDENT_ELEMENT_TYPES.find(m_modelType);
+    if (it != POPUP_DEPENDENT_ELEMENT_TYPES.end()) {
+        return it.value();
+    }
+
+    static const engraving::ElementTypeSet dummy;
+    return dummy;
 }
 
 void AbstractElementPopupModel::updateItemRect()

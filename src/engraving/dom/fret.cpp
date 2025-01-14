@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -39,6 +39,7 @@
 #include "log.h"
 
 using namespace mu;
+using namespace muse::draw;
 using namespace mu::engraving;
 
 namespace mu::engraving {
@@ -58,6 +59,7 @@ static const ElementStyle fretStyle {
     { Sid::fretNut,                            Pid::FRET_NUT },
     { Sid::fretMinDistance,                    Pid::MIN_DISTANCE },
     { Sid::fretOrientation,                    Pid::ORIENTATION },
+    { Sid::fretShowFingerings,                 Pid::FRET_SHOW_FINGERINGS },
 };
 
 //---------------------------------------------------------
@@ -67,8 +69,6 @@ static const ElementStyle fretStyle {
 FretDiagram::FretDiagram(Segment* parent)
     : EngravingItem(ElementType::FRET_DIAGRAM, parent, ElementFlag::MOVABLE | ElementFlag::ON_STAFF)
 {
-    m_font.setFamily(u"FreeSans", draw::Font::Type::Tablature);
-    m_font.setPointSizeF(4.0 * mag());
     initElementStyle(&fretStyle);
 }
 
@@ -79,7 +79,6 @@ FretDiagram::FretDiagram(const FretDiagram& f)
     m_frets      = f.m_frets;
     m_fretOffset = f.m_fretOffset;
     m_maxFrets   = f.m_maxFrets;
-    m_font        = f.m_font;
     m_userMag    = f.m_userMag;
     m_numPos     = f.m_numPos;
     m_dots       = f.m_dots;
@@ -87,6 +86,8 @@ FretDiagram::FretDiagram(const FretDiagram& f)
     m_barres     = f.m_barres;
     m_showNut    = f.m_showNut;
     m_orientation= f.m_orientation;
+    m_showFingering = f.m_showFingering;
+    m_fingering = f.m_fingering;
 
     if (f.m_harmony) {
         Harmony* h = new Harmony(*f.m_harmony);
@@ -192,6 +193,17 @@ PointF FretDiagram::pagePos() const
     }
 }
 
+double FretDiagram::mainWidth() const
+{
+    double mainWidth = 0.0;
+    if (orientation() == Orientation::VERTICAL) {
+        mainWidth = ldata()->stringDist * (strings() - 1);
+    } else if (orientation() == Orientation::HORIZONTAL) {
+        mainWidth = ldata()->fretDist * frets();
+    }
+    return mainWidth;
+}
+
 //---------------------------------------------------------
 //   dragAnchorLines
 //---------------------------------------------------------
@@ -248,6 +260,14 @@ void FretDiagram::setStrings(int n)
         }
     }
 
+    if (difference > 0) {
+        for (int i = 0; i < difference; ++i) {
+            m_fingering.push_back(0);
+        }
+    } else {
+        m_fingering.erase(m_fingering.end() + difference, m_fingering.end());
+    }
+
     m_strings = n;
 }
 
@@ -279,18 +299,6 @@ void FretDiagram::init(StringData* stringData, Chord* chord)
     }
 }
 
-double FretDiagram::centerX() const
-{
-    // Keep in sync with how bbox is calculated in layout().
-    return (ldata()->bbox().right() - ldata()->markerSize * .5) * .5;
-}
-
-double FretDiagram::rightX() const
-{
-    // Keep in sync with how bbox is calculated in layout().
-    return ldata()->bbox().right() - ldata()->markerSize * .5;
-}
-
 //---------------------------------------------------------
 //   setDot
 //    take a fret value of 0 to mean remove the dot, except with add
@@ -318,6 +326,18 @@ void FretDiagram::setDot(int string, int fret, bool add /*= false*/, FretDotType
             setMarker(string, FretMarkerType::NONE);
         }
     }
+}
+
+void FretDiagram::addDotForDotStyleBarre(int string, int fret)
+{
+    if (m_dots[string].empty()) {
+        m_dots[string].push_back(FretItem::Dot(fret, FretDotType::NORMAL));
+    }
+}
+
+void FretDiagram::removeDotForDotStyleBarre(int string, int fret)
+{
+    removeDot(string, fret);
 }
 
 //---------------------------------------------------------
@@ -577,6 +597,32 @@ FretItem::Barre FretDiagram::barre(int f) const
     return FretItem::Barre(-1, -1);
 }
 
+Font FretDiagram::fretNumFont() const
+{
+    const MStyle& st = style();
+    Font f(st.styleSt(Sid::fretDiagramFretNumberFontFace), Font::Type::Text);
+    f.setPointSizeF(st.styleD(Sid::fretDiagramFretNumberFontSize) * userMag());
+    FontStyle fStyle = st.styleV(Sid::fretDiagramFretNumberFontStyle).value<FontStyle>();
+    f.setBold(fStyle & FontStyle::Bold);
+    f.setItalic(fStyle & FontStyle::Italic);
+    f.setUnderline(fStyle & FontStyle::Underline);
+    f.setStrike(fStyle & FontStyle::Strike);
+    return f;
+}
+
+Font FretDiagram::fingeringFont() const
+{
+    const MStyle& st = style();
+    Font f(st.styleSt(Sid::fretDiagramFingeringFontFace), Font::Type::Text);
+    f.setPointSizeF(st.styleD(Sid::fretDiagramFingeringFontSize) * userMag());
+    FontStyle fStyle = st.styleV(Sid::fretDiagramFingeringFontStyle).value<FontStyle>();
+    f.setBold(fStyle & FontStyle::Bold);
+    f.setItalic(fStyle & FontStyle::Italic);
+    f.setUnderline(fStyle & FontStyle::Underline);
+    f.setStrike(fStyle & FontStyle::Strike);
+    return f;
+}
+
 //---------------------------------------------------------
 //   setHarmony
 ///   if this is being done by the user, use undoSetHarmony instead
@@ -696,7 +742,10 @@ PropertyValue FretDiagram::getProperty(Pid propertyId) const
         return m_numPos;
     case Pid::ORIENTATION:
         return m_orientation;
-        break;
+    case Pid::FRET_SHOW_FINGERINGS:
+        return m_showFingering;
+    case Pid::FRET_FINGERING:
+        return m_fingering;
     default:
         return EngravingItem::getProperty(propertyId);
     }
@@ -730,6 +779,12 @@ bool FretDiagram::setProperty(Pid propertyId, const PropertyValue& v)
     case Pid::ORIENTATION:
         m_orientation = v.value<Orientation>();
         break;
+    case Pid::FRET_SHOW_FINGERINGS:
+        setShowFingering(v.toBool());
+        break;
+    case Pid::FRET_FINGERING:
+        setFingering(v.value<std::vector<int> >());
+        break;
     default:
         return EngravingItem::setProperty(propertyId, v);
     }
@@ -746,6 +801,8 @@ PropertyValue FretDiagram::propertyDefault(Pid pid) const
     // We shouldn't style the fret offset
     if (pid == Pid::FRET_OFFSET) {
         return PropertyValue(0);
+    } else if (pid == Pid::FRET_FINGERING) {
+        return std::vector<int>(m_strings, 0);
     }
 
     for (const StyledProperty& p : *styledProperties()) {
@@ -778,9 +835,9 @@ String FretDiagram::accessibleInfo() const
 {
     String chordName;
     if (m_harmony) {
-        chordName = mtrc("engraving", "with chord symbol %1").arg(m_harmony->harmonyName());
+        chordName = muse::mtrc("engraving", "with chord symbol %1").arg(m_harmony->harmonyName());
     } else {
-        chordName = mtrc("engraving", "without chord symbol");
+        chordName = muse::mtrc("engraving", "without chord symbol");
     }
     return String(u"%1 %2").arg(translatedTypeUserName(), chordName);
 }
@@ -793,16 +850,16 @@ String FretDiagram::screenReaderInfo() const
 {
     String detailedInfo;
     for (int i = 0; i < m_strings; i++) {
-        String stringIdent = mtrc("engraving", "string %1").arg(i + 1);
+        String stringIdent = muse::mtrc("engraving", "string %1").arg(i + 1);
 
         const FretItem::Marker& m = marker(i);
         String markerName;
         switch (m.mtype) {
         case FretMarkerType::CIRCLE:
-            markerName = mtrc("engraving", "circle marker");
+            markerName = muse::mtrc("engraving", "circle marker");
             break;
         case FretMarkerType::CROSS:
-            markerName = mtrc("engraving", "cross marker");
+            markerName = muse::mtrc("engraving", "cross marker");
             break;
         case FretMarkerType::NONE:
         default:
@@ -834,7 +891,7 @@ String FretDiagram::screenReaderInfo() const
             int max = int(fretsWithDots.size());
             for (int j = 0; j < max; j++) {
                 if (j == max - 1) {
-                    fretInfo = mtrc("engraving", "%1 and %2").arg(fretInfo).arg(fretsWithDots[j]);
+                    fretInfo = muse::mtrc("engraving", "%1 and %2").arg(fretInfo).arg(fretsWithDots[j]);
                 } else {
                     fretInfo = String(u"%1 %2").arg(fretInfo).arg(fretsWithDots[j]);
                 }
@@ -842,7 +899,7 @@ String FretDiagram::screenReaderInfo() const
         }
 
         //: Omit the "%n " for the singular translation (and the "(s)" too)
-        String dotsInfo = mtrc("engraving", "%n dot(s) on fret(s) %1", "", dotsCount).arg(fretInfo);
+        String dotsInfo = muse::mtrc("engraving", "%n dot(s) on fret(s) %1", "", dotsCount).arg(fretInfo);
 
         detailedInfo = String(u"%1 %2 %3 %4").arg(detailedInfo, stringIdent, markerName, dotsInfo);
     }
@@ -854,19 +911,19 @@ String FretDiagram::screenReaderInfo() const
             continue;
         }
 
-        String fretInfo = mtrc("engraving", "fret %1").arg(iter.first);
+        String fretInfo = muse::mtrc("engraving", "fret %1").arg(iter.first);
 
         String newBarreInfo;
         if (b.startString == 0 && (b.endString == -1 || b.endString == m_strings - 1)) {
-            newBarreInfo = mtrc("engraving", "barré %1").arg(fretInfo);
+            newBarreInfo = muse::mtrc("engraving", "barré %1").arg(fretInfo);
         } else {
-            String startPart = mtrc("engraving", "beginning string %1").arg(b.startString + 1);
+            String startPart = muse::mtrc("engraving", "beginning string %1").arg(b.startString + 1);
             String endPart;
             if (b.endString != -1) {
-                endPart = mtrc("engraving", "and ending string %1").arg(b.endString + 1);
+                endPart = muse::mtrc("engraving", "and ending string %1").arg(b.endString + 1);
             }
 
-            newBarreInfo = mtrc("engraving", "partial barré %1 %2 %3").arg(fretInfo, startPart, endPart);
+            newBarreInfo = muse::mtrc("engraving", "partial barré %1 %2 %3").arg(fretInfo, startPart, endPart);
         }
 
         barreInfo = String(u"%1 %2").arg(barreInfo, newBarreInfo);
@@ -875,20 +932,25 @@ String FretDiagram::screenReaderInfo() const
     detailedInfo = String(u"%1 %2").arg(detailedInfo, barreInfo);
 
     if (detailedInfo.trimmed().size() == 0) {
-        detailedInfo = mtrc("engraving", "no content");
+        detailedInfo = muse::mtrc("engraving", "no content");
     }
 
     String chordName = m_harmony
-                       ? mtrc("engraving", "with chord symbol %1").arg(m_harmony->generateScreenReaderInfo())
-                       : mtrc("engraving", "without chord symbol");
+                       ? muse::mtrc("engraving", "with chord symbol %1").arg(m_harmony->generateScreenReaderInfo())
+                       : muse::mtrc("engraving", "without chord symbol");
 
     String basicInfo = String(u"%1 %2").arg(translatedTypeUserName(), chordName);
 
-    String generalInfo = mtrc("engraving", "%n string(s) total", "", m_strings);
+    String generalInfo = muse::mtrc("engraving", "%n string(s) total", "", m_strings);
 
     String res = String(u"%1 %2 %3").arg(basicInfo, generalInfo, detailedInfo);
 
     return res;
+}
+
+void FretDiagram::setFingering(std::vector<int> v)
+{
+    m_fingering = std::move(v);
 }
 
 //---------------------------------------------------------

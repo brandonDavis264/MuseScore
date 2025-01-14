@@ -36,7 +36,8 @@
 
 static constexpr char DEFAULT_DEVICE_ID[] = "default";
 
-using namespace mu::audio;
+using namespace muse;
+using namespace muse::audio;
 
 namespace {
 struct ALSAData
@@ -52,11 +53,11 @@ struct ALSAData
 };
 
 static ALSAData* s_alsaData{ nullptr };
-IAudioDriver::Spec s_format;
+static muse::audio::IAudioDriver::Spec s_format;
 
 static void* alsaThread(void* aParam)
 {
-    mu::runtime::setThreadName("audio_driver");
+    muse::runtime::setThreadName("audio_driver");
     ALSAData* data = static_cast<ALSAData*>(aParam);
 
     int ret = snd_pcm_wait(data->alsaDeviceHandle, 1000);
@@ -92,8 +93,10 @@ static void alsaCleanup()
     if (s_alsaData->threadHandle) {
         pthread_join(s_alsaData->threadHandle, nullptr);
     }
-    snd_pcm_drain(s_alsaData->alsaDeviceHandle);
-    snd_pcm_close(s_alsaData->alsaDeviceHandle);
+    if (nullptr != s_alsaData->alsaDeviceHandle) {
+        snd_pcm_drain(s_alsaData->alsaDeviceHandle);
+        snd_pcm_close(s_alsaData->alsaDeviceHandle);
+    }
 
     if (nullptr != s_alsaData->buffer) {
         delete[] s_alsaData->buffer;
@@ -138,10 +141,10 @@ bool LinuxAudioDriver::open(const Spec& spec, Spec* activeSpec)
     s_alsaData->callback = spec.callback;
     s_alsaData->userdata = spec.userdata;
 
-    int rc;
     snd_pcm_t* handle;
-    rc = snd_pcm_open(&handle, outputDevice().c_str(), SND_PCM_STREAM_PLAYBACK, 0);
+    int rc = snd_pcm_open(&handle, outputDevice().c_str(), SND_PCM_STREAM_PLAYBACK, 0);
     if (rc < 0) {
+        LOGE() << "Unable to open device: " << outputDevice() << ", err code: " << rc;
         return false;
     }
 
@@ -160,13 +163,18 @@ bool LinuxAudioDriver::open(const Spec& spec, Spec* activeSpec)
     int dir = 0;
     rc = snd_pcm_hw_params_set_rate_near(handle, params, &val, &dir);
     if (rc < 0) {
+        LOGE() << "Unable to set sample rate: " << val << ", err code: " << rc;
         return false;
     }
 
-    snd_pcm_hw_params_set_buffer_size_near(handle, params, &s_alsaData->samples);
+    rc = snd_pcm_hw_params_set_buffer_size_near(handle, params, &s_alsaData->samples);
+    if (rc < 0) {
+        LOGE() << "Unable to set buffer size: " << s_alsaData->samples << ", err code: " << rc;
+    }
 
     rc = snd_pcm_hw_params(handle, params);
     if (rc < 0) {
+        LOGE() << "Unable to set params, err code: " << rc;
         return false;
     }
 
@@ -187,10 +195,15 @@ bool LinuxAudioDriver::open(const Spec& spec, Spec* activeSpec)
     int ret = pthread_create(&s_alsaData->threadHandle, NULL, alsaThread, (void*)s_alsaData);
 
     if (0 != ret) {
+        LOGE() << "Unable to create audio thread, err code: " << ret;
         return false;
     }
 
-    LOGD() << "Connected to " << outputDevice();
+    LOGI() << "Connected to " << outputDevice()
+           << " with bufferSize " << s_format.samples
+           << ", sampleRate " << s_format.sampleRate
+           << ", channels:  " << s_format.channels;
+
     return true;
 }
 
@@ -202,6 +215,11 @@ void LinuxAudioDriver::close()
 bool LinuxAudioDriver::isOpened() const
 {
     return s_alsaData != nullptr;
+}
+
+const LinuxAudioDriver::Spec& LinuxAudioDriver::activeSpec() const
+{
+    return s_format;
 }
 
 AudioDeviceID LinuxAudioDriver::outputDevice() const
@@ -236,7 +254,7 @@ bool LinuxAudioDriver::resetToDefaultOutputDevice()
     return selectOutputDevice(DEFAULT_DEVICE_ID);
 }
 
-mu::async::Notification LinuxAudioDriver::outputDeviceChanged() const
+async::Notification LinuxAudioDriver::outputDeviceChanged() const
 {
     return m_outputDeviceChanged;
 }
@@ -244,12 +262,12 @@ mu::async::Notification LinuxAudioDriver::outputDeviceChanged() const
 AudioDeviceList LinuxAudioDriver::availableOutputDevices() const
 {
     AudioDeviceList devices;
-    devices.push_back({ DEFAULT_DEVICE_ID, trc("audio", "System default") });
+    devices.push_back({ DEFAULT_DEVICE_ID, muse::trc("audio", "System default") });
 
     return devices;
 }
 
-mu::async::Notification LinuxAudioDriver::availableOutputDevicesChanged() const
+async::Notification LinuxAudioDriver::availableOutputDevicesChanged() const
 {
     return m_availableOutputDevicesChanged;
 }
@@ -281,7 +299,7 @@ bool LinuxAudioDriver::setOutputDeviceBufferSize(unsigned int bufferSize)
     return ok;
 }
 
-mu::async::Notification LinuxAudioDriver::outputDeviceBufferSizeChanged() const
+async::Notification LinuxAudioDriver::outputDeviceBufferSizeChanged() const
 {
     return m_bufferSizeChanged;
 }
@@ -290,7 +308,7 @@ std::vector<unsigned int> LinuxAudioDriver::availableOutputDeviceBufferSizes() c
 {
     std::vector<unsigned int> result;
 
-    unsigned int n = 4096;
+    unsigned int n = MAXIMUM_BUFFER_SIZE;
     while (n >= MINIMUM_BUFFER_SIZE) {
         result.push_back(n);
         n /= 2;
@@ -299,6 +317,51 @@ std::vector<unsigned int> LinuxAudioDriver::availableOutputDeviceBufferSizes() c
     std::sort(result.begin(), result.end());
 
     return result;
+}
+
+unsigned int LinuxAudioDriver::outputDeviceSampleRate() const
+{
+    return s_format.sampleRate;
+}
+
+bool LinuxAudioDriver::setOutputDeviceSampleRate(unsigned int sampleRate)
+{
+    if (s_format.sampleRate == sampleRate) {
+        return true;
+    }
+
+    bool reopen = isOpened();
+    close();
+    s_format.sampleRate = sampleRate;
+
+    bool ok = true;
+    if (reopen) {
+        ok = open(s_format, &s_format);
+    }
+
+    if (ok) {
+        m_sampleRateChanged.notify();
+    }
+
+    return ok;
+}
+
+async::Notification LinuxAudioDriver::outputDeviceSampleRateChanged() const
+{
+    return m_sampleRateChanged;
+}
+
+std::vector<unsigned int> LinuxAudioDriver::availableOutputDeviceSampleRates() const
+{
+    // ALSA API is not of any help to get sample rates supported by the driver.
+    // (snd_pcm_hw_params_get_rate_[min|max] will return 1 to 384000 Hz)
+    // So just returning a sensible hard-coded list.
+    return {
+        44100,
+        48000,
+        88200,
+        96000,
+    };
 }
 
 void LinuxAudioDriver::resume()

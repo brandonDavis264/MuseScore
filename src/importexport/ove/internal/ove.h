@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -23,9 +23,11 @@
 #ifndef OVE_DATA_H
 #define OVE_DATA_H
 
+#include <cmath>
+
 #include <QList>
 #include <QString>
-#include <cmath>
+#include <QTextCodec>
 
 #ifdef WIN32
 #define DLL_EXPORT extern "C" __declspec(dllexport)
@@ -2196,7 +2198,7 @@ public:
     // put Tempo, Text, RepeatSymbol to MeasureData at part=0 && staff=0
     void addMusicData(MusicData* ptr);
     // if type==MusicData_None, return all
-    QList<MusicData*> getMusicDatas(MusicDataType type); // MusicXml: note | direction | harmony
+    QList<MusicData*> getMusicDatas(MusicDataType type); // MusicXML: note | direction | harmony
 
     // put NumericEnding to MeasureData at part = 0 && staff = 0
     void addCrossMeasureElement(MusicData* ptr, bool start);

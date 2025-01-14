@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -35,16 +35,9 @@
 #include "notation/inotationconfiguration.h"
 
 namespace mu::appshell {
-class ImportPreferencesModel : public QObject, public async::Asyncable
+class ImportPreferencesModel : public QObject, public muse::Injectable, public muse::async::Asyncable
 {
     Q_OBJECT
-
-    INJECT(iex::musicxml::IMusicXmlConfiguration, musicXmlConfiguration)
-    INJECT(iex::guitarpro::IGuitarProConfiguration, guitarProConfiguration)
-    INJECT(iex::ove::IOveConfiguration, oveConfiguration)
-    INJECT(iex::midi::IMidiImportExportConfiguration, midiImportExportConfiguration)
-    INJECT(iex::mei::IMeiConfiguration, meiConfiguration)
-    INJECT(notation::INotationConfiguration, notationConfiguration)
 
     Q_PROPERTY(QString styleFileImportPath READ styleFileImportPath WRITE setStyleFileImportPath NOTIFY styleFileImportPathChanged)
 
@@ -54,6 +47,7 @@ class ImportPreferencesModel : public QObject, public async::Asyncable
     Q_PROPERTY(bool importLayout READ importLayout WRITE setImportLayout NOTIFY importLayoutChanged)
     Q_PROPERTY(bool importBreaks READ importBreaks WRITE setImportBreaks NOTIFY importBreaksChanged)
     Q_PROPERTY(bool needUseDefaultFont READ needUseDefaultFont WRITE setNeedUseDefaultFont NOTIFY needUseDefaultFontChanged)
+    Q_PROPERTY(bool inferTextType READ inferTextType WRITE setInferTextType NOTIFY inferTextTypeChanged)
 
     Q_PROPERTY(bool meiImportLayout READ meiImportLayout WRITE setMeiImportLayout NOTIFY meiImportLayoutChanged)
 
@@ -61,6 +55,13 @@ class ImportPreferencesModel : public QObject, public async::Asyncable
 
     Q_PROPERTY(
         bool needAskAboutApplyingNewStyle READ needAskAboutApplyingNewStyle WRITE setNeedAskAboutApplyingNewStyle NOTIFY needAskAboutApplyingNewStyleChanged)
+
+    muse::Inject<iex::musicxml::IMusicXmlConfiguration> musicXmlConfiguration = { this };
+    muse::Inject<iex::guitarpro::IGuitarProConfiguration> guitarProConfiguration = { this };
+    muse::Inject<iex::ove::IOveConfiguration> oveConfiguration = { this };
+    muse::Inject<iex::midi::IMidiImportExportConfiguration> midiImportExportConfiguration = { this };
+    muse::Inject<iex::mei::IMeiConfiguration> meiConfiguration = { this };
+    muse::Inject<notation::INotationConfiguration> notationConfiguration = { this };
 
 public:
     explicit ImportPreferencesModel(QObject* parent = nullptr);
@@ -79,6 +80,7 @@ public:
     bool importLayout() const;
     bool importBreaks() const;
     bool needUseDefaultFont() const;
+    bool inferTextType() const;
 
     int currentShortestNote() const;
 
@@ -93,6 +95,7 @@ public slots:
     void setImportLayout(bool import);
     void setImportBreaks(bool import);
     void setNeedUseDefaultFont(bool value);
+    void setInferTextType(bool value);
 
     void setCurrentShortestNote(int note);
 
@@ -106,6 +109,7 @@ signals:
     void importLayoutChanged(bool importLayout);
     void importBreaksChanged(bool importBreaks);
     void needUseDefaultFontChanged(bool needUseDefaultFont);
+    void inferTextTypeChanged(bool inferTextType);
     void currentShortestNoteChanged(int currentShortestNote);
     void needAskAboutApplyingNewStyleChanged(bool needAskAboutApplyingNewStyle);
     void meiImportLayoutChanged(bool importLayout);

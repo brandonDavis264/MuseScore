@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2023 MuseScore BVBA and others
+ * Copyright (C) 2023 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -26,9 +26,10 @@
 
 #include "modularity/imoduleinterface.h"
 #include "draw/types/geometry.h"
-#include "types/fraction.h"
 
-namespace mu::draw {
+#include "../types/fraction.h"
+
+namespace muse::draw {
 class Painter;
 }
 
@@ -78,6 +79,7 @@ class SlurSegment;
 class SlurTie;
 class StaffText;
 class Stem;
+class SystemLockIndicator;
 
 class TextBase;
 class Text;
@@ -111,14 +113,14 @@ public:
         int trimMarginPixelSize = -1;
         int deviceDpi = -1;
 
-        std::function<void(draw::Painter* painter, const Page* page, const RectF& pageRect)> onPaintPageSheet;
+        std::function<void(muse::draw::Painter* painter, const Page* page, const RectF& pageRect)> onPaintPageSheet;
         std::function<void()> onNewPage;
     };
 
     virtual SizeF pageSizeInch(const Score* score) const = 0;
     virtual SizeF pageSizeInch(const Score* score, const PaintOptions& opt) const = 0;
-    virtual void paintScore(draw::Painter* painter, Score* score, const IScoreRenderer::PaintOptions& opt) const = 0;
-    virtual void paintItem(draw::Painter& painter, const EngravingItem* item) const = 0;
+    virtual void paintScore(muse::draw::Painter* painter, Score* score, const IScoreRenderer::PaintOptions& opt) const = 0;
+    virtual void paintItem(muse::draw::Painter& painter, const EngravingItem* item) const = 0;
 
     // Temporary compatibility interface
     using Supported = std::variant<std::monostate,
@@ -146,6 +148,7 @@ public:
                                    SlurTie*,
                                    StaffText*,
                                    Stem*,
+                                   SystemLockIndicator*,
                                    TextBase*,
                                    Text*,
                                    TimeSig*
@@ -180,7 +183,7 @@ public:
     // Layout Text 1
     virtual void layoutText1(TextBase* item, bool base = false) = 0;
 
-    void drawItem(const EngravingItem* item, draw::Painter* p)
+    void drawItem(const EngravingItem* item, muse::draw::Painter* p)
     {
         doDrawItem(item, p);
     }
@@ -192,7 +195,7 @@ private:
     // Layout Single Item
     virtual void doLayoutItem(EngravingItem* item) = 0;
 
-    virtual void doDrawItem(const EngravingItem* item, draw::Painter* p) = 0;
+    virtual void doDrawItem(const EngravingItem* item, muse::draw::Painter* p) = 0;
 };
 }
 

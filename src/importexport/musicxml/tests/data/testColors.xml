@@ -103,6 +103,7 @@
         <notations>
           <articulations>
             <strong-accent type="up" color="#C3D610"/>
+            <breath-mark color="#00FFFF">comma</breath-mark>
             </articulations>
           <glissando line-type="wavy" number="1" type="stop"/>
           </notations>
@@ -120,7 +121,7 @@
         <duration>1</duration>
         <voice>1</voice>
         <type>quarter</type>
-        <stem>down</stem>
+        <stem color="#2468AC">down</stem>
         <notations>
           <slur type="start" color="#EFCDAB" number="1"/>
           </notations>

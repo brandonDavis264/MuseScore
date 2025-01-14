@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2024 MuseScore BVBA and others
+ * Copyright (C) 2024 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -22,73 +22,72 @@
 import QtQuick 2.15
 import QtQuick.Layouts 1.15
 
-import MuseScore.Ui 1.0
-import MuseScore.UiComponents 1.0
-import MuseScore.Playback 1.0
+import Muse.Ui 1.0
+import Muse.UiComponents 1.0
 
 Item {
     id: root
 
-    property NavigationPanel navigationPanel: null
+    property var model: null
 
-    height: !prv.noOptions ? Math.min(flickable.contentHeight, 132) : noOptionsLabel.implicitHeight
+    property NavigationSection navigationPanelSection: null
+    property int navigationPanelOrderStart: 0
+    property int navigationPanelOrderEnd: playingTechniquesGridView.navigationPanel.order
 
-    MuseSoundsParamsModel {
-        id: museSoundsParamsModel
-    }
+    property bool noOptions: !modifySoundView.hasPresets && !playingTechniquesGridView.hasPlayingTechniques
 
-    Component.onCompleted: {
-        museSoundsParamsModel.init()
-    }
+    height: !noOptions ? content.childrenRect.height : noOptionsLabel.implicitHeight
 
-    QtObject {
-        id: prv
+    Column {
+        id: content
 
-        property bool noOptions: museSoundsParamsModel.availablePresets.length === 0
-    }
+        width: parent.width
 
-    StyledFlickable {
-        id: flickable
+        spacing: 12
 
-        anchors.fill: parent
+        ParamsGridView {
+            id: modifySoundView
 
-        contentHeight: gridView.implicitHeight
-
-        GridLayout {
-            id: gridView
+            property bool hasPresets: Boolean(model) && model.length !== 0
 
             width: parent.width
 
-            columns: 2
-            rows: Math.ceil(museSoundsParamsModel.availablePresets.length / 2)
-            columnSpacing: 4
-            rowSpacing: 4
+            title: qsTrc("playback", "Modify sound")
+            model: root.model.availablePresets
+            selectionModel: root.model.selectedPresetCodes
 
-            Repeater {
-                id: repeaterPreset
+            navigationPanel.section: root.navigationPanelSection
+            navigationPanel.order: root.navigationPanelOrderStart
 
-                width: parent.width
-                height: parent.height
+            visible: hasPresets
 
-                model: museSoundsParamsModel.availablePresets
+            needAddPaddingForScrollbar: modifySoundView.isTruncated || playingTechniquesGridView.isTruncated
 
-                FlatButton {
-                    Layout.preferredWidth: (gridView.width - gridView.rowSpacing) / 2
-                    Layout.preferredHeight: implicitHeight
+            onToggleParamRequested: {
+                root.model.togglePreset(paramCode)
+            }
+        }
 
-                    text: modelData["name"]
+        ParamsGridView {
+            id: playingTechniquesGridView
 
-                    accentButton: museSoundsParamsModel.presetCodes.indexOf(modelData["code"]) !== -1
+            property bool hasPlayingTechniques: Boolean(model) && model.length !== 0
 
-                    navigation.name: "Preset" + index
-                    navigation.panel: root.navigationPanel
-                    navigation.row: index
-                    navigation.column: 1
+            width: parent.width
 
-                    onClicked: {
-                        museSoundsParamsModel.togglePreset(modelData["code"])
-                    }
-                }
+            title: qsTrc("playback", "Playing techniques")
+            model: root.model.availablePlayingTechniques
+            selectionModel: [ root.model.selectedPlayingTechniqueCode ]
+
+            navigationPanel.section: root.navigationPanelSection
+            navigationPanel.order: root.navigationPanelOrderStart + 1
+
+            visible: hasPlayingTechniques
+
+            needAddPaddingForScrollbar: modifySoundView.isTruncated || playingTechniquesGridView.isTruncated
+
+            onToggleParamRequested: {
+                root.model.togglePlayingTechnique(paramCode)
             }
         }
     }
@@ -100,6 +99,6 @@ Item {
         horizontalAlignment: Text.AlignLeft
         wrapMode: Text.Wrap
 
-        visible: prv.noOptions
+        visible: root.noOptions
     }
 }

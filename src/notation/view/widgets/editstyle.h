@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -28,29 +28,32 @@
 #include "context/iglobalcontext.h"
 #include "inotationconfiguration.h"
 #include "iinteractive.h"
+#include "ui/iuiconfiguration.h"
 #include "ui/iuiengine.h"
 #include "engraving/iengravingfontsprovider.h"
 
 #include "engraving/style/textstyle.h"
 
+class QQuickView;
+
 namespace mu::notation {
-class EditStyle : public QDialog, private Ui::EditStyleBase
+class EditStyle : public QDialog, private Ui::EditStyleBase, public muse::Injectable
 {
     Q_OBJECT
-
-    INJECT(mu::context::IGlobalContext, globalContext)
-    INJECT(mu::notation::INotationConfiguration, configuration)
-    INJECT(mu::framework::IInteractive, interactive)
-    INJECT(mu::ui::IUiEngine, uiEngine)
-    INJECT(mu::engraving::IEngravingFontsProvider, engravingFonts)
-    INJECT(mu::accessibility::IAccessibilityController, accessibilityController)
 
     Q_PROPERTY(QString currentPageCode READ currentPageCode WRITE setCurrentPageCode NOTIFY currentPageChanged)
     Q_PROPERTY(QString currentSubPageCode READ currentSubPageCode WRITE setCurrentSubPageCode NOTIFY currentSubPageChanged)
 
+    muse::Inject<mu::context::IGlobalContext> globalContext = { this };
+    muse::Inject<mu::notation::INotationConfiguration> configuration = { this };
+    muse::Inject<muse::IInteractive> interactive = { this };
+    muse::Inject<muse::ui::IUiConfiguration> uiConfiguration = { this };
+    muse::Inject<muse::ui::IUiEngine> uiEngine = { this };
+    muse::Inject<mu::engraving::IEngravingFontsProvider> engravingFonts = { this };
+    muse::Inject<muse::accessibility::IAccessibilityController> accessibilityController = { this };
+
 public:
     EditStyle(QWidget* = nullptr);
-    EditStyle(const EditStyle&);
 
     QString currentPageCode() const;
     QString currentSubPageCode() const;
@@ -64,6 +67,7 @@ public slots:
 
     void setCurrentPageCode(const QString& code);
     void setCurrentSubPageCode(const QString& code);
+    void goToTextStylePage(const QString& code);
 
 signals:
     void currentPageChanged();
@@ -78,6 +82,15 @@ private:
     void retranslate();
     void setHeaderFooterToolTip();
     void adjustPagesStackSize(int currentPageIndex);
+
+    bool isBoolStyleRepresentedByButtonGroup(StyleId id);
+
+    struct WidgetAndView {
+        QWidget* widget = nullptr;
+        QQuickView* view = nullptr;
+    };
+
+    WidgetAndView createQmlWidget(QWidget* parent, const QUrl& source);
 
     /// EditStylePage
     /// This is a type for a pointer to any QWidget that is a member of EditStyle.
@@ -109,6 +122,7 @@ private:
     PropertyValue styleValue(StyleId id) const;
     PropertyValue defaultStyleValue(StyleId id) const;
     bool hasDefaultStyleValue(StyleId id) const;
+    bool dynamicsAndHairpinPosPropertiesHaveDefaultStyleValue() const;
     void setStyleQVariantValue(StyleId id, const QVariant& value);
     void setStyleValue(StyleId id, const PropertyValue& value);
 
@@ -135,7 +149,6 @@ private slots:
     void on_comboFBFont_currentIndexChanged(int index);
     void on_buttonTogglePagelist_clicked();
     void on_resetStylesButton_clicked();
-    void on_resetTabStylesButton_clicked();
     void on_pageRowSelectionChanged();
     void editUserStyleName();
     void endEditUserStyleName();
@@ -146,12 +159,7 @@ private slots:
 private:
     QString m_currentPageCode;
     QString m_currentSubPageCode;
-
-    static int s_lastPageRow;
-    static int s_lastSubPageRow;
 };
 }
-
-Q_DECLARE_METATYPE(mu::notation::EditStyle)
 
 #endif // MU_NOTATION_EDITSTYLE_H

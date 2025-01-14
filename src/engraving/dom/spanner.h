@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -26,7 +26,9 @@
 #include <deque>
 
 #include "draw/types/color.h"
-#include "types/types.h"
+
+#include "../types/types.h"
+
 #include "engravingitem.h"
 
 namespace mu::engraving {
@@ -64,25 +66,25 @@ public:
     void setSystem(System* s);
     System* system() const { return toSystem(explicitParent()); }
 
-    const mu::PointF& userOff2() const { return m_offset2; }
-    void setUserOff2(const mu::PointF& o) { m_offset2 = o; }
+    const PointF& userOff2() const { return m_offset2; }
+    void setUserOff2(const PointF& o) { m_offset2 = o; }
     void setUserXoffset2(double x) { m_offset2.setX(x); }
     void setUserYoffset2(double y) { m_offset2.setY(y); }
     real_t& rUserXoffset2() { return m_offset2.rx(); }
     real_t& rUserYoffset2() { return m_offset2.ry(); }
 
-    void setPos2(const mu::PointF& p) { m_p2 = p; }
+    void setPos2(const PointF& p) { m_p2 = p; }
     //TODO: rename to spanSegPosWithUserOffset()
-    mu::PointF pos2() const { return m_p2 + m_offset2; }
+    PointF pos2() const { return m_p2 + m_offset2; }
     //TODO: rename to spanSegPos()
-    const mu::PointF& ipos2() const { return m_p2; }
-    mu::PointF& rpos2() { return m_p2; }
+    const PointF& ipos2() const { return m_p2; }
+    PointF& rpos2() { return m_p2; }
     real_t& rxpos2() { return m_p2.rx(); }
     real_t& rypos2() { return m_p2.ry(); }
 
     bool isEditable() const override { return true; }
 
-    mu::ByteArray mimeData(const mu::PointF& dragOffset) const override;
+    muse::ByteArray mimeData(const PointF& dragOffset) const override;
 
     void spatiumChanged(double ov, double nv) override;
 
@@ -101,7 +103,7 @@ public:
 
     void setSelected(bool f) override;
     void setVisible(bool f) override;
-    void setColor(const mu::draw::Color& col) override;
+    void setColor(const Color& col) override;
 
     void scanElements(void* data, void (* func)(void*, EngravingItem*), bool all=true) override;
 
@@ -115,14 +117,16 @@ public:
 
     bool isUserModified() const override;
 
+    bool allowTimeAnchor() const override;
+
 protected:
 
     SpannerSegment(const ElementType& type, Spanner*, System* parent, ElementFlags f = ElementFlag::ON_STAFF | ElementFlag::MOVABLE);
     SpannerSegment(const ElementType& type, System* parent, ElementFlags f = ElementFlag::ON_STAFF | ElementFlag::MOVABLE);
     SpannerSegment(const SpannerSegment&);
 
-    mu::PointF m_p2;
-    mu::PointF m_offset2;
+    PointF m_p2;
+    PointF m_offset2;
 
 private:
     String formatBarsAndBeats() const override;
@@ -171,10 +175,13 @@ public:
     bool isVoiceSpecific() const;
     track_idx_t track2() const { return m_track2; }
     void setTrack2(track_idx_t v) { m_track2 = v; }
-    track_idx_t effectiveTrack2() const { return m_track2 == mu::nidx ? track() : m_track2; }
+    track_idx_t effectiveTrack2() const { return m_track2 == muse::nidx ? track() : m_track2; }
 
     bool broken() const { return m_broken; }
     void setBroken(bool v) { m_broken = v; }
+
+    bool playSpanner() const { return m_playSpanner; }
+    void setPlaySpanner(bool p) { m_playSpanner = p; }
 
     Anchor anchor() const { return m_anchor; }
     void setAnchor(Anchor a) { m_anchor = a; }
@@ -205,8 +212,9 @@ public:
     PropertyValue propertyDefault(Pid propertyId) const override;
     virtual void undoChangeProperty(Pid id, const PropertyValue&, PropertyFlags ps) override;
 
-    void computeStartElement();
+    virtual void computeStartElement();
     void computeEndElement();
+
     static Note* endElementFromSpanner(Spanner* sp, EngravingItem* newStart);
     static Note* startElementFromSpanner(Spanner* sp, EngravingItem* newEnd);
     void setNoteSpan(Note* startNote, Note* endNote);
@@ -217,8 +225,11 @@ public:
     Measure* startMeasure() const;
     Measure* endMeasure() const;
 
+    Measure* findStartMeasure() const;
+    Measure* findEndMeasure() const;
+
     void setStartElement(EngravingItem* e);
-    void setEndElement(EngravingItem* e);
+    virtual void setEndElement(EngravingItem* e);
 
     ChordRest* startCR();
     ChordRest* endCR();
@@ -235,10 +246,12 @@ public:
     Segment* startSegment() const;
     Segment* endSegment() const;
 
+    bool elementAppliesToTrack(const track_idx_t refTrack) const override;
+
     virtual void setSelected(bool f) override;
     virtual void setVisible(bool f) override;
     virtual void setAutoplace(bool f) override;
-    virtual void setColor(const mu::draw::Color& col) override;
+    virtual void setColor(const Color& col) override;
     Spanner* nextSpanner(EngravingItem* e, staff_idx_t activeStaff);
     Spanner* prevSpanner(EngravingItem* e, staff_idx_t activeStaff);
     virtual EngravingItem* nextSegmentElement() override;
@@ -255,10 +268,15 @@ public:
 
     bool isUserModified() const override;
 
+    virtual bool allowTimeAnchor() const override { return false; }
+
 protected:
 
     Spanner(const ElementType& type, EngravingItem* parent, ElementFlags = ElementFlag::NOTHING);
     Spanner(const Spanner&);
+
+    virtual void doComputeStartElement();
+    virtual void doComputeEndElement();
 
 private:
 
@@ -267,10 +285,12 @@ private:
     EngravingItem* m_startElement = nullptr;
     EngravingItem* m_endElement = nullptr;
 
+    bool m_playSpanner = true;
+
     Anchor m_anchor = Anchor::SEGMENT;
     Fraction m_tick = Fraction(-1, 1);
     Fraction m_ticks = Fraction(0, 1);
-    track_idx_t m_track2 = mu::nidx;
+    track_idx_t m_track2 = muse::nidx;
     bool m_broken = false;
 
     std::vector<SpannerSegment*> m_segments;

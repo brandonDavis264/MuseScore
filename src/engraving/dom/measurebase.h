@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -35,6 +35,7 @@ class LayoutBreak;
 class Measure;
 class Score;
 class System;
+class SystemLock;
 
 //---------------------------------------------------------
 //   Repeat
@@ -79,6 +80,8 @@ public:
     ~MeasureBase();
 
     System* system() const { return toSystem(explicitParent()); }
+    System* prevNonVBoxSystem() const;
+    System* nextNonVBoxSystem() const;
     void setParent(System* s) { EngravingItem::setParent((EngravingObject*)(s)); }
 
     // Score Tree functions
@@ -171,15 +174,22 @@ public:
     void setNoBreak(bool v) { setFlag(ElementFlag::NO_BREAK, v); }
 
     bool hasCourtesyKeySig() const { return flag(ElementFlag::KEYSIG); }
-    void setHasCourtesyKeySig(int v) { setFlag(ElementFlag::KEYSIG, v); }
+    void setHasCourtesyKeySig(bool v) { setFlag(ElementFlag::KEYSIG, v); }
 
     virtual void computeMinWidth() { }
 
     int index() const;
     int measureIndex() const;
 
-    void setOldWidth(double n) { m_oldWidth = n; }
-    double oldWidth() const { return m_oldWidth; }
+    bool isBefore(const EngravingItem* other) const override;
+    bool isBefore(const MeasureBase* other) const;
+    bool isBeforeOrEqual(const MeasureBase* other) const { return other == this || isBefore(other); }
+    bool isAfter(const MeasureBase* other) const { return !isBeforeOrEqual(other); }
+    bool isAfterOrEqual(const MeasureBase* other) const { return !isBefore(other); }
+
+    const SystemLock* systemLock() const;
+    bool isStartOfSystemLock() const;
+    bool isEndOfSystemLock() const;
 
 protected:
 

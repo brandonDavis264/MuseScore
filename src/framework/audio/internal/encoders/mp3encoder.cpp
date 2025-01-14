@@ -24,9 +24,10 @@
 
 #include "lame.h"
 
-using namespace mu;
-using namespace mu::audio;
-using namespace mu::audio::encode;
+#include "log.h"
+
+using namespace muse::audio;
+using namespace muse::audio::encode;
 
 struct LameHandler
 {

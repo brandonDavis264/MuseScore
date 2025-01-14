@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -25,6 +25,7 @@
 
 #include "accidental.h"
 #include "chord.h"
+#include "chordline.h"
 #include "drumset.h"
 #include "excerpt.h"
 #include "factory.h"
@@ -45,6 +46,7 @@
 
 #include "log.h"
 
+using namespace muse;
 using namespace mu;
 using namespace mu::engraving;
 
@@ -174,9 +176,9 @@ Note* Score::addPitch(NoteVal& nval, bool addFlag, InputState* externalInputStat
 
         Note* note = nullptr;
         if (isTied(chord)) {
-            note = addNoteToTiedChord(chord, nval, /* forceAccidental */ false, is.articulationIds());
+            note = addNoteToTiedChord(chord, nval, /* forceAccidental */ false);
             if (!note) {
-                note = addNote(chord, nval, /* forceAccidental */ false, is.articulationIds(), externalInputState);
+                note = addNote(chord, nval, /* forceAccidental */ false, /* articulationIds */ {}, externalInputState);
             }
         } else {
             note = addNote(chord, nval, /* forceAccidental */ false, is.articulationIds(), externalInputState);
@@ -197,6 +199,10 @@ Note* Score::addPitch(NoteVal& nval, bool addFlag, InputState* externalInputStat
     track_idx_t track = is.track();
     if (is.drumset()) {
         const Drumset* ds = is.drumset();
+        if (!ds->isValid(nval.pitch)) {
+            return nullptr;
+        }
+
         nval.headGroup    = ds->noteHead(nval.pitch);
         stemDirection     = ds->stemDirection(nval.pitch);
         track             = ds->voice(nval.pitch) + (is.track() / VOICES) * VOICES;
@@ -390,7 +396,7 @@ Ret Score::putNote(const Position& p, bool replace)
     if (mu::engraving::Excerpt* excerpt = score()->excerpt()) {
         const TracksMap& tracks = excerpt->tracksMapping();
 
-        if (!tracks.empty() && mu::key(tracks, m_is.track(), mu::nidx) == mu::nidx) {
+        if (!tracks.empty() && muse::key(tracks, m_is.track(), muse::nidx) == muse::nidx) {
             return make_ret(Ret::Code::UnknownError);
         }
     }
@@ -406,10 +412,10 @@ Ret Score::putNote(const Position& p, bool replace)
     Measure* m = m_is.segment()->measure();
     staff_idx_t staffIdx = track2staff(m_is.track());
     if (m->isMeasureRepeatGroup(staffIdx)) {
-        auto b = MessageBox::warning(trc("engraving", "Note input will remove measure repeat"),
-                                     trc("engraving", "This measure contains a measure repeat."
-                                                      " If you enter notes here, it will be deleted."
-                                                      " Do you want to continue?"));
+        auto b = MessageBox(iocContext()).warning(muse::trc("engraving", "Note input will remove measure repeat"),
+                                                  muse::trc("engraving", "This measure contains a measure repeat."
+                                                                         " If you enter notes here, it will be deleted."
+                                                                         " Do you want to continue?"));
         if (b == MessageBox::Cancel) {
             return make_ret(Ret::Code::Cancel);
         }
@@ -428,7 +434,11 @@ Ret Score::putNote(const Position& p, bool replace)
     switch (staffGroup) {
     case StaffGroup::PERCUSSION: {
         const Drumset* ds = st->part()->instrument(s->tick())->drumset();
-        stemDirection     = ds->stemDirection(nval.pitch);
+        DO_ASSERT(ds);
+
+        if (ds) {
+            stemDirection = ds->stemDirection(nval.pitch);
+        }
         break;
     }
     case StaffGroup::TAB:
@@ -443,6 +453,33 @@ Ret Score::putNote(const Position& p, bool replace)
     expandVoice();
 
     ChordRest* cr = m_is.cr();
+
+    // If there's an overlapping ChordRest at the current input position, shorten it...
+    if (!cr) {
+        MasterScore* ms = masterScore();
+        ChordRest* prevCr = m_is.segment()->nextChordRest(m_is.track(), /*backwards*/ true, /*stopAtMeasureBoundary*/ true);
+        if (prevCr && prevCr->endTick() > m_is.tick()) {
+            const Fraction overlapDuration = prevCr->endTick() - m_is.tick();
+            const Fraction desiredDuration = prevCr->ticks() - overlapDuration;
+
+            const InputState inputStateToRestore = m_is; // because changeCRlen will alter the input state
+            ms->changeCRlen(prevCr, desiredDuration, /*fillWithRest*/ false);
+
+            // Fill the difference with tied notes if necessary...
+            const Fraction difference = desiredDuration - prevCr->ticks();
+            if (prevCr->isChord() && difference.isNotZero()) {
+                Fraction startTick = prevCr->endTick();
+                Chord* prevChord = toChord(prevCr);
+                const std::vector<TDuration> durationList = toDurationList(difference, true);
+                for (const TDuration& dur : durationList) {
+                    prevChord = ms->addChord(startTick, dur, prevChord, /*genTie*/ bool(prevChord), prevChord->tuplet());
+                    startTick += dur.fraction();
+                }
+            }
+
+            m_is = inputStateToRestore;
+        }
+    }
 
     auto checkTied = [&](){
         if (!cr || !cr->isChord()) {
@@ -484,7 +521,7 @@ Ret Score::putNote(const Position& p, bool replace)
                         int tpc2 = note->tpc2default(nval.pitch);
                         undoChangeFretting(note, nval.pitch, nval.string, nval.fret, tpc1, tpc2);
                         setPlayNote(true);
-                        return make_ok();
+                        return muse::make_ok();
                     }
                 }
             } else {                            // not TAB
@@ -495,7 +532,7 @@ Ret Score::putNote(const Position& p, bool replace)
                     if (chord->notes().size() > 1) {
                         undoRemoveElement(note);
                     }
-                    return make_ok();
+                    return muse::make_ok();
                 }
             }
             addToChord = true;                  // if no special case, add note to chord
@@ -507,7 +544,7 @@ Ret Score::putNote(const Position& p, bool replace)
         forceAccidental = (nval.pitch == nval2.pitch);
     }
 
-    Ret ret = make_ok();
+    Ret ret = muse::make_ok();
 
     if (addToChord && cr->isChord()) {
         // if adding, add!
@@ -605,7 +642,7 @@ Ret Score::repitchNote(const Position& p, bool replace)
         if (next) {
             m_is.moveInputPos(next->segment());
         }
-        return make_ok();
+        return muse::make_ok();
     } else {
         chord = toChord(cr);
     }
@@ -616,6 +653,7 @@ Ret Score::repitchNote(const Position& p, bool replace)
 
     Note* firstTiedNote = 0;
     Note* lastTiedNote = note;
+    ChordLine* chordLine = nullptr;
     if (replace) {
         std::vector<Note*> notes = chord->notes();
         // break all ties into current chord
@@ -624,6 +662,14 @@ Ret Score::repitchNote(const Position& p, bool replace)
         for (Note* n : notes) {
             if (n->tieBack()) {
                 undoRemoveElement(n->tieBack());
+            }
+        }
+        // Keep first chordline only
+        chordLine = chord->chordLine() ? chord->chordLine()->clone() : nullptr;
+        std::vector<EngravingItem*> chordEls = chord->el();
+        for (EngravingItem* e : chordEls) {
+            if (e->isChordLine()) {
+                undoRemoveElement(e);
             }
         }
         // for single note chords only, preserve ties by changing pitch of all forward notes
@@ -658,6 +704,12 @@ Ret Score::repitchNote(const Position& p, bool replace)
     }
     // add new note to chord
     undoAddElement(note);
+
+    if (chordLine) {
+        chordLine->setNote(note);
+        undoAddElement(chordLine);
+    }
+
     bool forceAccidental = false;
     if (m_is.accidentalType() != AccidentalType::NONE) {
         NoteVal nval2 = noteValForPosition(p, AccidentalType::NONE, error);
@@ -696,7 +748,7 @@ Ret Score::repitchNote(const Position& p, bool replace)
         m_is.moveInputPos(next->segment());
     }
 
-    return make_ok();
+    return muse::make_ok();
 }
 
 //---------------------------------------------------------
@@ -747,9 +799,9 @@ Ret Score::insertChordByInsertingTime(const Position& pos)
     // The approach is similar to that in Measure::adjustToLen() but does
     // insert time to the middle of the measure rather than to the end.
     undoInsertTime(tick, len);
-    undo(new InsertTime(this, tick, len));
 
     for (Score* score : scoreList()) {
+        score->undo(new InsertTime(score, tick, len));
         Measure* m = score->tick2measure(tick);
         undo(new ChangeMeasureLen(m, targetMeasureLen));
         Segment* scoreSeg = m->tick2segment(tick);
@@ -818,6 +870,6 @@ Ret Score::insertChordByInsertingTime(const Position& pos)
     p.segment = s;
     putNote(p, true);
 
-    return make_ok();
+    return muse::make_ok();
 }
 } // namespace mu::engraving

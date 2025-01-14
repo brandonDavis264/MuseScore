@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2022 MuseScore BVBA and others
+ * Copyright (C) 2022 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -29,14 +29,20 @@ using namespace mu::playback;
 using namespace mu::project;
 
 SoundProfilesModel::SoundProfilesModel(QObject* parent)
-    : QAbstractListModel(parent)
+    : QAbstractListModel(parent), muse::Injectable(muse::iocCtxForQmlObject(this))
 {
+}
+
+void SoundProfilesModel::init()
+{
+    beginResetModel();
+
     const SoundProfilesMap& availableProfiles = profilesRepo()->availableProfiles();
     for (const auto& pair : availableProfiles) {
         m_profiles.push_back(pair.second);
     }
 
-    std::sort(m_profiles.begin(), m_profiles.end(), [](const SoundProfile& left, const SoundProfile& right) {
+    std::sort(m_profiles.begin(), m_profiles.end(), [this](const SoundProfile& left, const SoundProfile& right) {
         if (left.name == config()->basicSoundProfileName()
             && right.name == config()->museSoundProfileName()) {
             return true;
@@ -51,6 +57,8 @@ SoundProfilesModel::SoundProfilesModel(QObject* parent)
     }
 
     m_defaultProjectsProfile = config()->defaultProfileForNewProjects().toQString();
+
+    endResetModel();
 }
 
 int SoundProfilesModel::rowCount(const QModelIndex& /*parent*/) const
@@ -99,6 +107,10 @@ void SoundProfilesModel::setActiveProfile(const QString& newActiveProfile)
         return;
     }
 
+    if (!askAboutChangingSounds()) {
+        return;
+    }
+
     m_activeProfile = newActiveProfile;
 
     if (INotationProjectPtr project = context()->currentProject()) {
@@ -125,6 +137,45 @@ void SoundProfilesModel::setDefaultProjectsProfile(const QString& newDefaultProj
     config()->setDefaultProfileForNewProjects(SoundProfileName::fromQString(newDefaultProjectsProfile));
 
     emit defaultProjectsProfileChanged();
+}
+
+mu::notation::INotationPlaybackPtr SoundProfilesModel::notationPlayback() const
+{
+    project::INotationProjectPtr project = context()->currentProject();
+    return project ? project->masterNotation()->playback() : nullptr;
+}
+
+bool SoundProfilesModel::askAboutChangingSounds()
+{
+    if (!config()->needToShowResetSoundFlagsWhenChangePlaybackProfileWarning()) {
+        return true;
+    }
+
+    if (!notationPlayback()->hasSoundFlags(notationPlayback()->existingTrackIdSet())) {
+        return true;
+    }
+
+    int changeBtn = int(muse::IInteractive::Button::Apply);
+    muse::IInteractive::Options options = muse::IInteractive::Option::WithIcon | muse::IInteractive::Option::WithDontShowAgainCheckBox;
+    muse::IInteractive::ButtonDatas buttons = {
+        interactive()->buttonData(muse::IInteractive::Button::Cancel),
+        muse::IInteractive::ButtonData(changeBtn, muse::trc("playback", "Change sounds"), true /*accent*/)
+    };
+
+    muse::IInteractive::Result result = interactive()->warning(muse::trc("playback", "Are you sure you want to change sounds?"),
+                                                               muse::trc("playback",
+                                                                         "Sound flags may be reset, but staff text will remain. This action can’t be undone."),
+                                                               buttons, changeBtn, options);
+
+    if (result.button() == changeBtn) {
+        if (!result.showAgain()) {
+            config()->setNeedToShowResetSoundFlagsWhenChangePlaybackProfileWarning(false);
+        }
+
+        return true;
+    } else {
+        return false;
+    }
 }
 
 const QString& SoundProfilesModel::currentlySelectedProfile() const

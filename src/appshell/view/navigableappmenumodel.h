@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -28,6 +28,8 @@
 
 #include "appmenumodel.h"
 
+Q_MOC_INCLUDE(< QWindow >)
+
 namespace mu::appshell {
 class NavigableAppMenuModel : public AppMenuModel
 {
@@ -48,6 +50,8 @@ public:
     Q_INVOKABLE void load() override;
     Q_INVOKABLE void handleMenuItem(const QString& itemId) override;
     Q_INVOKABLE void openMenu(const QString& menuId, bool byHover);
+    Q_INVOKABLE void openPrevMenu();
+    Q_INVOKABLE void openNextMenu();
 
     bool isNavigationStarted() const;
     bool isMenuOpened() const;
@@ -102,7 +106,7 @@ private:
     QString highlightedMenuId() const;
     QString openedMenuId() const;
 
-    QString menuItemId(const uicomponents::MenuItemList& items, const QSet<int>& activatePossibleKeys);
+    QString menuItemId(const muse::uicomponents::MenuItemList& items, const QSet<int>& activatePossibleKeys);
 
     QString m_highlightedMenuId;
     QString m_openedMenuId;

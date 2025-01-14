@@ -1,11 +1,32 @@
+/*
+ * SPDX-License-Identifier: GPL-3.0-only
+ * MuseScore-CLA-applies
+ *
+ * MuseScore
+ * Music Composition & Notation
+ *
+ * Copyright (C) 2021 MuseScore BVBA and others
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 3 as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 #include "compressor.h"
-
-#include "log.h"
 
 #include "audiomathutils.h"
 
-using namespace mu::audio;
-using namespace mu::audio::dsp;
+#include "log.h"
+
+using namespace muse::audio;
+using namespace muse::audio::dsp;
 
 static constexpr float RATIO = 4.f;
 
@@ -56,7 +77,7 @@ volume_db_t Compressor::computeGain(const volume_db_t& logarithmSample) const
 
 void Compressor::process(const float linearRms, float* buffer, const audioch_t& audioChannelsCount, const samples_t samplesPerChannel)
 {
-    float dbGain = dbFromSample(linearRms);
+    float dbGain = muse::linear_to_db(linearRms);
 
     if (dbGain <= m_filterConfig.minimumOperableLevel()) {
         return;
@@ -68,7 +89,7 @@ void Compressor::process(const float linearRms, float* buffer, const audioch_t& 
     float dbDiff = computeGain(dbGain) - dbGain;
 
     m_feedbackGain = dbDiff;
-    float gainFact = linearFromDecibels(dbDiff * (1.f + m_feedbackFactor));
+    float gainFact = muse::db_to_linear(dbDiff * (1.f + m_feedbackFactor));
 
     float currentGainReduction = std::min(gainFact, m_previousGainReduction);
 

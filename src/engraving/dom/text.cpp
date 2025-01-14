@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -64,10 +64,32 @@ engraving::PropertyValue Text::propertyDefault(Pid id) const
     }
 }
 
+PropertyValue Text::getProperty(Pid id) const
+{
+    switch (id) {
+    case Pid::VOICE_ASSIGNMENT:
+        if (hasVoiceAssignmentProperties()) {
+            return parentItem()->getProperty(id);
+        }
+    // fallthrough
+    default:
+        return TextBase::getProperty(id);
+    }
+}
+
 String Text::readXmlText(XmlReader& xml, Score* score)
 {
     Text t(score->dummy());
     rw::RWRegister::reader()->readItem(&t, xml);
     return t.xmlText();
+}
+
+bool Text::hasVoiceAssignmentProperties() const
+{
+    const EngravingItem* parent = parentItem();
+    if (parent && parent->isTextLineBaseSegment()) {
+        return parent->hasVoiceAssignmentProperties();
+    }
+    return false;
 }
 }

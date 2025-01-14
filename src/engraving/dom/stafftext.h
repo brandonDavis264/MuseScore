@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -26,24 +26,36 @@
 #include "stafftextbase.h"
 
 namespace mu::engraving {
-//---------------------------------------------------------
-//   StaffText
-//---------------------------------------------------------
-
 class StaffText final : public StaffTextBase
 {
     OBJECT_ALLOCATOR(engraving, StaffText)
     DECLARE_CLASSOF(ElementType::STAFF_TEXT)
 
 public:
-    StaffText(Segment* parent = 0, TextStyleType = TextStyleType::STAFF);
+    StaffText(Segment* parent = nullptr, TextStyleType = TextStyleType::STAFF);
+    StaffText(const StaffText&);
+
+    bool isEditAllowed(EditData&) const override;
 
     StaffText* clone() const override { return new StaffText(*this); }
+    EngravingItem* linkedClone() override;
 
-    bool canBeExcludedFromOtherParts() const override { return true; }
+    void scanElements(void* data, void (* func)(void*, EngravingItem*), bool all=true) override;
+    EngravingObjectList scanChildren() const override;
+
+    void add(EngravingItem*) override;
+    void remove(EngravingItem*) override;
+
+    void setTrack(track_idx_t idx) override;
+
+    bool hasSoundFlag() const;
+    SoundFlag* soundFlag() const;
+    void setSoundFlag(SoundFlag* flag);
 
 private:
     PropertyValue propertyDefault(Pid id) const override;
+
+    SoundFlag* m_soundFlag = nullptr;
 };
 } // namespace mu::engraving
-#endif
+#endif // MU_ENGRAVING_STAFFTEXT_H

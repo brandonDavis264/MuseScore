@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -100,8 +100,11 @@ QList<mu::engraving::EngravingItem*> ElementRepositoryService::findElementsByTyp
     case mu::engraving::ElementType::LET_RING:
     case mu::engraving::ElementType::OTTAVA:
     case mu::engraving::ElementType::TEXTLINE:
+    case mu::engraving::ElementType::NOTELINE:
     case mu::engraving::ElementType::SLUR:
     case mu::engraving::ElementType::TIE:
+    case mu::engraving::ElementType::LAISSEZ_VIB:
+    case mu::engraving::ElementType::PARTIAL_TIE:
     case mu::engraving::ElementType::GRADUAL_TEMPO_CHANGE:
     case mu::engraving::ElementType::PALM_MUTE: return findLines(elementType);
     default:
@@ -160,14 +163,6 @@ const
         }
 
         resultList << element;
-
-        if (elementType == mu::engraving::ElementType::BEAM) {
-            const mu::engraving::Beam* beam = mu::engraving::toBeam(element);
-
-            for (mu::engraving::ChordRest* chordRest : beam->elements()) {
-                resultList << chordRest;
-            }
-        }
     }
 
     return resultList;
@@ -180,6 +175,18 @@ QList<mu::engraving::EngravingItem*> ElementRepositoryService::findChords() cons
     for (mu::engraving::EngravingItem* element : m_exposedElementList) {
         if (element->type() == mu::engraving::ElementType::CHORD) {
             elements << element;
+            continue;
+        }
+
+        if (element->type() == mu::engraving::ElementType::BEAM) {
+            const mu::engraving::Beam* beam = mu::engraving::toBeam(element);
+
+            for (mu::engraving::ChordRest* chordRest : beam->elements()) {
+                if (!chordRest->isChord()) {
+                    continue;
+                }
+                elements << chordRest;
+            }
             continue;
         }
 
@@ -312,8 +319,11 @@ QList<mu::engraving::EngravingItem*> ElementRepositoryService::findLines(mu::eng
         { mu::engraving::ElementType::PALM_MUTE, mu::engraving::ElementType::PALM_MUTE_SEGMENT },
         { mu::engraving::ElementType::OTTAVA, mu::engraving::ElementType::OTTAVA_SEGMENT },
         { mu::engraving::ElementType::TEXTLINE, mu::engraving::ElementType::TEXTLINE_SEGMENT },
+        { mu::engraving::ElementType::NOTELINE, mu::engraving::ElementType::NOTELINE_SEGMENT },
         { mu::engraving::ElementType::SLUR, mu::engraving::ElementType::SLUR_SEGMENT },
         { mu::engraving::ElementType::TIE, mu::engraving::ElementType::TIE_SEGMENT },
+        { mu::engraving::ElementType::LAISSEZ_VIB, mu::engraving::ElementType::LAISSEZ_VIB_SEGMENT },
+        { mu::engraving::ElementType::PARTIAL_TIE, mu::engraving::ElementType::PARTIAL_TIE_SEGMENT },
         { mu::engraving::ElementType::GRADUAL_TEMPO_CHANGE, mu::engraving::ElementType::GRADUAL_TEMPO_CHANGE_SEGMENT }
     };
 
@@ -407,6 +417,15 @@ QList<mu::engraving::EngravingItem*> ElementRepositoryService::findRests() const
     for (mu::engraving::EngravingItem* element : m_exposedElementList) {
         if (element->isRest()) {
             resultList << element;
+        } else if (element->isBeam()) {
+            const mu::engraving::Beam* beam = mu::engraving::toBeam(element);
+
+            for (mu::engraving::ChordRest* chordRest : beam->elements()) {
+                if (!chordRest->isRest()) {
+                    continue;
+                }
+                resultList << chordRest;
+            }
         }
     }
 

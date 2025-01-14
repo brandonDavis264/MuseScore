@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -22,16 +22,15 @@
 
 #include "musicxmlwriter.h"
 
-#include "global/io/buffer.h"
-
 #include "engraving/dom/masterscore.h"
-#include "musicxml/exportxml.h"
+#include "musicxml/export/exportmusicxml.h"
 
 #include "log.h"
 
 using namespace mu::iex::musicxml;
 using namespace mu::project;
-using namespace mu::io;
+using namespace muse;
+using namespace muse::io;
 
 std::vector<INotationWriter::UnitType> MusicXmlWriter::supportedUnitTypes() const
 {
@@ -44,7 +43,7 @@ bool MusicXmlWriter::supportsUnitType(UnitType unitType) const
     return std::find(unitTypes.cbegin(), unitTypes.cend(), unitType) != unitTypes.cend();
 }
 
-mu::Ret MusicXmlWriter::write(notation::INotationPtr notation, QIODevice& destinationDevice, const Options&)
+Ret MusicXmlWriter::write(notation::INotationPtr notation, io::IODevice& destinationDevice, const Options&)
 {
     IF_ASSERT_FAILED(notation) {
         return make_ret(Ret::Code::UnknownError);
@@ -54,16 +53,12 @@ mu::Ret MusicXmlWriter::write(notation::INotationPtr notation, QIODevice& destin
         return make_ret(Ret::Code::UnknownError);
     }
 
-    io::Buffer buf;
-    Ret ret = mu::engraving::saveXml(score, &buf);
-    if (ret) {
-        destinationDevice.write(buf.data().toQByteArrayNoCopy());
-    }
+    Ret ret = saveXml(score, &destinationDevice);
 
     return ret;
 }
 
-mu::Ret MusicXmlWriter::writeList(const notation::INotationPtrList&, QIODevice&, const Options&)
+Ret MusicXmlWriter::writeList(const notation::INotationPtrList&, io::IODevice&, const Options&)
 {
     NOT_SUPPORTED;
     return Ret(Ret::Code::NotSupported);

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<museScore version="4.20">
+<museScore version="4.40">
   <Score>
     <LayerTag id="0" tag="default"></LayerTag>
     <currentLayer>0</currentLayer>
@@ -48,6 +48,7 @@
       <Instrument id="tenor">
         <longName>TENOR
 LEAD</longName>
+        <shortName>T/L</shortName>
         <trackName>Tenor/Lead</trackName>
         <minPitchP>48</minPitchP>
         <maxPitchP>72</maxPitchP>
@@ -120,6 +121,7 @@ LEAD</longName>
       <Instrument id="bass">
         <longName>BARI
 BASS</longName>
+        <shortName>B/B</shortName>
         <trackName>Baritone/Bass</trackName>
         <minPitchP>41</minPitchP>
         <maxPitchP>65</maxPitchP>

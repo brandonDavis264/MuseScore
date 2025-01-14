@@ -19,17 +19,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef MU_SYSTEM_IFILESYSTEM_H
-#define MU_SYSTEM_IFILESYSTEM_H
+#ifndef MUSE_IO_IFILESYSTEM_H
+#define MUSE_IO_IFILESYSTEM_H
 
-#include "modularity/imoduleinterface.h"
-#include "types/bytearray.h"
-#include "types/datetime.h"
-#include "types/retval.h"
+#include "global/modularity/imoduleinterface.h"
+#include "global/types/bytearray.h"
+#include "global/types/datetime.h"
+#include "global/types/retval.h"
+
 #include "path.h"
 #include "ioenums.h"
 
-namespace mu::io {
+namespace muse::io {
 class IFileSystem : MODULE_EXPORT_INTERFACE
 {
     INTERFACE_ID(IFileSystem)
@@ -73,4 +74,4 @@ public:
 };
 }
 
-#endif // MU_SYSTEM_IFILESYSTEM_H
+#endif // MUSE_IO_IFILESYSTEM_H

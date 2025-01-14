@@ -22,31 +22,29 @@
 
 #include "tracksequence.h"
 
-#include "log.h"
-
 #include "internal/audiosanitizer.h"
-#include "internal/audiothread.h"
 #include "clock.h"
 #include "eventaudiosource.h"
 #include "sequenceplayer.h"
 #include "sequenceio.h"
-#include "audioengine.h"
 #include "audioerrors.h"
 
-using namespace mu;
-using namespace mu::async;
-using namespace mu::audio;
+#include "log.h"
 
-TrackSequence::TrackSequence(const TrackSequenceId id)
-    : m_id(id)
+using namespace muse;
+using namespace muse::async;
+using namespace muse::audio;
+
+TrackSequence::TrackSequence(const TrackSequenceId id, const modularity::ContextPtr& iocCtx)
+    : muse::Injectable(iocCtx), m_id(id)
 {
     ONLY_AUDIO_WORKER_THREAD;
 
     m_clock = std::make_shared<Clock>();
-    m_player = std::make_shared<SequencePlayer>(this, m_clock);
+    m_player = std::make_shared<SequencePlayer>(this, m_clock, iocCtx);
     m_audioIO = std::make_shared<SequenceIO>(this);
 
-    AudioEngine::instance()->modeChanged().onNotify(this, [this]() {
+    audioEngine()->modeChanged().onNotify(this, [this]() {
         m_prevActiveTrackId = INVALID_TRACK_ID;
     });
 
@@ -100,11 +98,13 @@ RetVal2<TrackId, AudioParams> TrackSequence::addTrack(const std::string& trackNa
     };
 
     EventTrackPtr trackPtr = std::make_shared<EventTrack>();
+    EventAudioSourcePtr source = std::make_shared<EventAudioSource>(newId, playbackData, onOffStreamReceived, iocContext());
+
     trackPtr->id = newId;
     trackPtr->name = trackName;
     trackPtr->setPlaybackData(playbackData);
-    trackPtr->inputHandler = std::make_shared<EventAudioSource>(newId, playbackData, onOffStreamReceived);
-    trackPtr->outputHandler = mixer()->addChannel(newId, trackPtr->inputHandler).val;
+    trackPtr->inputHandler = source;
+    trackPtr->outputHandler = mixer()->addChannel(newId, source).val;
     trackPtr->setInputParams(requiredParams.in);
     trackPtr->setOutputParams(requiredParams.out);
 
@@ -311,5 +311,5 @@ TrackId TrackSequence::newTrackId() const
 
 std::shared_ptr<Mixer> TrackSequence::mixer() const
 {
-    return AudioEngine::instance()->mixer();
+    return audioEngine()->mixer();
 }

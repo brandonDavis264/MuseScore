@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -28,6 +28,7 @@
 #include "text/textsettingsmodel.h"
 #include "score/scoredisplaysettingsmodel.h"
 #include "score/scoreappearancesettingsmodel.h"
+#include "score/scoreaccessibilitysettingsmodel.h"
 #include "notation/inotationinteraction.h"
 
 #include "internal/services/elementrepositoryservice.h"
@@ -59,7 +60,7 @@ void InspectorListModel::buildModelsForSelectedElements(const ElementKeySet& sel
                                                                                                        isRangeSelection,
                                                                                                        selectedElementList);
 
-    createModelsBySectionType(buildingSectionTypeSet.values(), selectedElementKeySet);
+    createModelsBySectionType(buildingSectionTypeSet, selectedElementKeySet);
 
     sortModels();
 }
@@ -71,14 +72,15 @@ void InspectorListModel::buildModelsForEmptySelection()
         return;
     }
 
-    static const QList<InspectorSectionType> persistentSectionList {
+    static const InspectorSectionTypeSet persistentSections {
         InspectorSectionType::SECTION_SCORE_DISPLAY,
-        InspectorSectionType::SECTION_SCORE_APPEARANCE
+        InspectorSectionType::SECTION_SCORE_APPEARANCE,
+        InspectorSectionType::SECTION_SCORE_ACCESSIBILITY
     };
 
-    removeUnusedModels({}, false /*isRangeSelection*/, {}, persistentSectionList);
+    removeUnusedModels({}, false /*isRangeSelection*/, {}, persistentSections);
 
-    createModelsBySectionType(persistentSectionList);
+    createModelsBySectionType(persistentSections);
 }
 
 void InspectorListModel::setElementList(const QList<mu::engraving::EngravingItem*>& selectedElementList, SelectionState selectionState)
@@ -153,10 +155,10 @@ void InspectorListModel::setInspectorVisible(bool visible)
     }
 }
 
-void InspectorListModel::createModelsBySectionType(const QList<InspectorSectionType>& sectionTypeList,
+void InspectorListModel::createModelsBySectionType(const InspectorSectionTypeSet& sectionTypes,
                                                    const ElementKeySet& selectedElementKeySet)
 {
-    for (InspectorSectionType sectionType : sectionTypeList) {
+    for (InspectorSectionType sectionType : sectionTypes) {
         if (sectionType == InspectorSectionType::SECTION_UNDEFINED) {
             continue;
         }
@@ -195,6 +197,9 @@ void InspectorListModel::createModelsBySectionType(const QList<InspectorSectionT
         case InspectorSectionType::SECTION_SCORE_APPEARANCE:
             newModel = new ScoreAppearanceSettingsModel(this, m_repository);
             break;
+        case InspectorSectionType::SECTION_SCORE_ACCESSIBILITY:
+            newModel = new ScoreAccessibilitySettingsModel(this, m_repository);
+            break;
         case InspectorSectionType::SECTION_PARTS:
             newModel = new PartsSettingsModel(this, m_repository);
             break;
@@ -213,7 +218,7 @@ void InspectorListModel::createModelsBySectionType(const QList<InspectorSectionT
 
 void InspectorListModel::removeUnusedModels(const ElementKeySet& newElementKeySet,
                                             bool isRangeSelection, const QList<engraving::EngravingItem*>& selectedElementList,
-                                            const QList<InspectorSectionType>& exclusions)
+                                            const InspectorSectionTypeSet& exclusions)
 {
     QList<AbstractInspectorModel*> modelsToRemove;
 
@@ -222,7 +227,7 @@ void InspectorListModel::removeUnusedModels(const ElementKeySet& newElementKeySe
                                                                                                     selectedElementList);
 
     for (AbstractInspectorModel* model : m_modelList) {
-        if (exclusions.contains(model->sectionType())) {
+        if (muse::contains(exclusions, model->sectionType())) {
             continue;
         }
 
@@ -250,13 +255,13 @@ bool InspectorListModel::isModelAllowed(const AbstractInspectorModel* model, con
 {
     InspectorModelType modelType = model->modelType();
 
-    if (modelType != InspectorModelType::TYPE_UNDEFINED && allowedModelTypes.contains(modelType)) {
+    if (modelType != InspectorModelType::TYPE_UNDEFINED && muse::contains(allowedModelTypes, modelType)) {
         return true;
     }
 
     auto proxyModel = dynamic_cast<const AbstractInspectorProxyModel*>(model);
     if (!proxyModel) {
-        return allowedSectionTypes.contains(model->sectionType());
+        return muse::contains(allowedSectionTypes, model->sectionType());
     }
 
     for (auto subModel : proxyModel->modelList()) {
@@ -336,6 +341,6 @@ void InspectorListModel::updateElementList()
     }
 
     INotationSelectionPtr selection = notation->interaction()->selection();
-    auto elements = selection->elements();
+    const std::vector<EngravingItem*>& elements = selection->elements();
     setElementList(QList(elements.cbegin(), elements.cend()), selection->state());
 }

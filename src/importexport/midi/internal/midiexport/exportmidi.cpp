@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -23,6 +23,7 @@
 #include "exportmidi.h"
 
 #include "engraving/dom/key.h"
+#include "engraving/dom/lyrics.h"
 #include "engraving/dom/masterscore.h"
 #include "engraving/dom/note.h"
 #include "engraving/dom/part.h"
@@ -59,7 +60,7 @@ void ExportMidi::writeHeader(const CompatMidiRendererInternal::Context& context)
     for (auto& track1: m_midiFile.tracks()) {
         Staff* staff  = m_score->staff(staffIdx);
 
-        ByteArray partName = staff->partName().toUtf8();
+        muse::ByteArray partName = staff->partName().toUtf8();
         size_t len = partName.size() + 1;
         unsigned char* data = new unsigned char[len];
 
@@ -237,7 +238,7 @@ bool ExportMidi::write(QIODevice* device, bool midiExpandRepeats, bool exportRPN
     CompatMidiRendererInternal::Context context;
     context.eachStringHasChannel = false;
     context.instrumentsHaveEffects = false;
-    context.harmonyChannelSetting = CompatMidiRendererInternal::HarmonyChannelSetting::DISABLED;
+    context.harmonyChannelSetting = CompatMidiRendererInternal::HarmonyChannelSetting::DEFAULT;
     context.sndController = CompatMidiRender::getControllerForSnd(m_score, synthState.ccToUse());
     context.useDefaultArticulations = false;
     context.applyCaesuras = true;
@@ -365,6 +366,38 @@ bool ExportMidi::write(QIODevice* device, bool midiExpandRepeats, bool exportRPN
                                                                                                 event.dataA(), event.dataB()));
                         } else {
                             LOGD("writeMidi: unknown midi event 0x%02x", event.type());
+                        }
+                    }
+                }
+            }
+        }
+
+        // Export lyrics
+        for (const RepeatSegment* rs : m_score->repeatList()) {
+            int startTick  = rs->tick;
+            int endTick    = startTick + rs->len();
+            int tickOffset = rs->utick - rs->tick;
+
+            SegmentType st = SegmentType::ChordRest;
+            for (Segment* seg = rs->firstMeasure()->first(st); seg && seg->tick().ticks() < endTick; seg = seg->next1(st)) {
+                for (track_idx_t i = part->startTrack(); i < part->endTrack(); ++i) {
+                    ChordRest* cr = toChordRest(seg->element(i));
+                    if (cr) {
+                        for (const auto& lyric : cr->lyrics()) {
+                            muse::ByteArray lyricText = lyric->plainText().toUtf8();
+                            size_t len = lyricText.size() + 1;
+                            unsigned char* data = new unsigned char[len];
+
+                            memcpy(data, lyricText.constData(), len);
+
+                            MidiEvent ev;
+                            ev.setType(ME_META);
+                            ev.setMetaType(META_LYRIC);
+                            ev.setEData(data);
+                            ev.setLen(static_cast<int>(len));
+
+                            int tick = cr->tick().ticks() + tickOffset;
+                            track.insert(CompatMidiRender::tick(context, tick), ev);
                         }
                     }
                 }

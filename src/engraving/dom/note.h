@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -20,8 +20,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_ENGRAVING_NOTE_H
-#define MU_ENGRAVING_NOTE_H
+#pragma once
 
 /**
  \file
@@ -32,9 +31,11 @@
 
 #include "engravingitem.h"
 
+#include "mscore.h"
 #include "noteevent.h"
 #include "pitchspelling.h"
 #include "symbol.h"
+#include "tie.h"
 #include "types.h"
 
 namespace mu::engraving {
@@ -63,15 +64,17 @@ static constexpr int MAX_DOTS = 4;
 class LineAttachPoint
 {
 public:
-    LineAttachPoint(EngravingItem* l, double x, double y)
-        : m_line(l), m_pos(PointF(x, y)) {}
+    LineAttachPoint(EngravingItem* l, double x, double y, bool start)
+        : m_line(l), m_pos(PointF(x, y)), m_start(start) {}
 
     const EngravingItem* line() const { return m_line; }
     const PointF pos() const { return m_pos; }
+    bool start() const { return m_start; }
 
 private:
     EngravingItem* m_line = nullptr;
     PointF m_pos = PointF(0.0, 0.0);
+    bool m_start = true;
 };
 
 //---------------------------------------------------------
@@ -198,8 +201,8 @@ public:
     double headHeight() const;
     double tabHeadWidth(const StaffType* tab = 0) const;
     double tabHeadHeight(const StaffType* tab = 0) const;
-    mu::PointF stemDownNW() const;
-    mu::PointF stemUpSE() const;
+    PointF stemDownNW() const;
+    PointF stemUpSE() const;
     double bboxXShift() const;
     double noteheadCenterX() const;
     double bboxRightPos() const;
@@ -271,6 +274,7 @@ public:
     bool negativeFretUsed() const;
     int string() const { return m_string; }
     void setString(int val) { m_string = val; }
+    int stringOrLine() const;
 
     bool ghost() const { return m_ghost; }
     void setGhost(bool val) { m_ghost = val; }
@@ -293,11 +297,20 @@ public:
     GuitarBend* bendBack() const;
     Tie* tieFor() const { return m_tieFor; }
     Tie* tieBack() const { return m_tieBack; }
-    void setTieFor(Tie* t) { m_tieFor = t; }
-    void setTieBack(Tie* t) { m_tieBack = t; }
-    Note* firstTiedNote() const;
-    const Note* lastTiedNote() const;
-    Note* lastTiedNote() { return const_cast<Note*>(static_cast<const Note*>(this)->lastTiedNote()); }
+    Tie* tieForNonPartial() const;
+    Tie* tieBackNonPartial() const;
+    LaissezVib* laissezVib() const;
+    PartialTie* incomingPartialTie() const;
+    PartialTie* outgoingPartialTie() const;
+    void setTieFor(Tie* t);
+    void setTieBack(Tie* t);
+    Note* firstTiedNote(bool ignorePlayback = true) const;
+    const Note* lastTiedNote(bool ignorePlayback = true) const;
+    Note* lastTiedNote(bool ignorePlayback = true)
+    {
+        return const_cast<Note*>(static_cast<const Note*>(this)->lastTiedNote(ignorePlayback));
+    }
+
     int unisonIndex() const;
     void disconnectTiedNotes();
     void connectTiedNotes();
@@ -358,20 +371,20 @@ public:
 
     void addSpannerBack(Spanner* e)
     {
-        if (!mu::contains(m_spannerBack, e)) {
+        if (!muse::contains(m_spannerBack, e)) {
             m_spannerBack.push_back(e);
         }
     }
 
-    bool removeSpannerBack(Spanner* e) { return mu::remove(m_spannerBack, e); }
+    bool removeSpannerBack(Spanner* e) { return muse::remove(m_spannerBack, e); }
     void addSpannerFor(Spanner* e)
     {
-        if (!mu::contains(m_spannerFor, e)) {
+        if (!muse::contains(m_spannerFor, e)) {
             m_spannerFor.push_back(e);
         }
     }
 
-    bool removeSpannerFor(Spanner* e) { return mu::remove(m_spannerFor, e); }
+    bool removeSpannerFor(Spanner* e) { return muse::remove(m_spannerFor, e); }
 
     void transposeDiatonic(int interval, bool keepAlterations, bool useDoubleAccidentals);
 
@@ -385,7 +398,7 @@ public:
     void setScore(Score* s) override;
     void setDotRelativeLine(int);
 
-    void setHeadHasParentheses(bool hasParentheses, bool addToLinked = true);
+    void setHeadHasParentheses(bool hasParentheses, bool addToLinked = true, bool generated = false);
     bool headHasParentheses() const { return m_hasHeadParentheses; }
 
     static SymId noteHead(int direction, NoteHeadGroup, NoteHeadType, int tpc, Key key, NoteHeadScheme scheme);
@@ -434,11 +447,12 @@ public:
 
     bool hasAnotherStraightAboveOrBelow(bool above) const;
 
-    void addLineAttachPoint(mu::PointF point, EngravingItem* line);
     std::vector<LineAttachPoint>& lineAttachPoints() { return m_lineAttachPoints; }
     const std::vector<LineAttachPoint>& lineAttachPoints() const { return m_lineAttachPoints; }
+    void addStartLineAttachPoint(PointF point, EngravingItem* line) { addLineAttachPoint(point, line, true); }
+    void addEndLineAttachPoint(PointF point, EngravingItem* line) { addLineAttachPoint(point, line, false); }
 
-    mu::PointF posInStaffCoordinates();
+    PointF posInStaffCoordinates();
 
     bool isTrillCueNote() const { return m_isTrillCueNote; }
     void setIsTrillCueNote(bool v);
@@ -449,6 +463,11 @@ public:
     void updateFrettingForTiesAndBends();
     bool shouldHideFret() const;
     bool shouldForceShowFret() const;
+
+    void setVisible(bool v) override;
+
+    TieJumpPointList* tieJumpPoints() { return &m_jumpPoints; }
+    const TieJumpPointList* tieJumpPoints() const { return &m_jumpPoints; }
 
     struct LayoutData : public EngravingItem::LayoutData {
         ld_field<bool> useTablature = { "[Note] useTablature", false };
@@ -465,7 +484,7 @@ private:
     Note(const Note&, bool link = false);
 
     void startDrag(EditData&) override;
-    mu::RectF drag(EditData& ed) override;
+    RectF drag(EditData& ed) override;
     void endDrag(EditData&) override;
     void editDrag(EditData& editData) override;
 
@@ -477,11 +496,15 @@ private:
     int concertPitchIdx() const;
     void updateRelLine(int absLine, bool undoable);
 
+    static std::vector<Note*> findTiedNotes(Note* startNote, bool followPartialTies = true);
+
     void normalizeLeftDragDelta(Segment* seg, EditData& ed, NoteEditData* ned);
 
     static String tpcUserName(int tpc, int pitch, bool explicitAccidental, bool full = false);
 
     void getNoteListForDots(std::vector<Note*>& topDownNotes, std::vector<Note*>& bottomUpNotes, std::vector<int>& anchoredDots);
+
+    void addLineAttachPoint(PointF point, EngravingItem* line, bool start);
 
     bool m_ghost = false;        // ghost note
     bool m_deadNote = false;     // dead note
@@ -551,6 +574,6 @@ private:
     String m_fretString;
 
     std::vector<LineAttachPoint> m_lineAttachPoints;
+    TieJumpPointList m_jumpPoints;
 };
 } // namespace mu::engraving
-#endif

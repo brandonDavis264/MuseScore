@@ -20,8 +20,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "noisesource.h"
+
 #include <random>
-using namespace mu::audio;
+
+using namespace muse::audio;
 
 NoiseSource::NoiseSource()
 {

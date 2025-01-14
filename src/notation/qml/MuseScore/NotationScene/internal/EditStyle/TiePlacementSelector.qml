@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -23,8 +23,8 @@
 import QtQuick 2.15
 
 import MuseScore.NotationScene 1.0
-import MuseScore.UiComponents 1.0
-import MuseScore.Ui 1.0
+import Muse.UiComponents 1.0
+import Muse.Ui 1.0
 
 Rectangle {
     anchors.fill: parent
@@ -86,6 +86,35 @@ Rectangle {
                     tiePlacementSelector.placementChords.value = modelData.value
                 }
             }
+        }
+
+        StyledTextLabel {
+            text: qsTrc("notation", "Placement of inner ties with respect to augmentation dots:")
+        }
+
+
+        RoundedRadioButton {
+            id: autoButton
+            width: parent.width
+            checked: tiePlacementSelector.placementDots.value === 0
+            onToggled: tiePlacementSelector.placementDots.value = 0
+            text: qsTrc("notation", "Auto")
+        }
+
+        RoundedRadioButton {
+            id: beforeButton
+            width: parent.width
+            checked: tiePlacementSelector.placementDots.value === 1
+            onToggled: tiePlacementSelector.placementDots.value = 1
+            text: qsTrc("notation", "Always before dots")
+        }
+
+        RoundedRadioButton {
+            id: afterButton
+            width: parent.width
+            checked: tiePlacementSelector.placementDots.value === 2
+            onToggled: tiePlacementSelector.placementDots.value = 2
+            text: qsTrc("notation", "Always after dots")
         }
     }
 }

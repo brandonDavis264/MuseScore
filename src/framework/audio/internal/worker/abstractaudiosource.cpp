@@ -21,7 +21,8 @@
  */
 #include "abstractaudiosource.h"
 
-using namespace mu::audio;
+using namespace muse;
+using namespace muse::audio;
 
 void AbstractAudioSource::setSampleRate(unsigned int sampleRate)
 {
@@ -38,7 +39,7 @@ void AbstractAudioSource::setIsActive(bool isActive)
     m_isActive = isActive;
 }
 
-mu::async::Channel<unsigned int> AbstractAudioSource::audioChannelsCountChanged() const
+async::Channel<unsigned int> AbstractAudioSource::audioChannelsCountChanged() const
 {
     return m_streamsCountChanged;
 }

@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -25,25 +25,24 @@
 
 #include <optional>
 
-#include "engravingobject.h"
-#include "elementgroup.h"
-
 #include "draw/types/color.h"
 #include "draw/types/geometry.h"
 #include "draw/painter.h"
 
 #include "modularity/ioc.h"
-#include "iengravingconfiguration.h"
-#include "rendering/iscorerenderer.h"
+#include "../iengravingconfiguration.h"
+#include "../rendering/iscorerenderer.h"
 
-#include "infrastructure/ld_access.h"
-#include "infrastructure/shape.h"
-#include "infrastructure/skyline.h"
+#include "../infrastructure/ld_access.h"
+#include "../infrastructure/shape.h"
+#include "../infrastructure/skyline.h"
 
-#include "types/fraction.h"
-#include "types/symid.h"
-#include "types/types.h"
+#include "../types/fraction.h"
+#include "../types/symid.h"
+#include "../types/types.h"
 
+#include "engravingobject.h"
+#include "elementgroup.h"
 #include "editdata.h"
 
 #define DECLARE_LAYOUTDATA_METHODS(Class) \
@@ -122,7 +121,7 @@ enum class ElementFlag {
     WRITTEN                = 0x04000000,
 };
 
-typedef Flags<ElementFlag> ElementFlags;
+typedef muse::Flags<ElementFlag> ElementFlags;
 DECLARE_OPERATORS_FOR_FLAGS(ElementFlags)
 
 enum class KerningType
@@ -131,7 +130,6 @@ enum class KerningType
     NON_KERNING,
     LIMITED_KERNING,
     SAME_VOICE_LIMIT,
-    KERNING_UNTIL_ORIGIN,
     ALLOW_COLLISION,
     NOT_SET,
 };
@@ -154,9 +152,6 @@ public:
 
 class EngravingItem : public EngravingObject
 {
-    INJECT_STATIC(IEngravingConfiguration, engravingConfiguration)
-    INJECT_STATIC(rendering::IScoreRenderer, renderer)
-
     M_PROPERTY2(bool, isPositionLinkedToMaster, setPositionLinkedToMaster, true)
     M_PROPERTY2(bool, isAppearanceLinkedToMaster, setAppearanceLinkedToMaster, true)
     M_PROPERTY2(bool, excludeFromOtherParts, setExcludeFromOtherParts, false)
@@ -175,6 +170,10 @@ public:
     EngravingItem* parentItem(bool explicitParent = true) const;
     EngravingItemList childrenItems(bool all = false) const;
 
+    const muse::modularity::ContextPtr& iocContext() const;
+    const std::shared_ptr<IEngravingConfiguration>& configuration() const;
+    const std::shared_ptr<rendering::IScoreRenderer>& renderer() const;
+
     EngravingItem* findAncestor(ElementType t);
     const EngravingItem* findAncestor(ElementType t) const;
 
@@ -183,7 +182,7 @@ public:
     MeasureBase* findMeasureBase();
     const MeasureBase* findMeasureBase() const;
 
-    //!Note Returns basic representative for the current element.
+    //!Note muse::Returns basic representative for the current element.
     //!     For example: notes->chord, chords->beam, etc.
     virtual EngravingItem* elementBase() const { return const_cast<EngravingItem*>(this); }
 
@@ -252,29 +251,24 @@ public:
 
     virtual Fraction tick() const;
     virtual Fraction rtick() const;
-    virtual Fraction playTick() const;   ///< Returns the tick at which playback should begin when this element is selected. Defaults to the element's own tick position.
+    virtual Fraction playTick() const;   ///< muse::Returns the tick at which playback should begin when this element is selected. Defaults to the element's own tick position.
 
     Fraction beat() const;
 
     bool isNudged() const { return !m_offset.isNull(); }
 
     bool contains(const PointF& p) const;
-    bool intersects(const mu::RectF& r) const;
+    bool intersects(const RectF& r) const;
 
-    virtual mu::RectF hitBBox() const { return ldata()->bbox(); }
+    virtual RectF hitBBox() const { return ldata()->bbox(); }
     virtual Shape hitShape() const { return shape(); }
     Shape canvasHitShape() const { return hitShape().translate(canvasPos()); }
     bool hitShapeContains(const PointF& p) const;
-    bool hitShapeIntersects(const mu::RectF& rr) const;
+    bool hitShapeIntersects(const RectF& rr) const;
 
     virtual int subtype() const { return -1; }                    // for select gui
 
-    void drawAt(mu::draw::Painter* p, const PointF& pt) const
-    {
-        p->translate(pt);
-        renderer()->drawItem(this, p);
-        p->translate(-pt);
-    }
+    void drawAt(muse::draw::Painter* p, const PointF& pt) const;
 
 //       virtual ElementGroup getElementGroup() { return SingleElementGroup(this); }
     virtual std::unique_ptr<ElementGroup> getDragGroup(std::function<bool(const EngravingItem*)> /*isDragged*/)
@@ -283,10 +277,10 @@ public:
     }
 
     virtual void startDrag(EditData&);
-    virtual mu::RectF drag(EditData&);
+    virtual RectF drag(EditData&);
     virtual void endDrag(EditData&);
-    /** Returns anchor lines displayed while dragging element in canvas coordinates. */
-    virtual std::vector<mu::LineF> dragAnchorLines() const { return std::vector<mu::LineF>(); }
+    /** muse::Returns anchor lines displayed while dragging element in canvas coordinates. */
+    virtual std::vector<LineF> dragAnchorLines() const { return std::vector<LineF>(); }
     /**
      * A generic \ref dragAnchorLines() implementation which can be used in
      * dragAnchorLines() overrides in descendants. It is not made its default
@@ -296,7 +290,7 @@ public:
      * class of various annotation types and which would have this
      * dragAnchorLines() implementation by default.
      */
-    std::vector<mu::LineF> genericDragAnchorLines() const;
+    std::vector<LineF> genericDragAnchorLines() const;
 
     virtual bool isEditable() const { return !flag(ElementFlag::GENERATED); }
     virtual bool needStartEditingAfterSelecting() const { return false; }
@@ -315,13 +309,13 @@ public:
     void updateGrips(EditData&) const;
     virtual bool nextGrip(EditData&) const;
     virtual bool prevGrip(EditData&) const;
-    /** Returns anchor lines displayed while dragging element's grip in canvas coordinates. */
-    virtual std::vector<mu::LineF> gripAnchorLines(Grip) const { return std::vector<mu::LineF>(); }
+    /** muse::Returns anchor lines displayed while dragging element's grip in canvas coordinates. */
+    virtual std::vector<LineF> gripAnchorLines(Grip) const { return std::vector<LineF>(); }
 
     virtual int gripsCount() const { return 0; }
     virtual Grip initialEditModeGrip() const { return Grip::NO_GRIP; }
     virtual Grip defaultGrip() const { return Grip::NO_GRIP; }
-    /** Returns grips positions in page coordinates. */
+    /** muse::Returns grips positions in page coordinates. */
     virtual std::vector<PointF> gripsPositions(const EditData& = EditData()) const { return std::vector<PointF>(); }
 
     bool hasGrips() const;
@@ -359,22 +353,22 @@ public:
     virtual TranslatableString subtypeUserName() const;
     virtual String translatedSubtypeUserName() const;
 
-    virtual void setColor(const mu::draw::Color& c);
-    virtual mu::draw::Color color() const;
-    mu::draw::Color curColor() const;
-    mu::draw::Color curColor(bool isVisible) const;
-    mu::draw::Color curColor(bool isVisible, mu::draw::Color normalColor) const;
+    virtual void setColor(const Color& c);
+    virtual Color color() const;
+    Color curColor() const;
+    Color curColor(bool isVisible) const;
+    Color curColor(bool isVisible, Color normalColor) const;
 
-    void undoSetColor(const mu::draw::Color& c);
+    void undoSetColor(const Color& c);
     void undoSetVisible(bool v);
     void undoAddElement(EngravingItem* element, bool addToLinkedStaves = true);
 
     static ElementType readType(XmlReader& node, PointF*, Fraction*);
-    static EngravingItem* readMimeData(Score* score, const mu::ByteArray& data, PointF*, Fraction*);
+    static EngravingItem* readMimeData(Score* score, const muse::ByteArray& data, PointF*, Fraction*);
 
-    virtual mu::ByteArray mimeData(const PointF& dragOffset = PointF()) const;
+    virtual muse::ByteArray mimeData(const PointF& dragOffset = PointF()) const;
 /**
- Return true if this element accepts a drop at canvas relative \a pos
+ muse::Return true if this element accepts a drop at canvas relative \a pos
  of given element \a type and \a subtype.
 
  Reimplemented by elements that accept drops. Used to change cursor shape while
@@ -384,7 +378,7 @@ public:
 
 /**
  Handle a dropped element at canvas relative \a pos of given element
- \a type and \a subtype. Returns dropped element if any.
+ \a type and \a subtype. muse::Returns dropped element if any.
  The ownership of element in DropData is transferred to the called
  element (if not used, element has to be deleted).
  The returned element will be selected if not in note edit mode.
@@ -409,7 +403,7 @@ public:
 
     bool isPrintable() const;
     bool isPlayable() const;
-    double point(const Spatium sp) const { return sp.val() * spatium(); }
+    virtual double absoluteFromSpatium(const Spatium& sp) const { return sp.val() * spatium(); }
 
     bool systemFlag() const { return flag(ElementFlag::SYSTEM); }
     void setSystemFlag(bool v) const { setFlag(ElementFlag::SYSTEM, v); }
@@ -448,9 +442,9 @@ public:
     bool custom(Pid) const;
     virtual bool isUserModified() const;
 
-    void drawSymbol(SymId id, mu::draw::Painter* p, const PointF& o = PointF(), double scale = 1.0) const;
-    void drawSymbols(const SymIdList&, mu::draw::Painter* p, const PointF& o = PointF(), double scale = 1.0) const;
-    void drawSymbols(const SymIdList&, mu::draw::Painter* p, const PointF& o, const SizeF& scale) const;
+    void drawSymbol(SymId id, muse::draw::Painter* p, const PointF& o = PointF(), double scale = 1.0) const;
+    void drawSymbols(const SymIdList&, muse::draw::Painter* p, const PointF& o = PointF(), double scale = 1.0) const;
+    void drawSymbols(const SymIdList&, muse::draw::Painter* p, const PointF& o, const SizeF& scale) const;
     double symHeight(SymId id) const;
     double symWidth(SymId id) const;
     double symWidth(const SymIdList&) const;
@@ -487,14 +481,21 @@ public:
 
     virtual void triggerLayout() const;
     virtual void triggerLayoutAll() const;
-    virtual void drawEditMode(draw::Painter* painter, EditData& editData, double currentViewScaling);
+    virtual void triggerLayoutToEnd() const;
+    virtual void drawEditMode(muse::draw::Painter* painter, EditData& editData, double currentViewScaling);
 
     double styleP(Sid idx) const;
 
     bool colorsInversionEnabled() const;
     void setColorsInverionEnabled(bool enabled);
 
-    std::pair<int, float> barbeat() const;
+    struct BarBeat
+    {
+        int bar;
+        int displayedBar;
+        double beat;
+    };
+    BarBeat barbeat() const;
 
     virtual EngravingItem* findLinkedInScore(const Score* score) const;
     EngravingItem* findLinkedInStaff(const Staff* staff) const;
@@ -550,10 +551,10 @@ public:
 
         void setShape(const Shape& sh) { m_shape.set_value(sh); }
 
-        void setBbox(const mu::RectF& r);
+        void setBbox(const RectF& r);
 
-        void setBbox(double x, double y, double w, double h) { setBbox(mu::RectF(x, y, w, h)); }
-        void addBbox(const mu::RectF& r)
+        void setBbox(double x, double y, double w, double h) { setBbox(RectF(x, y, w, h)); }
+        void addBbox(const RectF& r)
         {
             DO_ASSERT(!std::isnan(r.x()) && !std::isinf(r.x()));
             DO_ASSERT(!std::isnan(r.y()) && !std::isinf(r.y()));
@@ -566,19 +567,41 @@ public:
 
         void setHeight(double v)
         {
-            mu::RectF r = bbox();
+            RectF r = bbox();
             r.setHeight(v);
             setBbox(r);
         }
 
         void setWidth(double v)
         {
-            mu::RectF r = bbox();
+#ifndef NDEBUG
+            setWidthDebugHook(v);
+#endif
+            RectF r = bbox();
             r.setWidth(v);
             setBbox(r);
         }
 
         OffsetChange offsetChanged() const { return autoplace.offsetChanged; }
+
+        void connectItemSnappedBefore(EngravingItem* itemBefore);
+        void disconnectItemSnappedBefore();
+        void connectItemSnappedAfter(EngravingItem* itemAfter);
+        void disconnectItemSnappedAfter();
+        void disconnectSnappedItems() { disconnectItemSnappedBefore(); disconnectItemSnappedAfter(); }
+        EngravingItem* itemSnappedBefore() const { return m_itemSnappedBefore; }
+        EngravingItem* itemSnappedAfter() const { return m_itemSnappedAfter; }
+
+        struct StaffCenteringInfo {
+            double availableVertSpaceAbove = 0.0;
+            double availableVertSpaceBelow = 0.0;
+        };
+        const StaffCenteringInfo& staffCenteringInfo() const { return m_staffCenteringInfo; }
+        void setStaffCenteringInfo(double availSpaceAbove, double availSpaceBelow)
+        {
+            m_staffCenteringInfo.availableVertSpaceAbove = availSpaceAbove;
+            m_staffCenteringInfo.availableVertSpaceBelow = availSpaceBelow;
+        }
 
         void dump(std::stringstream& ss) const;
 
@@ -588,6 +611,7 @@ public:
 
 #ifndef NDEBUG
         void doSetPosDebugHook(double x, double y);
+        void setWidthDebugHook(double w);
 #endif
 
         inline void doSetPos(double x, double y)
@@ -609,6 +633,11 @@ public:
         double m_mag = 1.0;                     // standard magnification (derived value)
         ld_field<PointF> m_pos = "pos";         // Reference position, relative to _parent, set by autoplace
         ld_field<Shape> m_shape = "shape";
+
+        EngravingItem* m_itemSnappedBefore = nullptr;
+        EngravingItem* m_itemSnappedAfter = nullptr;
+
+        StaffCenteringInfo m_staffCenteringInfo;
     };
 
     const LayoutData* ldata() const;
@@ -618,9 +647,11 @@ public:
     Shape shape(LD_ACCESS mode = LD_ACCESS::CHECK) const { return ldata()->shape(mode); }
     virtual double baseLine() const { return -height(); }
 
-    mu::RectF abbox(LD_ACCESS mode = LD_ACCESS::CHECK) const { return ldata()->bbox(mode).translated(pagePos()); }
-    mu::RectF pageBoundingRect(LD_ACCESS mode = LD_ACCESS::CHECK) const { return ldata()->bbox(mode).translated(pagePos()); }
-    mu::RectF canvasBoundingRect(LD_ACCESS mode = LD_ACCESS::CHECK) const { return ldata()->bbox(mode).translated(canvasPos()); }
+    RectF pageBoundingRect(LD_ACCESS mode = LD_ACCESS::CHECK) const { return ldata()->bbox(mode).translated(pagePos()); }
+    RectF canvasBoundingRect(LD_ACCESS mode = LD_ACCESS::CHECK) const { return ldata()->bbox(mode).translated(canvasPos()); }
+
+    virtual PointF staffOffset() const;
+    double staffOffsetY() const { return staffOffset().y(); }
 
     virtual bool isPropertyLinkedToMaster(Pid id) const;
     virtual bool isUnlinkedFromMaster() const;
@@ -631,8 +662,10 @@ public:
     virtual bool canBeExcludedFromOtherParts() const { return false; }
     virtual void manageExclusionFromParts(bool exclude);
 
+    virtual bool isBefore(const EngravingItem* item) const;
+
     //! --- Old Interface ---
-    void setbbox(const mu::RectF& r) { mutldata()->setBbox(r); }
+    void setbbox(const RectF& r) { mutldata()->setBbox(r); }
     double height() const { return ldata()->bbox().height(); }
     void setHeight(double v) { mutldata()->setHeight(v); }
 
@@ -646,6 +679,15 @@ public:
     virtual void setPos(const PointF& p) { mutldata()->setPos(p.x(), p.y()); }
 
     virtual void move(const PointF& s) { mutldata()->move(s); }
+
+    virtual bool allowTimeAnchor() const { return false; }
+
+    virtual bool hasVoiceAssignmentProperties() const { return false; }
+    bool appliesToAllVoicesInInstrument() const;
+    void setInitialTrackAndVoiceAssignment(track_idx_t track, bool curVoiceOnlyOverride);
+    void checkVoiceAssignmentCompatibleWithTrack();
+    virtual bool elementAppliesToTrack(const track_idx_t refTrack) const;
+    void setPlacementBasedOnVoiceAssignment(DirectionV styledDirection);
 
     void setOffsetChanged(bool val, bool absolute = true, const PointF& diff = PointF());
     //! ---------------------
@@ -664,9 +706,12 @@ protected:
     virtual LayoutData* mutldataInternal();
 
     mutable int m_z = 0;
-    mu::draw::Color m_color;                // element color attribute
+    Color m_color;                // element color attribute
 
-    track_idx_t m_track = mu::nidx;         // staffIdx * VOICES + voice
+    track_idx_t m_track = muse::nidx;         // staffIdx * VOICES + voice
+
+    static bool elementAppliesToTrack(const track_idx_t elementTrack, const track_idx_t refTrack, const VoiceAssignment voiceAssignment,
+                                      const Part* part);
 
 private:
 
@@ -756,7 +801,7 @@ public:
     Compound(const ElementType& type, Score*);
     Compound(const Compound&);
 
-    virtual void draw(mu::draw::Painter*) const;
+    virtual void draw(muse::draw::Painter*) const;
     virtual void addElement(EngravingItem*, double x, double y);
     void clear();
     virtual void setSelected(bool f);
@@ -775,6 +820,7 @@ extern void collectElements(void* data, EngravingItem* e);
 } // mu::engraving
 
 #ifndef NO_QT_SUPPORT
+Q_DECLARE_METATYPE(mu::engraving::ElementPtr)
 Q_DECLARE_METATYPE(mu::engraving::ElementType)
 #endif
 

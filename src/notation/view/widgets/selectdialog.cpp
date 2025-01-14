@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -33,14 +33,14 @@
 #include "ui/view/widgetstatestore.h"
 
 using namespace mu::notation;
-using namespace mu::ui;
+using namespace muse::ui;
 
 //---------------------------------------------------------
 //   SelectDialog
 //---------------------------------------------------------
 
 SelectDialog::SelectDialog(QWidget* parent)
-    : QDialog(parent)
+    : QDialog(parent), muse::Injectable(muse::iocCtxForQWidget(this))
 {
     setObjectName("SelectDialog");
     setupUi(this);
@@ -48,12 +48,7 @@ SelectDialog::SelectDialog(QWidget* parent)
 
     m_element = contextItem(globalContext()->currentNotation()->interaction());
     type->setText(m_element->translatedTypeUserName().toQString());
-
-    if (m_element->type() == engraving::ElementType::ARTICULATION) {
-        subtype->setText(m_element->translatedTypeUserName().toQString());
-    } else {
-        subtype->setText(m_element->translatedSubtypeUserName().toQString());
-    }
+    subtype->setText(m_element->translatedSubtypeUserName().toQString());
 
     sameSubtype->setEnabled(m_element->subtype() != -1);
     subtype->setEnabled(m_element->subtype() != -1);
@@ -72,16 +67,6 @@ SelectDialog::SelectDialog(QWidget* parent)
     setFocus();
 }
 
-SelectDialog::SelectDialog(const SelectDialog& other)
-    : QDialog(other.parentWidget())
-{
-}
-
-int SelectDialog::metaTypeId()
-{
-    return QMetaType::type("SelectDialog");
-}
-
 //---------------------------------------------------------
 //   setPattern
 //---------------------------------------------------------
@@ -91,10 +76,6 @@ FilterElementsOptions SelectDialog::elementOptions() const
     FilterElementsOptions options;
     options.elementType = m_element->type();
     options.subtype = m_element->subtype();
-    if (m_element->isSlurSegment()) {
-        const SlurSegment* slurSegment = dynamic_cast<const SlurSegment*>(m_element);
-        options.subtype = static_cast<int>(slurSegment->spanner()->type());
-    }
 
     if (sameStaff->isChecked()) {
         options.staffStart = static_cast<int>(m_element->staffIdx());

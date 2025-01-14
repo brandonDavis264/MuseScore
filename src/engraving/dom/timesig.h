@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -63,6 +63,9 @@ public:
 
     TimeSigType timeSigType() const { return m_timeSigType; }
 
+    int subtype() const override;
+    TranslatableString subtypeUserName() const override;
+
     bool operator==(const TimeSig&) const;
     bool operator!=(const TimeSig& ts) const { return !(*this == ts); }
 
@@ -96,8 +99,8 @@ public:
     bool largeParentheses() const { return m_largeParentheses; }
     void setLargeParentheses(bool v) { m_largeParentheses = v; }
 
-    const mu::ScaleF& scale() const { return m_scale; }
-    void setScale(const mu::ScaleF& s) { m_scale = s; }
+    const ScaleF& scale() const { return m_scale; }
+    void setScale(const ScaleF& s) { m_scale = s; }
 
     void setFrom(const TimeSig*);
 
@@ -113,6 +116,8 @@ public:
 
     bool isLocal() const { return m_stretch != Fraction(1, 1); }
 
+    PointF staffOffset() const override;
+
     EngravingItem* nextSegmentElement() override;
     EngravingItem* prevSegmentElement() override;
     String accessibleInfo() const override;
@@ -120,10 +125,10 @@ public:
     struct LayoutData : public EngravingItem::LayoutData {
         SymIdList ns;
         SymIdList ds;
-        mu::PointF pz;
-        mu::PointF pn;
-        mu::PointF pointLargeLeftParen;
-        mu::PointF pointLargeRightParen;
+        PointF pz;
+        PointF pn;
+        PointF pointLargeLeftParen;
+        PointF pointLargeRightParen;
     };
     DECLARE_LAYOUTDATA_METHODS(TimeSig)
 
@@ -143,7 +148,7 @@ private:
     Fraction m_stretch;        // localSig / globalSig
     Groups m_groups;
 
-    mu::ScaleF m_scale;
+    ScaleF m_scale;
     TimeSigType m_timeSigType = TimeSigType::NORMAL;
     bool m_showCourtesySig = false;
     bool m_largeParentheses = false;

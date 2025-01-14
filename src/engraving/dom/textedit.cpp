@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -25,9 +25,11 @@
 #include "iengravingfont.h"
 #include "types/symnames.h"
 
+#include "anchors.h"
 #include "mscoreview.h"
 #include "navigate.h"
 #include "score.h"
+#include "dynamic.h"
 #include "lyrics.h"
 
 #include "log.h"
@@ -103,22 +105,24 @@ void TextBase::editInsertText(TextCursor* cursor, const String& s)
 //   startEdit
 //---------------------------------------------------------
 
-void TextBase::startEdit(EditData& ed)
+void TextBase::startEditTextual(EditData& ed)
 {
     std::shared_ptr<TextEditData> ted = std::make_shared<TextEditData>(this);
     ted->e = this;
     ted->cursor()->startEdit();
 
-    assert(!score()->undoStack()->active());        // make sure we are not in a Cmd
+    assert(!score()->undoStack()->hasActiveCommand()); // make sure we are not in a Cmd
 
     ted->oldXmlText = xmlText();
-    ted->startUndoIdx = score()->undoStack()->getCurIdx();
+    ted->startUndoIdx = score()->undoStack()->currentIndex();
 
     const LayoutData* ldata = this->ldata();
     if (!ldata || ldata->layoutInvalid) {
         renderer()->layoutItem(this);
     }
-    if (!ted->cursor()->set(ed.startMove)) {
+
+    //! NOTE: startMove will be null if we didn't use the mouse (e.g. we added a lyric with the spacebar)
+    if (!ed.startMove.isNull() && !ted->cursor()->set(ed.startMove)) {
         resetFormatting();
     }
     double _spatium = spatium();
@@ -131,7 +135,7 @@ void TextBase::startEdit(EditData& ed)
 //   endEdit
 //---------------------------------------------------------
 
-void TextBase::endEdit(EditData& ed)
+void TextBase::endEditTextual(EditData& ed)
 {
     TextEditData* ted = static_cast<TextEditData*>(ed.getData(this).get());
     IF_ASSERT_FAILED(ted && ted->cursor()) {
@@ -152,25 +156,30 @@ void TextBase::endEdit(EditData& ed)
     // one property change
 
     using Filter = UndoCommand::Filter;
-    const bool textWasEdited = (undo->getCurIdx() != ted->startUndoIdx);
 
+    //! NOTE: Current index can be less than the start index if the text element is newly added and immediately removed through
+    //! undo (the "add element" command will have been popped from the stack before the calling of this method)...
+    const bool textWasEdited = undo->currentIndex() > ted->startUndoIdx;
     if (textWasEdited) {
         undo->mergeCommands(ted->startUndoIdx);
         undo->last()->filterChildren(Filter::TextEdit, this);
     } else {
         // No text changes in "undo" part of undo stack,
         // hence nothing to merge and filter.
-        undo->cleanRedoStack();     // prevent text editing commands from remaining in undo stack
+        undo->cleanRedoStack(); // prevent text editing commands from remaining in undo stack
+
+        // already removed, no further processing required...
+        if (!ed.element) {
+            return;
+        }
     }
 
-    bool newlyAdded = false;
-
-    if (ted->oldXmlText.isEmpty()) {
+    const bool newlyAdded = ted->oldXmlText.isEmpty();
+    if (newlyAdded) {
         UndoCommand* ucmd = textWasEdited ? undo->prev() : undo->last();
         if (ucmd && ucmd->hasFilteredChildren(Filter::AddElement, this)) {
             // We have just added this element to a score.
             // Combine undo records of text creation with text editing.
-            newlyAdded = true;
             undo->mergeCommands(ted->startUndoIdx - 1);
         }
     }
@@ -197,19 +206,19 @@ void TextBase::endEdit(EditData& ed)
             Filter::Link,
         };
 
-        if (newlyAdded && !undo->current()->hasUnfilteredChildren(filters, this)) {
+        if (newlyAdded && !undo->activeCommand()->hasUnfilteredChildren(filters, this)) {
             for (Filter f : filters) {
-                undo->current()->filterChildren(f, this);
+                undo->activeCommand()->filterChildren(f, this);
             }
 
-            ted->setDeleteText(true);       // mark this text element for deletion
+            ted->setDeleteText(true); // mark this text element for deletion
         }
 
         commitText();
         if (isLyrics()) {
             Lyrics* prev = prevLyrics(toLyrics(this));
             if (prev) {
-                prev->setIsRemoveInvalidSegments();
+                prev->setNeedRemoveInvalidSegments();
                 renderer()->layoutItem(prev);
             }
         }
@@ -217,16 +226,22 @@ void TextBase::endEdit(EditData& ed)
     }
 
     if (textWasEdited) {
-        setXmlText(ted->oldXmlText);                        // reset text to value before editing
+        setXmlText(ted->oldXmlText); // reset text to value before editing
         undo->reopen();
         resetFormatting();
-        undoChangeProperty(Pid::TEXT, actualXmlText);       // change property to set text to actual value again
-                                                            // this also changes text of linked elements
+
+        // change property to set text to actual value again - this also changes text of linked elements
+        undoChangeProperty(Pid::TEXT, actualXmlText);
+
+        if (isDynamic()) {
+            undoChangeProperty(Pid::DYNAMIC_TYPE, actualXmlText);
+        }
+
         renderer()->layoutText1(this);
-        triggerLayout();                                    // force relayout even if text did not change
-    } else {
-        triggerLayout();
     }
+
+    triggerLayout(); // force relayout even if text did not change
+
     if (isLyrics()) {
         // we must adjust previous lyrics before the call to commitText(), in order to make the adjustments
         // part of the same undo command. there is logic above that will skip this call if the text is empty
@@ -270,7 +285,7 @@ void TextBase::insertText(EditData& ed, const String& s)
     score()->undo(new InsertText(cursor, s), &ed);
 }
 
-bool TextBase::isEditAllowed(EditData& ed) const
+bool TextBase::isTextualEditAllowed(EditData& ed) const
 {
     // Keep this method closely in sync with TextBase::edit()!
 
@@ -378,6 +393,13 @@ bool TextBase::isEditAllowed(EditData& ed) const
         if (ed.key == Key_Minus) {
             return true;
         }
+
+#if defined(Q_OS_WIN)
+        // Allow accented characters to be input with AltGr and Ctrl+Alt (both are treated the same in Windows)
+        if (ed.key >= Key_nobreakspace && ed.key <= Key_ydiaeresis) {
+            return true;
+        }
+#endif
     }
 
     // At least on non-macOS, sometimes ed.s is not empty even if Ctrl is pressed
@@ -388,7 +410,7 @@ bool TextBase::isEditAllowed(EditData& ed) const
 //   edit
 //---------------------------------------------------------
 
-bool TextBase::edit(EditData& ed)
+bool TextBase::editTextual(EditData& ed)
 {
     // Keep this method closely in sync with TextBase::isEditAllowed()!
 
@@ -702,10 +724,10 @@ bool TextBase::edit(EditData& ed)
         }
     }
     if (!s.isEmpty()) {
+        deleteSelectedText(ed);
         if (currentFormat->fontFamily() == u"ScoreText") {
             currentFormat->setFontFamily(propertyDefault(Pid::FONT_FACE).value<String>());
         }
-        deleteSelectedText(ed);
         score()->undo(new InsertText(m_cursor, s), &ed);
 
         int startPosition = cursor->currentPosition();
@@ -783,7 +805,7 @@ void SplitJoinText::join(EditData* ed)
     if (fragmentsList.size() > 0) {
         ldata->textBlock(static_cast<int>(line) - 1).removeEmptyFragment();
     }
-    mu::join(ldata->textBlock(static_cast<int>(line) - 1).fragments(), fragmentsList);
+    muse::join(ldata->textBlock(static_cast<int>(line) - 1).fragments(), fragmentsList);
 
     ldata->blocks.erase(ldata->blocks.begin() + line);
 
@@ -883,7 +905,7 @@ void TextBase::paste(EditData& ed, const String& txt)
     bool symState = false;
     CharFormat format = *static_cast<TextEditData*>(ed.getData(this).get())->cursor()->format();
 
-    score()->startCmd();
+    score()->startCmd(TranslatableString("undoableAction", "Paste text"));
     for (size_t i = 0; i < txt.size(); i++) {
         Char c = txt.at(i);
         if (state == 0) {
@@ -973,11 +995,11 @@ void TextBase::endHexState(EditData& ed)
             TextBlock& t = mutldata()->blocks[cursor->row()];
             String ss   = t.remove(static_cast<int>(c1), m_hexState + 1, cursor);
             bool ok;
-            char16_t code = ss.mid(1).toInt(&ok, 16);
+            char32_t code = ss.mid(1).toInt(&ok, 16);
             cursor->setColumn(c1);
             cursor->clearSelection();
             if (ok) {
-                editInsertText(cursor, String(code));
+                editInsertText(cursor, String::fromUcs4(code));
             } else {
                 LOGD("cannot convert hex string <%s>, state %d (%zu-%zu)",
                      muPrintable(ss.mid(1)), m_hexState, c1, c2);
@@ -1058,7 +1080,7 @@ void ChangeTextProperties::undo(EditData*)
     cursor().text()->resetFormatting();
     cursor().text()->setXmlText(m_xmlText);
     restoreSelection();
-    EngravingItem::renderer()->layoutText1(cursor().text());
+    cursor().text()->renderer()->layoutText1(cursor().text());
 }
 
 void ChangeTextProperties::redo(EditData*)

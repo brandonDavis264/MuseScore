@@ -24,12 +24,12 @@
 
 #include "reverb/reverbprocessor.h"
 
-#include "audio/audioutils.h"
+#include "audioutils.h"
 
-using namespace mu::audio;
-using namespace mu::audio::fx;
+using namespace muse::audio;
+using namespace muse::audio::fx;
 
-namespace mu::audio::fx {
+namespace muse::audio::fx {
 IFxProcessorPtr createFxProcessor(const AudioFxParams& fxParams)
 {
     if (fxParams.resourceMeta.id == MUSE_REVERB_ID) {

@@ -22,12 +22,16 @@
 
 #include "oggencoder.h"
 
+#ifdef SYSTEM_OPUSENC
+#include <opus/opusenc.h>
+#else
 #include "opusenc.h"
+#endif
 
 #include "log.h"
 
-using namespace mu::audio;
-using namespace mu::audio::encode;
+using namespace muse::audio;
+using namespace muse::audio::encode;
 
 size_t OggEncoder::encode(samples_t samplesPerChannel, const float* input)
 {

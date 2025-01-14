@@ -18,7 +18,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-set(MODULE vst)
+declare_module(muse_vst)
+set(MODULE_ALIAS muse::vst)
 
 add_subdirectory("sdk")
 
@@ -77,8 +78,7 @@ set(MODULE_SRC
     )
 
 set(MODULE_INCLUDE
-    ${CMAKE_CURRENT_LIST_DIR}
-    ${VST3_SDK_PATH}
+    ${MUSE_MODULE_VST_VST3_SDK_PATH}
     )
 
 set(MODULE_LINK
@@ -92,6 +92,6 @@ if (OS_IS_LIN)
         )
 endif()
 
-include(SetupModule)
+setup_module()
 
 target_no_warning(${MODULE} -Wno-deprecated-declarations)

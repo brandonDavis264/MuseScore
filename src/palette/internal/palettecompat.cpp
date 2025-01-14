@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -33,6 +33,7 @@
 #include "engraving/dom/expression.h"
 #include "engraving/dom/factory.h"
 #include "engraving/dom/ornament.h"
+#include "engraving/dom/pedal.h"
 #include "engraving/dom/score.h"
 #include "engraving/dom/stafftext.h"
 #include "engraving/dom/stringtunings.h"
@@ -80,6 +81,24 @@ void PaletteCompat::migrateOldPaletteItemIfNeeded(ElementPtr& element, Score* pa
             newExpression->setXmlText(oldExpression->xmlText());
         }
         element.reset(newExpression);
+        return;
+    }
+
+    if (item->isPedal()) {
+        Pedal* newPedal = Factory::createPedal(paletteScore->dummy());
+        Pedal* oldPedal = toPedal(item);
+
+        newPedal->setLen(oldPedal->frontSegment()->pos2().x());
+        newPedal->setLineVisible(oldPedal->lineVisible());
+        newPedal->setBeginHookType(oldPedal->beginHookType());
+        newPedal->setEndHookType(oldPedal->endHookType());
+
+        newPedal->setBeginText(newPedal->propertyDefault(Pid::BEGIN_TEXT).value<String>());
+        newPedal->setContinueText(newPedal->propertyDefault(Pid::CONTINUE_TEXT).value<String>());
+        newPedal->setEndText(newPedal->propertyDefault(Pid::END_TEXT).value<String>());
+
+        element.reset(newPedal);
+        return;
     }
 }
 
@@ -87,6 +106,12 @@ void PaletteCompat::addNewItemsIfNeeded(Palette& palette, Score* paletteScore)
 {
     if (palette.type() == Palette::Type::Guitar) {
         addNewGuitarItems(palette, paletteScore);
+        return;
+    }
+
+    if (palette.type() == Palette::Type::Line) {
+        addNewLineItems(palette);
+        return;
     }
 }
 
@@ -116,7 +141,7 @@ void PaletteCompat::addNewGuitarItems(Palette& guitarPalette, Score* paletteScor
             containsStringTunings = true;
         } else if (element->isActionIcon()) {
             const ActionIcon* icon = toActionIcon(element.get());
-            if (contains(BENDS_ACTION_TYPES, icon->actionType())) {
+            if (muse::contains(BENDS_ACTION_TYPES, icon->actionType())) {
                 containsGuitarBends = true;
             }
         }
@@ -147,6 +172,26 @@ void PaletteCompat::addNewGuitarItems(Palette& guitarPalette, Score* paletteScor
     }
 }
 
+void PaletteCompat::addNewLineItems(Palette& linesPalette)
+{
+    bool containsNoteAnchoredLine = false;
+    for (const PaletteCellPtr& cell : linesPalette.cells()) {
+        const ElementPtr element = cell->element;
+        if (!element) {
+            continue;
+        }
+
+        if (element->isActionIcon() && toActionIcon(element.get())->actionType() == ActionIconType::NOTE_ANCHORED_LINE) {
+            containsNoteAnchoredLine = true;
+        }
+    }
+
+    if (!containsNoteAnchoredLine) {
+        int defaultPosition = std::min(20, linesPalette.cellsCount());
+        linesPalette.insertActionIcon(defaultPosition, ActionIconType::NOTE_ANCHORED_LINE, "add-noteline", 2);
+    }
+}
+
 void PaletteCompat::removeOldItems(Palette& palette)
 {
     std::vector<PaletteCellPtr> cellsToRemove;
@@ -158,6 +203,10 @@ void PaletteCompat::removeOldItems(Palette& palette)
         }
 
         if (element->isBend()) {
+            cellsToRemove.emplace_back(cell);
+        }
+
+        if (element->isArticulation() && toArticulation(element.get())->isLaissezVib()) {
             cellsToRemove.emplace_back(cell);
         }
     }

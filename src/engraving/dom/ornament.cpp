@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -49,6 +49,7 @@ Ornament::Ornament(const Ornament& o)
     _intervalBelow = o._intervalBelow;
     _showAccidental = o._showAccidental;
     _startOnUpperNote = o._startOnUpperNote;
+    m_showCueNote = o.m_showCueNote;
 
     if (o.m_cueNoteChord) {
         m_cueNoteChord = o.m_cueNoteChord->clone();
@@ -89,6 +90,15 @@ void Ornament::remove(EngravingItem* e)
     }
 }
 
+muse::TranslatableString Ornament::typeUserName() const
+{
+    if (textType() != ArticulationTextType::NO_TEXT) {
+        return TranslatableString("engraving", "Ornament text");
+    }
+
+    return TranslatableString("engraving", "Ornament");
+}
+
 void Ornament::setTrack(track_idx_t val)
 {
     for (Note* note : m_notesAboveAndBelow) {
@@ -124,6 +134,8 @@ PropertyValue Ornament::getProperty(Pid propertyId) const
         return _intervalBelow;
     case Pid::ORNAMENT_SHOW_ACCIDENTAL:
         return _showAccidental;
+    case Pid::ORNAMENT_SHOW_CUE_NOTE:
+        return m_showCueNote;
     case Pid::START_ON_UPPER_NOTE:
         return _startOnUpperNote;
     default:
@@ -149,6 +161,8 @@ PropertyValue Ornament::propertyDefault(Pid id) const
         return DEFAULT_ORNAMENT_INTERVAL;
     case Pid::ORNAMENT_SHOW_ACCIDENTAL:
         return OrnamentShowAccidental::DEFAULT;
+    case Pid::ORNAMENT_SHOW_CUE_NOTE:
+        return AutoOnOff::AUTO;
     case Pid::START_ON_UPPER_NOTE:
         return false;
     case Pid::ARTICULATION_ANCHOR:
@@ -169,6 +183,9 @@ bool Ornament::setProperty(Pid propertyId, const PropertyValue& v)
         break;
     case Pid::ORNAMENT_SHOW_ACCIDENTAL:
         setShowAccidental(v.value<OrnamentShowAccidental>());
+        break;
+    case Pid::ORNAMENT_SHOW_CUE_NOTE:
+        setShowCueNote(v.value<AutoOnOff>());
         break;
     case Pid::START_ON_UPPER_NOTE:
         setStartOnUpperNote(v.toBool());
@@ -217,6 +234,15 @@ bool Ornament::hasFullIntervalChoice() const
     return id == SymId::ornamentTrill;
 }
 
+bool Ornament::showCueNote()
+{
+    if (m_showCueNote == AutoOnOff::AUTO) {
+        return style().styleB(Sid::trillAlwaysShowCueNote) || _intervalAbove.step != IntervalStep::SECOND;
+    }
+
+    return m_showCueNote == AutoOnOff::ON;
+}
+
 void Ornament::computeNotesAboveAndBelow(AccidentalState* accState)
 {
     Chord* parentChord = explicitParent() ? toChord(parent()) : nullptr;
@@ -256,6 +282,11 @@ void Ornament::computeNotesAboveAndBelow(AccidentalState* accState)
             note->setPitch(mainNote->pitch());
         }
         note->setTrack(track());
+
+        if (Accidental::isMicrotonal(note->accidentalType())) {
+            // If mainNote has microtonal accidental, don't clone it to the ornament note because microtonal intervals are not supported.
+            note->setAccidentalType(Accidental::value2subtype(tpc2alter(note->tpc())));
+        }
 
         bool autoMode = (above && _intervalAbove.type == IntervalType::AUTO) || (!above && _intervalBelow.type == IntervalType::AUTO);
         if (autoMode) {

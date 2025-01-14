@@ -22,14 +22,14 @@
 
 #include "sequenceio.h"
 
-#include "log.h"
-
 #include "internal/audiosanitizer.h"
 #include "audioerrors.h"
 
-using namespace mu;
-using namespace mu::audio;
-using namespace mu::async;
+#include "log.h"
+
+using namespace muse;
+using namespace muse::audio;
+using namespace muse::async;
 
 SequenceIO::SequenceIO(IGetTracks* getTracks)
     : m_getTracks(getTracks)
@@ -144,7 +144,7 @@ Channel<TrackId, AudioOutputParams> SequenceIO::outputParamsChanged() const
     return m_outputParamsChanged;
 }
 
-Channel<audioch_t, AudioSignalVal> SequenceIO::audioSignalChanges(const TrackId id) const
+AudioSignalChanges SequenceIO::audioSignalChanges(const TrackId id) const
 {
     ONLY_AUDIO_WORKER_THREAD;
 
@@ -154,7 +154,7 @@ Channel<audioch_t, AudioSignalVal> SequenceIO::audioSignalChanges(const TrackId 
 
     TrackPtr track = m_getTracks->track(id);
     IF_ASSERT_FAILED(track) {
-        return Channel<audioch_t, AudioSignalVal>();
+        return AudioSignalChanges();
     }
 
     return track->outputHandler->audioSignalChanges();

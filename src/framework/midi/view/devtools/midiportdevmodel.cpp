@@ -23,10 +23,14 @@
 
 #include "log.h"
 
-using namespace mu::midi;
+using namespace muse::midi;
 
 MidiPortDevModel::MidiPortDevModel(QObject* parent)
-    : QObject(parent)
+    : QObject(parent), Injectable(muse::iocCtxForQmlObject(this))
+{
+}
+
+void MidiPortDevModel::init()
 {
     midiInPort()->eventReceived().onReceive(this, [this](tick_t tick, const Event& event) {
         QString str = "tick: " + QString::number(tick) + " " + QString::fromStdString(event.to_string());

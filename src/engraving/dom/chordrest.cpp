@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -40,6 +40,7 @@
 #include "instrchange.h"
 #include "keysig.h"
 #include "lyrics.h"
+#include "marker.h"
 #include "measure.h"
 #include "navigate.h"
 #include "note.h"
@@ -54,6 +55,7 @@
 #include "system.h"
 #include "tuplet.h"
 #include "utils.h"
+#include "volta.h"
 
 #include "log.h"
 
@@ -120,12 +122,12 @@ void ChordRest::undoUnlink()
 
 ChordRest::~ChordRest()
 {
-    DeleteAll(m_lyrics);
-    DeleteAll(m_el);
+    muse::DeleteAll(m_lyrics);
+    muse::DeleteAll(m_el);
     delete m_tabDur;
 
     if (m_beam) {
-        mu::remove(m_beam->elements(), this);
+        muse::remove(m_beam->elements(), this);
         m_beam = nullptr;
     }
 
@@ -151,7 +153,7 @@ EngravingItem* ChordRest::drop(EditData& data)
 {
     EngravingItem* e       = data.dropElement;
     Measure* m       = measure();
-    bool fromPalette = (e->track() == mu::nidx);
+    bool fromPalette = (e->track() == muse::nidx);
     switch (e->type()) {
     case ElementType::BREATH:
     {
@@ -241,13 +243,19 @@ EngravingItem* ChordRest::drop(EditData& data)
         }
     // fall through
     case ElementType::TEMPO_TEXT:
-    case ElementType::DYNAMIC:
     case ElementType::EXPRESSION:
     case ElementType::FRET_DIAGRAM:
     case ElementType::TREMOLOBAR:
     case ElementType::SYMBOL:
     case ElementType::IMAGE:
         e->setTrack(track());
+        e->setParent(segment());
+        score()->undoAddElement(e);
+        return e;
+
+    case ElementType::DYNAMIC:
+        e->setTrack(track());
+        e->checkVoiceAssignmentCompatibleWithTrack();
         e->setParent(segment());
         score()->undoAddElement(e);
         return e;
@@ -294,7 +302,6 @@ EngravingItem* ChordRest::drop(EditData& data)
     case ElementType::CAPO:
     case ElementType::STRING_TUNINGS:
     case ElementType::STICKING:
-    case ElementType::SOUND_FLAG:
     case ElementType::STAFF_STATE:
     case ElementType::HARP_DIAGRAM:
     // fall through
@@ -484,32 +491,32 @@ String ChordRest::durationUserName() const
     if (tuplet()) {
         switch (tuplet()->ratio().numerator()) {
         case 2:
-            tupletType = mtrc("engraving", "Duplet");
+            tupletType = muse::mtrc("engraving", "Duplet");
             break;
         case 3:
-            tupletType = mtrc("engraving", "Triplet");
+            tupletType = muse::mtrc("engraving", "Triplet");
             break;
         case 4:
-            tupletType = mtrc("engraving", "Quadruplet");
+            tupletType = muse::mtrc("engraving", "Quadruplet");
             break;
         case 5:
-            tupletType = mtrc("engraving", "Quintuplet");
+            tupletType = muse::mtrc("engraving", "Quintuplet");
             break;
         case 6:
-            tupletType = mtrc("engraving", "Sextuplet");
+            tupletType = muse::mtrc("engraving", "Sextuplet");
             break;
         case 7:
-            tupletType = mtrc("engraving", "Septuplet");
+            tupletType = muse::mtrc("engraving", "Septuplet");
             break;
         case 8:
-            tupletType = mtrc("engraving", "Octuplet");
+            tupletType = muse::mtrc("engraving", "Octuplet");
             break;
         case 9:
-            tupletType = mtrc("engraving", "Nonuplet");
+            tupletType = muse::mtrc("engraving", "Nonuplet");
             break;
         default:
             //: %1 is tuplet ratio numerator (i.e. the number of notes in the tuplet)
-            tupletType = mtrc("engraving", "%1 note tuplet").arg(tuplet()->ratio().numerator());
+            tupletType = muse::mtrc("engraving", "%1 note tuplet").arg(tuplet()->ratio().numerator());
         }
     }
     String dotString;
@@ -519,16 +526,16 @@ String ChordRest::durationUserName() const
 
     switch (dots()) {
     case 1:
-        dotString += mtrc("engraving", "Dotted %1").arg(TConv::translatedUserName(durationType().type()));
+        dotString += muse::mtrc("engraving", "Dotted %1").arg(TConv::translatedUserName(durationType().type()));
         break;
     case 2:
-        dotString += mtrc("engraving", "Double dotted %1").arg(TConv::translatedUserName(durationType().type()));
+        dotString += muse::mtrc("engraving", "Double dotted %1").arg(TConv::translatedUserName(durationType().type()));
         break;
     case 3:
-        dotString += mtrc("engraving", "Triple dotted %1").arg(TConv::translatedUserName(durationType().type()));
+        dotString += muse::mtrc("engraving", "Triple dotted %1").arg(TConv::translatedUserName(durationType().type()));
         break;
     case 4:
-        dotString += mtrc("engraving", "Quadruple dotted %1").arg(TConv::translatedUserName(durationType().type()));
+        dotString += muse::mtrc("engraving", "Quadruple dotted %1").arg(TConv::translatedUserName(durationType().type()));
         break;
     default:
         dotString += TConv::translatedUserName(durationType().type());
@@ -593,6 +600,7 @@ void ChordRest::remove(EngravingItem* e)
 
 void ChordRest::removeDeleteBeam(bool beamed)
 {
+    setBeamlet(nullptr);
     if (m_beam) {
         Beam* b = m_beam;
         m_beam->remove(this);
@@ -656,13 +664,20 @@ Slur* ChordRest::slur(const ChordRest* secondChordRest) const
     return result;
 }
 
-//---------------------------------------------------------
-//   undoSetBeamMode
-//---------------------------------------------------------
-
-void ChordRest::undoSetBeamMode(BeamMode mode)
+void ChordRest::undoChangeProperty(Pid id, const PropertyValue& newValue, PropertyFlags ps)
 {
-    undoChangeProperty(Pid::BEAM_MODE, mode);
+    if (id == Pid::BEAM_MODE) {
+        if (m_durationType.hooks() == 0) {
+            return;
+        }
+        BeamMode newBeamMode = newValue.value<BeamMode>();
+        if ((newBeamMode == BeamMode::BEGIN16 && m_durationType.hooks() < 2)
+            || (newBeamMode == BeamMode::BEGIN32 && m_durationType.hooks() < 3)) {
+            return;
+        }
+    }
+
+    EngravingItem::undoChangeProperty(id, newValue, ps);
 }
 
 //---------------------------------------------------------
@@ -982,6 +997,12 @@ EngravingItem* ChordRest::prevElement()
         break;
     }
     }
+
+    Tuplet* tuplet = this->tuplet();
+    if (tuplet && this == tuplet->elements().front()) {
+        return tuplet;
+    }
+
     staff_idx_t staffId = e->staffIdx();
     EngravingItem* prevItem = segment()->prevElement(staffId);
     if (prevItem && prevItem->isNote()) {
@@ -1081,20 +1102,20 @@ String ChordRest::accessibleExtraInfo() const
 
             if (s->type() == ElementType::SLUR) {
                 if (s->tick() == tick() && s->track() == track()) {
-                    rez += u" " + mtrc("engraving", "Start of %1").arg(s->screenReaderInfo());
+                    rez += u" " + muse::mtrc("engraving", "Start of %1").arg(s->screenReaderInfo());
                 }
                 if (s->tick2() == tick() && s->track2() == track()) {
-                    rez += u" " + mtrc("engraving", "End of %1").arg(s->screenReaderInfo());
+                    rez += u" " + muse::mtrc("engraving", "End of %1").arg(s->screenReaderInfo());
                 }
             } else if (s->staffIdx() == staffIdx()) {
                 bool start = s->tick() == tick();
                 bool end   = s->tick2() == tick() + ticks();
                 if (start && end) {
-                    rez += u" " + mtrc("engraving", "Start and end of %1").arg(s->screenReaderInfo());
+                    rez += u" " + muse::mtrc("engraving", "Start and end of %1").arg(s->screenReaderInfo());
                 } else if (start) {
-                    rez += u" " + mtrc("engraving", "Start of %1").arg(s->screenReaderInfo());
+                    rez += u" " + muse::mtrc("engraving", "Start of %1").arg(s->screenReaderInfo());
                 } else if (end) {
-                    rez += u" " + mtrc("engraving", "End of %1").arg(s->screenReaderInfo());
+                    rez += u" " + muse::mtrc("engraving", "End of %1").arg(s->screenReaderInfo());
                 }
             }
         }
@@ -1178,9 +1199,9 @@ int ChordRest::lastVerse(PlacementV p) const
 
 void ChordRest::removeMarkings(bool /* keepTremolo */)
 {
-    DeleteAll(el());
+    muse::DeleteAll(el());
     clearEls();
-    DeleteAll(lyrics());
+    muse::DeleteAll(lyrics());
     lyrics().clear();
 }
 
@@ -1188,17 +1209,29 @@ void ChordRest::removeMarkings(bool /* keepTremolo */)
 //   isBefore
 //---------------------------------------------------------
 
-bool ChordRest::isBefore(const ChordRest* o) const
+bool ChordRest::isBefore(const EngravingItem* o) const
 {
     if (!o || this == o) {
         return false;
     }
+
+    const ChordRest* otherCr = nullptr;
+    if (o->isChordRest()) {
+        otherCr = toChordRest(o);
+    } else if (o->isNote()) {
+        otherCr = toNote(o)->chord();
+    }
+
+    if (!otherCr) {
+        return EngravingItem::isBefore(o);
+    }
+
     int otick = o->tick().ticks();
     int t     = tick().ticks();
     if (t == otick) {   // At least one of the chord is a grace, order the grace notes
-        bool oGraceAfter = o->isGraceAfter();
+        bool oGraceAfter = otherCr->isGraceAfter();
         bool graceAfter  = isGraceAfter();
-        bool oGrace      = o->isGrace();
+        bool oGrace      = otherCr->isGrace();
         bool grace       = isGrace();
         // normal note are initialized at graceIndex 0 and graceIndex is 0 based
         size_t oGraceIndex  = oGrace ? toChord(o)->graceIndex() + 1 : 0;
@@ -1230,6 +1263,11 @@ void ChordRest::undoAddAnnotation(EngravingItem* a)
     a->setTrack(/*a->systemFlag() ? 0 : */ track());
     a->setParent(seg);
     score()->undoAddElement(a);
+}
+
+bool ChordRest::isBelowCrossBeam(const BeamBase* beamBase) const
+{
+    return staffMove() >= beamBase->crossStaffIdx();
 }
 
 void ChordRest::checkStaffMoveValidity()
@@ -1266,5 +1304,121 @@ void ChordRest::checkStaffMoveValidity()
         // Move valid, clear stored move
         m_storedStaffMove = 0;
     }
+}
+
+bool ChordRest::hasFollowingJumpItem() const
+{
+    const Segment* seg = segment();
+    const Measure* measure = seg->measure();
+    const Fraction nextTick = seg->tick() + actualTicks();
+
+    if (measure->lastChordRest(track()) != this) {
+        return false;
+    }
+
+    // Jumps & markers
+    for (const EngravingItem* e : measure->el()) {
+        if (!e->isJump() && !e->isMarker()) {
+            continue;
+        }
+
+        if (e->isJump()) {
+            return true;
+        }
+
+        const Marker* marker = toMarker(e);
+
+        if (muse::contains(Marker::RIGHT_MARKERS, marker->markerType())) {
+            return true;
+        }
+    }
+
+    // Voltas
+    auto spanners = score()->spannerMap().findOverlapping(measure->endTick().ticks(), measure->endTick().ticks());
+    for (auto& spanner : spanners) {
+        if (!spanner.value->isVolta() || Fraction::fromTicks(spanner.start) != nextTick) {
+            continue;
+        }
+
+        return true;
+    }
+
+    // Repeats
+    if (measure->repeatEnd()) {
+        return true;
+    }
+
+    for (Segment* nextSeg = seg->next(SegmentType::BarLineType); nextSeg && nextSeg->tick() == nextTick;
+         nextSeg = nextSeg->next(SegmentType::BarLineType)) {
+        const EngravingItem* el = nextSeg->element(track());
+        if (!el || !el->isBarLine()) {
+            continue;
+        }
+        const BarLine* bl = toBarLine(el);
+
+        if (bl->barLineType() & (BarLineType::END_REPEAT | BarLineType::END_START_REPEAT)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool ChordRest::hasPrecedingJumpItem() const
+{
+    const Segment* seg = segment();
+    const Measure* measure = seg->measure();
+
+    if (measure->firstChordRest(track()) != this) {
+        return false;
+    }
+
+    if (seg->score()->firstSegment(SegmentType::ChordRest) == seg) {
+        return true;
+    }
+
+    // Markers
+    for (const EngravingItem* e : measure->el()) {
+        if (!e->isMarker()) {
+            continue;
+        }
+
+        const Marker* marker = toMarker(e);
+        if (muse::contains(Marker::RIGHT_MARKERS, marker->markerType())) {
+            continue;
+        }
+
+        return true;
+    }
+
+    // Voltas
+    auto spanners = score()->spannerMap().findOverlapping(measure->tick().ticks(), measure->tick().ticks());
+    for (auto& spanner : spanners) {
+        if (!spanner.value->isVolta() || Fraction::fromTicks(spanner.start) != tick()) {
+            continue;
+        }
+
+        return true;
+    }
+
+    // Repeat barlines
+    if (measure->repeatStart()) {
+        return true;
+    }
+
+    for (Segment* prevSeg = seg->prev(SegmentType::BarLineType); prevSeg && prevSeg->tick() == seg->tick();
+         prevSeg = prevSeg->prev(SegmentType::BarLineType)) {
+        EngravingItem* el = prevSeg->element(track());
+        if (!el || !el->isBarLine()) {
+            continue;
+        }
+
+        BarLine* bl = toBarLine(el);
+        if (bl->barLineType() & (BarLineType::START_REPEAT | BarLineType::END_START_REPEAT)) {
+            return true;
+        }
+    }
+
+    return false;
 }
 }

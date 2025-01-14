@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -70,11 +70,11 @@ class PaletteWidget : public QWidget
     Q_OBJECT
 
     INJECT_STATIC(IPaletteConfiguration, configuration)
-    INJECT_STATIC(ui::IUiActionsRegister, actionsRegister)
+    INJECT_STATIC(muse::ui::IUiActionsRegister, actionsRegister)
     INJECT_STATIC(context::IGlobalContext, globalContext)
     INJECT_STATIC(engraving::rendering::ISingleRenderer, engravingRender)
-    INJECT(framework::IInteractive, interactive)
-    INJECT(ui::IUiConfiguration, uiConfiguration)
+    INJECT(muse::IInteractive, interactive)
+    INJECT(muse::ui::IUiConfiguration, uiConfiguration)
 
 public:
     PaletteWidget(QWidget* parent = nullptr);
@@ -95,7 +95,7 @@ public:
                                  const QPointF offset = QPointF(), const QString& tag = "");
     PaletteCellPtr appendElement(mu::engraving::ElementPtr element, const QString& name, qreal mag = 1.0,
                                  const QPointF offset = QPointF(), const QString& tag = "");
-    PaletteCellPtr appendActionIcon(mu::engraving::ActionIconType type, actions::ActionCode code);
+    PaletteCellPtr appendActionIcon(mu::engraving::ActionIconType type, muse::actions::ActionCode code);
 
     void clear();
 
@@ -163,9 +163,9 @@ public:
     bool handleEvent(QEvent* event);
 
     struct PaintOptions {
-        mu::draw::Color backgroundColor;
-        mu::draw::Color selectionColor;
-        mu::draw::Color linesColor;
+        muse::draw::Color backgroundColor;
+        muse::draw::Color selectionColor;
+        muse::draw::Color linesColor;
         bool useElementColors = false;
         bool colorsInverionsEnabled = false;
     };
@@ -201,14 +201,14 @@ private:
     int rows() const;
     int columns() const;
 
-    int cellIndexForPoint(const QPoint&) const; // Only indices of actual cells
-    int theoreticalCellIndexForPoint(const QPoint&) const; // Also indices greater than cells.size() - 1
+    int cellIndexForPoint(const QPointF&) const; // Only indices of actual cells
+    int theoreticalCellIndexForPoint(const QPointF&) const; // Also indices greater than cells.size() - 1
     QRect rectForCellAt(int idx) const;
     QPixmap pixmapForCellAt(int cellIdx) const;
 
     const std::vector<PaletteCellPtr>& actualCellsList() const;
 
-    void applyElementAtPosition(QPoint pos, Qt::KeyboardModifiers modifiers);
+    void applyElementAtPosition(const QPointF& pos, Qt::KeyboardModifiers modifiers);
     void applyElementAtIndex(int index, Qt::KeyboardModifiers modifiers = {});
 
     PalettePtr m_palette = nullptr;

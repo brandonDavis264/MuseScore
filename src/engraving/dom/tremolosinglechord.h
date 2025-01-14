@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -29,7 +29,7 @@
 
 #include "durationtype.h"
 #include "draw/types/painterpath.h"
-#include "types/types.h"
+#include "../types/types.h"
 #include "beam.h"
 #include "chord.h"
 
@@ -73,6 +73,7 @@ public:
     void spatiumChanged(double oldValue, double newValue) override;
     void localSpatiumChanged(double oldValue, double newValue) override;
     void styleChanged() override;
+    staff_idx_t vStaffIdx() const override;
     PointF pagePos() const override;      ///< position in page coordinates
     String accessibleInfo() const override;
     void triggerLayout() const override;
@@ -89,15 +90,15 @@ public:
     int gripsCount() const override;
     Grip initialEditModeGrip() const override;
     Grip defaultGrip() const override;
-    std::vector<mu::PointF> gripsPositions(const EditData&) const override;
+    std::vector<PointF> gripsPositions(const EditData&) const override;
     bool isMovable() const override { return true; }
     bool isEditable() const override { return true; }
     void endEdit(EditData&) override;
     void editDrag(EditData&) override;
 
-    mu::draw::PainterPath basePath(double stretch = 0) const;
-    const mu::draw::PainterPath& path() const { return m_path; }
-    void setPath(const mu::draw::PainterPath& p) { m_path = p; }
+    muse::draw::PainterPath basePath(double stretch = 0) const;
+    const muse::draw::PainterPath& path() const { return m_path; }
+    void setPath(const muse::draw::PainterPath& p) { m_path = p; }
 
     void computeShape();
 
@@ -109,7 +110,7 @@ private:
 
     TremoloType m_tremoloType = TremoloType::INVALID_TREMOLO;
     TDuration m_durationType;
-    mu::draw::PainterPath m_path;
+    muse::draw::PainterPath m_path;
     bool m_playTremolo = true;
 
     int m_lines = 0;         // derived from _subtype

@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -264,7 +264,7 @@ bool BBFile::read(const QString& name)
     _measures = ((maxbeat + timesigZ() - 1) / timesigZ()) + 1;
 
     if (roots != _chords.size()) {
-        LOGD("import bb: roots %d != extensions %d", roots, _chords.size());
+        LOGD("import bb: roots %d != extensions %lld", roots, _chords.size());
         return false;
     }
     LOGD("Measures %d", _measures);
@@ -405,7 +405,7 @@ Err importBB(MasterScore* score, const QString& name)
         return engraving::Err::FileOpenError;
     }
     score->style().set(Sid::chordsXmlFile, true);
-    score->chordList()->read(u"chords.xml");
+    score->chordList()->read(score->configuration()->appDataPath(), u"chords.xml");
     *(score->sigmap()) = bb.siglist();
 
     QList<BBTrack*>* tracks = bb.tracks();
@@ -487,8 +487,7 @@ Err importBB(MasterScore* score, const QString& name)
     text->setPlainText(String::fromUtf8(bb.title()));
 
     if (measureB->type() != ElementType::VBOX) {
-        measureB = Factory::createVBox(score->dummy()->system());
-        measureB->setTick(Fraction(0, 1));
+        measureB = Factory::createTitleVBox(score->dummy()->system());
         measureB->setNext(score->first());
         score->measures()->add(measureB);
     }
@@ -553,7 +552,7 @@ Err importBB(MasterScore* score, const QString& name)
         ++n;
     }
 
-    foreach (Staff* staff, score->staves()) {
+    for (Staff* staff : score->staves()) {
         Fraction tick = Fraction(0, 1);
         KeySigEvent ke;
         Key key = Key(bb.key());
@@ -924,7 +923,7 @@ void BBTrack::cleanup()
     // quantize
     //
     int lastTick = 0;
-    foreach (const Event& e, _events) {
+    for (const Event& e : _events) {
         if (e.type() != ME_NOTE) {
             continue;
         }

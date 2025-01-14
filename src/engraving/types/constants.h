@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -28,8 +28,8 @@
 namespace mu::engraving {
 struct Constants
 {
-    static constexpr int MSC_VERSION = 420;
-    static constexpr const char* MSC_VERSION_STR = "4.20";
+    static constexpr int MSC_VERSION = 450;
+    static constexpr const char* MSC_VERSION_STR = "4.50";
 
 // History:
 //    1.3   added staff->_barLineSpan
@@ -89,6 +89,14 @@ struct Constants
 //       - By default, frames are not cloned to parts
 //       - Corrections to key signature and transposition (#18998)
 //       - New inside/outside style for ties
+
+//    4.40 (Version 4.4)
+//       - New property for cross-staff beam positioning
+//       - Copyrights and page numbers now have styles of their own (separate from header/footer)
+//
+//    4.50 (Version 4.5)
+//       - New property to set mergeMatchingRests at score level, with staff level changed to AutoOnOff from bool
+//       - New mmRest options and offset property
 
     constexpr static int DIVISION = 480;
     constexpr static BeatsPerSecond DEFAULT_TEMPO = 2.0; //default tempo is equal 120 bpm

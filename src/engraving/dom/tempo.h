@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -24,18 +24,18 @@
 #define MU_ENGRAVING_TEMPO_H
 
 #include <map>
+#include <unordered_map>
 
 #include "global/allocator.h"
-#include "global/async/notification.h"
+#include "types/bps.h"
 #include "types/flags.h"
-#include "types/types.h"
 
 namespace mu::engraving {
 enum class TempoType : char {
     INVALID = 0x0, PAUSE = 0x1, FIX = 0x2, RAMP = 0x4
 };
 
-typedef Flags<TempoType> TempoTypes;
+typedef muse::Flags<TempoType> TempoTypes;
 DECLARE_OPERATORS_FOR_FLAGS(TempoTypes)
 
 //---------------------------------------------------------
@@ -78,9 +78,10 @@ public:
     void dump() const;
 
     BeatsPerSecond tempo(int tick) const;
+    double pauseSecs(int tick) const;
 
-    double tick2time(int tick, int* sn = 0, bool ignorePauseOnTick = false) const;
-    double tick2time(int tick, double time, int* sn, bool ignorePauseOnTick = false) const;
+    double tick2time(int tick, int* sn = 0) const;
+    double tick2time(int tick, double time, int* sn) const;
     int time2tick(double time, int* sn = 0) const;
     int time2tick(double time, int tick, int* sn) const;
     int tempoSN() const { return m_tempoSN; }
@@ -100,6 +101,8 @@ private:
     int m_tempoSN = 0; // serial no to track tempo changes
     BeatsPerSecond m_tempo; // tempo if not using tempo list (beats per second)
     BeatsPerSecond m_tempoMultiplier;
+
+    std::unordered_map<int, double> m_pauses;
 };
 } // namespace mu::engraving
 #endif

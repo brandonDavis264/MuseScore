@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -28,7 +28,7 @@
 #include "global/containers.h"
 #include "global/io/buffer.h"
 
-#include "types/types.h"
+#include "../types/types.h"
 
 #include "rw/rwregister.h"
 
@@ -43,6 +43,7 @@
 #include "hairpin.h"
 #include "harppedaldiagram.h"
 #include "hook.h"
+#include "laissezvib.h"
 #include "linkedobjects.h"
 #include "lyrics.h"
 #include "measure.h"
@@ -50,6 +51,7 @@
 #include "note.h"
 #include "notedot.h"
 #include "part.h"
+#include "partialtie.h"
 #include "rest.h"
 #include "score.h"
 #include "segment.h"
@@ -72,7 +74,7 @@
 #include "log.h"
 
 using namespace mu;
-using namespace mu::io;
+using namespace muse::io;
 using namespace mu::engraving;
 
 // ====================================================
@@ -346,7 +348,7 @@ ChordRest* Selection::firstChordRest(track_idx_t track) const
             el = el->parentItem();
         }
         if (el->isChordRest()) {
-            if (track != mu::nidx && el->track() != track) {
+            if (track != muse::nidx && el->track() != track) {
                 continue;
             }
             if (cr) {
@@ -380,7 +382,7 @@ ChordRest* Selection::lastChordRest(track_idx_t track) const
             el = toNote(el)->chord();
         }
         if (el->isChordRest() && toChordRest(el)->segment()->isChordRestType()) {
-            if (track != mu::nidx && el->track() != track) {
+            if (track != muse::nidx && el->track() != track) {
                 continue;
             }
             if (cr) {
@@ -403,6 +405,64 @@ Measure* Selection::findMeasure() const
         m = toMeasure(el->findMeasure());
     }
     return m;
+}
+
+MeasureBase* Selection::startMeasureBase() const
+{
+    EngravingItem* selectionElement = element();
+    if (selectionElement) {
+        if (selectionElement->isHBox()) {
+            return toMeasureBase(selectionElement);
+        }
+        MeasureBase* mb = selectionElement->findMeasureBase();
+        if (mb) {
+            return mb;
+        }
+    }
+
+    bool mmrests = m_score->style().styleB(Sid::createMultiMeasureRests);
+    Fraction refTick = tickStart();
+
+    return mmrests ? m_score->tick2measureMM(refTick) : m_score->tick2measure(refTick);
+}
+
+MeasureBase* Selection::endMeasureBase() const
+{
+    EngravingItem* selectionElement = element();
+    if (selectionElement) {
+        if (selectionElement->isHBox()) {
+            return toMeasureBase(selectionElement);
+        }
+        MeasureBase* mb = selectionElement->findMeasureBase();
+        if (mb) {
+            return mb;
+        }
+    }
+
+    bool mmrests = m_score->style().styleB(Sid::createMultiMeasureRests);
+    Fraction refTick = tickEnd() - Fraction::eps();
+
+    return mmrests ? m_score->tick2measureMM(refTick) : m_score->tick2measure(refTick);
+}
+
+std::vector<System*> Selection::selectedSystems() const
+{
+    const MeasureBase* startMB = startMeasureBase();
+    const MeasureBase* endMB = endMeasureBase();
+    if (!startMB || !endMB) {
+        return {};
+    }
+
+    bool mmrests = score()->style().styleB(Sid::createMultiMeasureRests);
+    std::vector<System*> systems;
+    for (const MeasureBase* mb = startMB; mb && mb->isBeforeOrEqual(endMB); mb = mmrests ? mb->nextMM() : mb->next()) {
+        System* sys = mb->system();
+        if ((mb->isMeasure() || mb->isHBox()) && (systems.empty() || sys != systems.back())) {
+            systems.push_back(sys);
+        }
+    }
+
+    return systems;
 }
 
 void Selection::deselectAll()
@@ -451,7 +511,7 @@ void Selection::clear()
 
 void Selection::remove(EngravingItem* el)
 {
-    const bool removed = mu::remove(m_el, el);
+    const bool removed = muse::remove(m_el, el);
     el->setSelected(false);
     if (removed) {
         updateState();
@@ -485,7 +545,7 @@ void Selection::appendChord(Chord* chord)
         LOGE() << "selection locked, reason: " << lockReason();
         return;
     }
-    if (chord->beam() && !mu::contains(m_el, static_cast<EngravingItem*>(chord->beam()))) {
+    if (chord->beam() && !muse::contains(m_el, static_cast<EngravingItem*>(chord->beam()))) {
         m_el.push_back(chord->beam());
     }
     if (chord->stem()) {
@@ -523,7 +583,9 @@ void Selection::appendChord(Chord* chord)
                 Note* endNote = toNote(note->tieFor()->endElement());
                 Segment* s = endNote->chord()->segment();
                 if (!s || s->tick() < tickEnd()) {
-                    m_el.push_back(note->tieFor());
+                    for (auto seg : note->tieFor()->spannerSegments()) {
+                        appendFiltered(seg);
+                    }
                 }
             }
         }
@@ -540,12 +602,23 @@ void Selection::appendChord(Chord* chord)
                 }
             }
         }
+        if (note->laissezVib()) {
+            appendFiltered(note->laissezVib()->frontSegment());
+        }
+
+        if (note->incomingPartialTie()) {
+            appendFiltered(note->incomingPartialTie()->frontSegment());
+        }
+
+        if (note->outgoingPartialTie()) {
+            appendFiltered(note->outgoingPartialTie()->frontSegment());
+        }
     }
 }
 
 void Selection::appendTupletHierarchy(Tuplet* innermostTuplet)
 {
-    if (mu::contains(m_el, static_cast<EngravingItem*>(innermostTuplet))) {
+    if (muse::contains(m_el, static_cast<EngravingItem*>(innermostTuplet))) {
         return;
     }
 
@@ -610,9 +683,12 @@ void Selection::updateSelectedElements()
             return;
         }
 
-        if (s2 && s2 == s2->measure()->first() && !(s2->measure()->prevMeasure() && s2->measure()->prevMeasure()->coveringMMRestOrThis())) {
+        if (s2 && s2 == s2->measure()->first()) {
             // we want the last segment of the previous measure (unless it's part of a MMrest)
-            s2 = s2->prev1();
+            Measure* prevMeasure = s2->measure()->prevMeasure();
+            if (!(prevMeasure && prevMeasure != prevMeasure->coveringMMRestOrThis())) {
+                s2 = s2->prev1();
+            }
         }
 
         setRange(s1, s2, staffStart, staffEnd);
@@ -628,7 +704,7 @@ void Selection::updateSelectedElements()
 
     // assert:
     size_t staves = m_score->nstaves();
-    if (m_staffStart == mu::nidx || m_staffStart >= staves || m_staffEnd == mu::nidx || m_staffEnd > staves
+    if (m_staffStart == muse::nidx || m_staffStart >= staves || m_staffEnd == muse::nidx || m_staffEnd > staves
         || m_staffStart >= m_staffEnd) {
         LOGD("updateSelectedElements: bad staff selection %zu - %zu, staves %zu", m_staffStart, m_staffEnd, staves);
         m_staffStart = 0;
@@ -711,14 +787,20 @@ void Selection::updateSelectedElements()
         if (sp->isVolta()) {
             continue;
         }
-        if (sp->isSlur()) {
+        if (sp->isSlur() || sp->isHairpin()) {
             // ignore if start & end elements not calculated yet
             if (!sp->startElement() || !sp->endElement()) {
                 continue;
             }
             if ((sp->tick() >= stick && sp->tick() < etick) || (sp->tick2() >= stick && sp->tick2() < etick)) {
-                if (canSelect(sp->startCR()) && canSelect(sp->endCR())) {
-                    appendFiltered(sp);               // slur with start or end in range selection
+                EngravingItem* startCR = sp->startCR();
+                EngravingItem* endCR = sp->endCR();
+                const bool canSelectStart = (sp->startElement()->isTimeTickAnchor() || canSelect(startCR));
+                const bool canSelectEnd = (sp->endElement()->isTimeTickAnchor() || canSelect(endCR));
+                if (canSelectStart && canSelectEnd) {
+                    for (auto seg : sp->spannerSegments()) {
+                        appendFiltered(seg);               // slur with start or end in range selection
+                    }
                 }
             }
         } else if ((sp->tick() >= stick && sp->tick() < etick) && (sp->tick2() >= stick && sp->tick2() <= etick)) {
@@ -831,7 +913,7 @@ void Selection::updateState()
             m_currentTick = e->tick();
         }
         // ignore system elements (e.g., frames)
-        if (e->track() != mu::nidx) {
+        if (e->track() != muse::nidx) {
             m_currentTrack = e->track();
         }
     }
@@ -862,9 +944,9 @@ String Selection::mimeType() const
     return String();
 }
 
-ByteArray Selection::mimeData() const
+muse::ByteArray Selection::mimeData() const
 {
-    ByteArray a;
+    muse::ByteArray a;
     switch (m_state) {
     case SelState::LIST:
         if (isSingle()) {
@@ -908,7 +990,7 @@ static Fraction firstElementInTrack(Segment* startSeg, Segment* endSeg, track_id
     return Fraction(-1, 1);
 }
 
-ByteArray Selection::staffMimeData() const
+muse::ByteArray Selection::staffMimeData() const
 {
     Buffer buffer;
     buffer.open(IODevice::WriteOnly);
@@ -955,7 +1037,7 @@ ByteArray Selection::staffMimeData() const
         }
         xml.endElement();     // </voiceOffset>
 
-        rw::RWRegister::writer()->writeSegments(xml, &filter, startTrack, endTrack, seg1, seg2, false, false, curTick);
+        rw::RWRegister::writer(m_score->iocContext())->writeSegments(xml, &filter, startTrack, endTrack, seg1, seg2, false, false, curTick);
         xml.endElement();
     }
 
@@ -963,7 +1045,7 @@ ByteArray Selection::staffMimeData() const
     return buffer.data();
 }
 
-ByteArray Selection::symbolListMimeData() const
+muse::ByteArray Selection::symbolListMimeData() const
 {
     struct MapData {
         EngravingItem* e;
@@ -1091,7 +1173,6 @@ ByteArray Selection::symbolListMimeData() const
         case ElementType::CAPO:
         case ElementType::STRING_TUNINGS:
         case ElementType::STAFF_TEXT:
-        case ElementType::SOUND_FLAG:
             seg = toStaffTextBase(e)->segment();
             break;
         case ElementType::STICKING:
@@ -1148,7 +1229,7 @@ ByteArray Selection::symbolListMimeData() const
 
     // scan the map, outputting elements each with a relative <track> tag on track change,
     // a relative tick and the number of CR segments to skip
-    track_idx_t currTrack = mu::nidx;
+    track_idx_t currTrack = muse::nidx;
     for (auto iter = map.cbegin(); iter != map.cend(); ++iter) {
         int numSegs;
         track_idx_t track = static_cast<track_idx_t>(iter->first >> 32);
@@ -1198,7 +1279,7 @@ ByteArray Selection::symbolListMimeData() const
             }
         }
         xml.tag("segDelta", numSegs);
-        rw::RWRegister::writer()->writeItem(iter->second.e, xml);
+        rw::RWRegister::writer(m_score->iocContext())->writeItem(iter->second.e, xml);
     }
 
     xml.endElement();
@@ -1243,7 +1324,7 @@ std::vector<Note*> Selection::noteList(track_idx_t selTrack) const
                     }
                     EngravingItem* e = seg->element(track);
                     if (e == 0 || e->type() != ElementType::CHORD
-                        || (selTrack != mu::nidx && selTrack != track)) {
+                        || (selTrack != muse::nidx && selTrack != track)) {
                         continue;
                     }
                     Chord* c = toChord(e);

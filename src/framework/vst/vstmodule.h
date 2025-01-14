@@ -19,12 +19,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef MU_VST_MODULE_H
-#define MU_VST_MODULE_H
+#ifndef MUSE_VST_MODULE_H
+#define MUSE_VST_MODULE_H
 
 #include "modularity/imodulesetup.h"
 
-namespace mu::vst {
+namespace muse::vst {
 class VSTModule : public modularity::IModuleSetup
 {
 public:
@@ -34,8 +34,8 @@ public:
     void resolveImports() override;
     void registerResources() override;
     void registerUiTypes() override;
-    void onInit(const framework::IApplication::RunMode& mode) override;
+    void onInit(const IApplication::RunMode& mode) override;
     void onDeinit() override;
 };
 }
-#endif // MU_VST_MODULE_H
+#endif // MUSE_VST_MODULE_H

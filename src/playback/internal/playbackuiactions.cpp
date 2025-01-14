@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -22,36 +22,39 @@
 #include "playbackuiactions.h"
 
 #include "ui/view/iconcodes.h"
+#include "context/uicontext.h"
+#include "context/shortcutcontext.h"
 #include "types/translatablestring.h"
 
 using namespace mu::playback;
-using namespace mu::ui;
-using namespace mu::actions;
+using namespace muse;
+using namespace muse::ui;
+using namespace muse::actions;
 
 const UiActionList PlaybackUiActions::m_mainActions = {
     UiAction("play",
-             mu::context::UiCtxNotationOpened,
+             mu::context::UiCtxProjectOpened,
              mu::context::CTX_NOTATION_FOCUSED,
              TranslatableString("action", "Play"),
              TranslatableString("action", "Play"),
              IconCode::Code::PLAY
              ),
     UiAction("stop",
-             mu::context::UiCtxNotationOpened,
+             mu::context::UiCtxProjectOpened,
              mu::context::CTX_NOTATION_OPENED,
              TranslatableString("action", "Stop"),
              TranslatableString("action", "Stop playback"),
              IconCode::Code::STOP
              ),
     UiAction("rewind",
-             mu::context::UiCtxNotationOpened,
+             mu::context::UiCtxProjectOpened,
              mu::context::CTX_NOTATION_FOCUSED,
              TranslatableString("action", "Rewind"),
              TranslatableString("action", "Rewind"),
              IconCode::Code::REWIND
              ),
     UiAction("loop",
-             mu::context::UiCtxNotationOpened,
+             mu::context::UiCtxProjectOpened,
              mu::context::CTX_NOTATION_FOCUSED,
              TranslatableString("action", "Loop playback"),
              TranslatableString("action", "Toggle ‘Loop playback’"),
@@ -59,7 +62,7 @@ const UiActionList PlaybackUiActions::m_mainActions = {
              Checkable::Yes
              ),
     UiAction("metronome",
-             mu::context::UiCtxNotationOpened,
+             mu::context::UiCtxProjectOpened,
              mu::context::CTX_NOTATION_FOCUSED,
              TranslatableString("action", "Metronome"),
              TranslatableString("action", "Toggle metronome playback"),
@@ -67,7 +70,7 @@ const UiActionList PlaybackUiActions::m_mainActions = {
              Checkable::Yes
              ),
     UiAction("playback-setup",
-             mu::context::UiCtxNotationOpened,
+             mu::context::UiCtxProjectOpened,
              mu::context::CTX_NOTATION_FOCUSED,
              TranslatableString("action", "Playback setup"),
              TranslatableString("action", "Open playback setup dialog"),
@@ -75,7 +78,7 @@ const UiActionList PlaybackUiActions::m_mainActions = {
              )
 };
 
-const UiActionList PlaybackUiActions::m_settingsActions = {
+const UiActionList PlaybackUiActions::m_midiInputActions = {
     UiAction("midi-on",
              mu::context::UiCtxAny,
              mu::context::CTX_ANY,
@@ -84,6 +87,28 @@ const UiActionList PlaybackUiActions::m_settingsActions = {
              IconCode::Code::MIDI_INPUT,
              Checkable::Yes
              ),
+};
+
+const UiActionList PlaybackUiActions::m_midiInputPitchActions = {
+    UiAction("midi-input-written-pitch",
+             mu::context::UiCtxAny,
+             mu::context::CTX_ANY,
+             TranslatableString("action", "Written pitch"),
+             TranslatableString("action", "Input written pitch"),
+             IconCode::Code::NONE,
+             Checkable::Yes
+             ),
+    UiAction("midi-input-sounding-pitch",
+             mu::context::UiCtxAny,
+             mu::context::CTX_ANY,
+             TranslatableString("action", "Sounding pitch"),
+             TranslatableString("action", "Input sounding pitch"),
+             IconCode::Code::NONE,
+             Checkable::Yes
+             ),
+};
+
+const UiActionList PlaybackUiActions::m_settingsActions = {
     UiAction("repeat",
              mu::context::UiCtxAny,
              mu::context::CTX_NOTATION_FOCUSED,
@@ -98,6 +123,14 @@ const UiActionList PlaybackUiActions::m_settingsActions = {
              TranslatableString("action", "Play chord symbols"),
              TranslatableString("action", "Play chord symbols"),
              IconCode::Code::CHORD_SYMBOL,
+             Checkable::Yes
+             ),
+    UiAction("toggle-hear-playback-when-editing",
+             mu::context::UiCtxAny,
+             mu::context::CTX_ANY,
+             TranslatableString("action", "Hear playback when editing"),
+             TranslatableString("action", "Toggle hear playback when editing"),
+             IconCode::Code::AUDIO,
              Checkable::Yes
              ),
     UiAction("pan",
@@ -162,6 +195,8 @@ const UiActionList& PlaybackUiActions::actionsList() const
     static UiActionList alist;
     if (alist.empty()) {
         alist.insert(alist.end(), m_mainActions.cbegin(), m_mainActions.cend());
+        alist.insert(alist.end(), m_midiInputActions.cbegin(), m_midiInputActions.cend());
+        alist.insert(alist.end(), m_midiInputPitchActions.cbegin(), m_midiInputPitchActions.cend());
         alist.insert(alist.end(), m_settingsActions.cbegin(), m_settingsActions.cend());
         alist.insert(alist.end(), m_loopBoundaryActions.cbegin(), m_loopBoundaryActions.cend());
     }
@@ -186,14 +221,24 @@ bool PlaybackUiActions::actionChecked(const UiAction& act) const
     return m_controller->actionChecked(act.code);
 }
 
-mu::async::Channel<mu::actions::ActionCodeList> PlaybackUiActions::actionEnabledChanged() const
+muse::async::Channel<ActionCodeList> PlaybackUiActions::actionEnabledChanged() const
 {
     return m_actionEnabledChanged;
 }
 
-mu::async::Channel<mu::actions::ActionCodeList> PlaybackUiActions::actionCheckedChanged() const
+muse::async::Channel<ActionCodeList> PlaybackUiActions::actionCheckedChanged() const
 {
     return m_actionCheckedChanged;
+}
+
+const UiActionList& PlaybackUiActions::midiInputActions()
+{
+    return m_midiInputActions;
+}
+
+const UiActionList& PlaybackUiActions::midiInputPitchActions()
+{
+    return m_midiInputPitchActions;
 }
 
 const UiActionList& PlaybackUiActions::settingsActions()
@@ -206,7 +251,7 @@ const UiActionList& PlaybackUiActions::loopBoundaryActions()
     return m_loopBoundaryActions;
 }
 
-const mu::ui::ToolConfig& PlaybackUiActions::defaultPlaybackToolConfig()
+const muse::ui::ToolConfig& PlaybackUiActions::defaultPlaybackToolConfig()
 {
     static ToolConfig config;
     if (!config.isValid()) {

@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -20,8 +20,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_ENGRAVING_SLURTIE_H
-#define MU_ENGRAVING_SLURTIE_H
+#pragma once
 
 #include "spanner.h"
 
@@ -97,6 +96,9 @@ public:
     virtual void spatiumChanged(double, double) override;
     SlurTie* slurTie() const { return (SlurTie*)spanner(); }
 
+    bool isEditAllowed(EditData&) const override;
+    bool edit(EditData&) override;
+
     void startEditDrag(EditData& ed) override;
     void endEditDrag(EditData& ed) override;
 
@@ -108,6 +110,9 @@ public:
     void move(const PointF& s) override;
     bool isEditable() const override { return true; }
 
+    int subtype() const override;
+    TranslatableString subtypeUserName() const override;
+
     void setSlurOffset(Grip i, const PointF& val) { m_ups[int(i)].off = val; }
     const UP& ups(Grip i) const { return m_ups[int(i)]; }
     UP& ups(Grip i) { return m_ups[int(i)]; }
@@ -118,11 +123,15 @@ public:
     Grip defaultGrip() const override { return Grip::DRAG; }
     std::vector<PointF> gripsPositions(const EditData& = EditData()) const override;
 
-    virtual void drawEditMode(mu::draw::Painter* painter, EditData& editData, double currentViewScaling) override;
+    virtual void drawEditMode(muse::draw::Painter* painter, EditData& editData, double currentViewScaling) override;
+
+    virtual double endWidth() const = 0;
+    virtual double midWidth() const = 0;
+    virtual double dottedWidth() const = 0;
 
     struct LayoutData : public SpannerSegment::LayoutData
     {
-        ld_field<mu::draw::PainterPath> path = "path";
+        ld_field<muse::draw::PainterPath> path = "path";
         ld_field<double> midThickness = "midThickness";
     };
     DECLARE_LAYOUTDATA_METHODS(SlurTieSegment)
@@ -132,7 +141,7 @@ protected:
     SlurTieSegment(const SlurTieSegment&);
 
     virtual void changeAnchor(EditData&, EngravingItem*) = 0;
-    std::vector<mu::LineF> gripAnchorLines(Grip grip) const override;
+    std::vector<LineF> gripAnchorLines(Grip grip) const override;
 
     struct UP m_ups[int(Grip::GRIPS)];
 };
@@ -167,6 +176,9 @@ public:
     SlurStyleType styleType() const { return m_styleType; }
     void setStyleType(SlurStyleType type) { m_styleType = type; }
 
+    int subtype() const override { return static_cast<int>(m_styleType) + 1; }
+    TranslatableString subtypeUserName() const override;
+
     virtual SlurTieSegment* newSlurTieSegment(System* parent) = 0;
 
     PropertyValue getProperty(Pid propertyId) const override;
@@ -188,5 +200,3 @@ private:
     SlurStyleType m_styleType = SlurStyleType::Undefined;
 };
 }
-
-#endif

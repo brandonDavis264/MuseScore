@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -46,7 +46,7 @@ public:
 
 void Engraving_SelectionRangeDeleteTests::verifyDelete(MasterScore* score, size_t spanners)
 {
-    score->startCmd();
+    score->startCmd(TranslatableString::untranslatable("Selection range delete tests"));
     score->cmdDeleteSelection();
     score->endCmd();
 
@@ -57,7 +57,7 @@ void Engraving_SelectionRangeDeleteTests::verifyDelete(MasterScore* score, size_
 
 void Engraving_SelectionRangeDeleteTests::verifyNoDelete(MasterScore* score, size_t spanners)
 {
-    score->startCmd();
+    score->startCmd(TranslatableString::untranslatable("Selection range delete tests"));
     score->cmdDeleteSelection();
     score->endCmd();
 
@@ -160,7 +160,7 @@ void Engraving_SelectionRangeDeleteTests::deleteVoice(int voice, String idx)
     score->selectionFilter().setFiltered(voiceFilterType, false);
     score->select(m1, SelectType::RANGE);
 
-    score->startCmd();
+    score->startCmd(TranslatableString::untranslatable("Selection range delete tests"));
     score->cmdDeleteSelection();
     score->endCmd();
 
@@ -192,7 +192,7 @@ TEST_F(Engraving_SelectionRangeDeleteTests, deleteSkipAnnotations)
     SelectionFilterType annotationFilterType = SelectionFilterType((int)SelectionFilterType::CHORD_SYMBOL);
     score->selectionFilter().setFiltered(annotationFilterType, false);
 
-    score->startCmd();
+    score->startCmd(TranslatableString::untranslatable("Selection range delete tests"));
     score->cmdSelectAll();
     score->cmdDeleteSelection();
     score->endCmd();

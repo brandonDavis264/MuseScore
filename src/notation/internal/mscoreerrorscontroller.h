@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2023 MuseScore BVBA and others
+ * Copyright (C) 2023 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -28,13 +28,15 @@
 #include "inotationconfiguration.h"
 
 namespace mu::notation {
-class MScoreErrorsController
+class MScoreErrorsController : public muse::Injectable
 {
-    INJECT_STATIC(INotationConfiguration, configuration)
-    INJECT_STATIC(framework::IInteractive, interactive)
+    muse::Inject<INotationConfiguration> configuration = { this };
+    muse::Inject<muse::IInteractive> interactive = { this };
 
 public:
-    static void checkAndShowMScoreError();
+    MScoreErrorsController(const muse::modularity::ContextPtr& iocCtx);
+
+    void checkAndShowMScoreError();
 };
 }
 

@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -21,17 +21,16 @@
  */
 #include "recentfilescontroller.h"
 
-#include <QtConcurrent>
-
-#include "async/async.h"
-#include "defer.h"
-
-#include "serialization/json.h"
+#include "global/concurrency/concurrent.h"
+#include "global/async/async.h"
+#include "global/defer.h"
+#include "global/serialization/json.h"
 
 #include "multiinstances/resourcelockguard.h"
 
 using namespace mu::project;
-using namespace mu::async;
+using namespace muse;
+using namespace muse::async;
 
 static const std::string RECENT_FILES_RESOURCE_NAME("RECENT_FILES");
 
@@ -93,7 +92,7 @@ void RecentFilesController::prependRecentFile(const RecentFile& newFile)
     prependPlatformRecentFile(newFile.path);
 }
 
-void RecentFilesController::moveRecentFile(const io::path_t& before, const RecentFile& after)
+void RecentFilesController::moveRecentFile(const muse::io::path_t& before, const RecentFile& after)
 {
     bool moved = false;
     RecentFilesList newList = m_recentFilesList;
@@ -118,7 +117,7 @@ void RecentFilesController::clearRecentFiles()
     clearPlatformRecentFiles();
 }
 
-void RecentFilesController::prependPlatformRecentFile(const io::path_t&) {}
+void RecentFilesController::prependPlatformRecentFile(const muse::io::path_t&) {}
 
 void RecentFilesController::clearPlatformRecentFiles() {}
 
@@ -160,7 +159,7 @@ void RecentFilesController::loadRecentFilesList()
         const JsonValue val = array.at(i);
 
         if (val.isString()) {
-            newList.emplace_back(io::path_t(val.toStdString()));
+            newList.emplace_back(muse::io::path_t(val.toStdString()));
         } else if (val.isObject()) {
             const JsonObject obj = val.toObject();
             RecentFile file;
@@ -247,14 +246,14 @@ void RecentFilesController::saveRecentFilesList()
     }
 }
 
-Promise<QPixmap> RecentFilesController::thumbnail(const io::path_t& filePath) const
+Promise<QPixmap> RecentFilesController::thumbnail(const muse::io::path_t& filePath) const
 {
     return Promise<QPixmap>([this, filePath](auto resolve, auto reject) {
         if (filePath.empty()) {
             return reject(int(Ret::Code::UnknownError), "Invalid file specified");
         }
 
-        QtConcurrent::run([this, filePath, resolve, reject]() {
+        Concurrent::run([this, filePath, resolve, reject]() {
             std::lock_guard lock(m_thumbnailCacheMutex);
 
             DateTime lastModified = fileSystem()->lastModified(filePath);
@@ -283,13 +282,13 @@ Promise<QPixmap> RecentFilesController::thumbnail(const io::path_t& filePath) co
 
 void RecentFilesController::cleanUpThumbnailCache(const RecentFilesList& files)
 {
-    QtConcurrent::run([this, files] {
+    Concurrent::run([this, files] {
         std::lock_guard lock(m_thumbnailCacheMutex);
 
         if (files.empty()) {
             m_thumbnailCache.clear();
         } else {
-            std::map<io::path_t, CachedThumbnail> cleanedCache;
+            std::map<muse::io::path_t, CachedThumbnail> cleanedCache;
 
             for (const RecentFile& file : files) {
                 auto it = m_thumbnailCache.find(file.path);

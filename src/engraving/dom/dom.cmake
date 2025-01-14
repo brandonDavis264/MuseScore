@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-only
-# MuseScore-CLA-applies
+# MuseScore-Studio-CLA-applies
 #
-# MuseScore
+# MuseScore Studio
 # Music Composition & Notation
 #
-# Copyright (C) 2021 MuseScore BVBA and others
+# Copyright (C) 2021 MuseScore Limited
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 3 as
@@ -25,6 +25,8 @@ set(DOM_SRC
     ${CMAKE_CURRENT_LIST_DIR}/actionicon.h
     ${CMAKE_CURRENT_LIST_DIR}/ambitus.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ambitus.h
+    ${CMAKE_CURRENT_LIST_DIR}/anchors.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/anchors.h
     ${CMAKE_CURRENT_LIST_DIR}/arpeggio.cpp
     ${CMAKE_CURRENT_LIST_DIR}/arpeggio.h
     ${CMAKE_CURRENT_LIST_DIR}/articulation.cpp
@@ -158,6 +160,9 @@ set(DOM_SRC
     ${CMAKE_CURRENT_LIST_DIR}/keylist.h
     ${CMAKE_CURRENT_LIST_DIR}/keysig.cpp
     ${CMAKE_CURRENT_LIST_DIR}/keysig.h
+    ${CMAKE_CURRENT_LIST_DIR}/laissezvib.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/laissezvib.h
+    ${CMAKE_CURRENT_LIST_DIR}/lasso.cpp
     ${CMAKE_CURRENT_LIST_DIR}/lasso.cpp
     ${CMAKE_CURRENT_LIST_DIR}/lasso.h
     ${CMAKE_CURRENT_LIST_DIR}/layoutbreak.cpp
@@ -218,6 +223,8 @@ set(DOM_SRC
     ${CMAKE_CURRENT_LIST_DIR}/ottava.h
     ${CMAKE_CURRENT_LIST_DIR}/page.cpp
     ${CMAKE_CURRENT_LIST_DIR}/page.h
+    ${CMAKE_CURRENT_LIST_DIR}/partialtie.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/partialtie.h
     ${CMAKE_CURRENT_LIST_DIR}/palmmute.cpp
     ${CMAKE_CURRENT_LIST_DIR}/palmmute.h
     ${CMAKE_CURRENT_LIST_DIR}/part.cpp
@@ -233,8 +240,6 @@ set(DOM_SRC
     ${CMAKE_CURRENT_LIST_DIR}/pitchspelling.h
     ${CMAKE_CURRENT_LIST_DIR}/playtechannotation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/playtechannotation.h
-    ${CMAKE_CURRENT_LIST_DIR}/pos.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/pos.h
     ${CMAKE_CURRENT_LIST_DIR}/property.cpp
     ${CMAKE_CURRENT_LIST_DIR}/property.h
     ${CMAKE_CURRENT_LIST_DIR}/range.cpp
@@ -314,6 +319,8 @@ set(DOM_SRC
     ${CMAKE_CURRENT_LIST_DIR}/symbol.h
     ${CMAKE_CURRENT_LIST_DIR}/synthesizerstate.cpp
     ${CMAKE_CURRENT_LIST_DIR}/synthesizerstate.h
+    ${CMAKE_CURRENT_LIST_DIR}/systemlock.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/systemlock.h
     ${CMAKE_CURRENT_LIST_DIR}/system.cpp
     ${CMAKE_CURRENT_LIST_DIR}/system.h
     ${CMAKE_CURRENT_LIST_DIR}/systemdivider.cpp

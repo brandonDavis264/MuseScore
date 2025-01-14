@@ -22,15 +22,13 @@
 
 #include "fxresolver.h"
 
-#include "log.h"
-
-#include "audioerrors.h"
-#include "internal/audiothread.h"
 #include "internal/audiosanitizer.h"
 
-using namespace mu::async;
-using namespace mu::audio;
-using namespace mu::audio::fx;
+#include "log.h"
+
+using namespace muse::async;
+using namespace muse::audio;
+using namespace muse::audio::fx;
 
 std::vector<IFxProcessorPtr> FxResolver::resolveMasterFxList(const AudioFxChain& fxChain)
 {

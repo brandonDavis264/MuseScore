@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -39,10 +39,12 @@
 #include "log.h"
 
 using namespace mu::notation;
-using namespace mu::async;
+using namespace muse;
+using namespace muse::async;
 
-NotationNoteInput::NotationNoteInput(const IGetScore* getScore, INotationInteraction* interaction, INotationUndoStackPtr undoStack)
-    : m_getScore(getScore), m_interaction(interaction), m_undoStack(undoStack)
+NotationNoteInput::NotationNoteInput(const IGetScore* getScore, INotationInteraction* interaction, INotationUndoStackPtr undoStack
+                                     , const modularity::ContextPtr& iocCtx)
+    : muse::Injectable(iocCtx), m_getScore(getScore), m_interaction(interaction), m_undoStack(undoStack)
 {
     m_scoreCallbacks = new ScoreCallbacks();
     m_scoreCallbacks->setNotationInteraction(interaction);
@@ -87,7 +89,7 @@ NoteInputState NotationNoteInput::state() const
 }
 
 //! NOTE Copied from `void ScoreView::startNoteEntry()`
-void NotationNoteInput::startNoteInput()
+void NotationNoteInput::startNoteInput(bool focusNotation)
 {
     TRACEFUNC;
 
@@ -141,7 +143,7 @@ void NotationNoteInput::startNoteInput()
         break;
     }
 
-    notifyAboutNoteInputStarted();
+    notifyAboutNoteInputStarted(focusNotation);
     notifyAboutStateChanged();
 
     m_interaction->showItem(el);
@@ -266,7 +268,7 @@ EngravingItem* NotationNoteInput::resolveNoteInputStartPosition() const
     if (el == nullptr
         || (el->type() != ElementType::CHORD && el->type() != ElementType::REST && el->type() != ElementType::NOTE)) {
         // if no note/rest is selected, start with voice 0
-        engraving::track_idx_t track = is.track() == mu::nidx ? 0 : (is.track() / mu::engraving::VOICES) * mu::engraving::VOICES;
+        engraving::track_idx_t track = is.track() == muse::nidx ? 0 : (is.track() / mu::engraving::VOICES) * mu::engraving::VOICES;
         // try to find an appropriate measure to start in
         Fraction tick = el ? el->tick() : Fraction(0, 1);
         el = score()->searchNote(tick, track);
@@ -291,7 +293,7 @@ EngravingItem* NotationNoteInput::resolveNoteInputStartPosition() const
     return el;
 }
 
-void NotationNoteInput::endNoteInput()
+void NotationNoteInput::endNoteInput(bool resetState)
 {
     TRACEFUNC;
 
@@ -308,6 +310,12 @@ void NotationNoteInput::endNoteInput()
             el.front()->setSelected(false);
         }
         is.setSlur(0);
+    }
+
+    if (resetState) {
+        is.setTrack(muse::nidx);
+        is.setString(-1);
+        is.setSegment(nullptr);
     }
 
     notifyAboutNoteInputEnded();
@@ -329,7 +337,7 @@ void NotationNoteInput::addNote(NoteName noteName, NoteAddingMode addingMode)
 
     mu::engraving::EditData editData(m_scoreCallbacks);
 
-    startEdit();
+    startEdit(TranslatableString("undoableAction", "Enter note"));
     int inote = static_cast<int>(noteName);
     bool addToUpOnCurrentChord = addingMode == NoteAddingMode::CurrentChord;
     bool insertNewChord = addingMode == NoteAddingMode::InsertChord;
@@ -339,7 +347,7 @@ void NotationNoteInput::addNote(NoteName noteName, NoteAddingMode addingMode)
     notifyNoteAddedChanged();
     notifyAboutStateChanged();
 
-    MScoreErrorsController::checkAndShowMScoreError();
+    MScoreErrorsController(iocContext()).checkAndShowMScoreError();
 }
 
 void NotationNoteInput::padNote(const Pad& pad)
@@ -348,27 +356,27 @@ void NotationNoteInput::padNote(const Pad& pad)
 
     mu::engraving::EditData editData(m_scoreCallbacks);
 
-    startEdit();
+    startEdit(TranslatableString("undoableAction", "Pad note"));
     score()->padToggle(pad, editData);
     apply();
 
     notifyAboutStateChanged();
 
-    MScoreErrorsController::checkAndShowMScoreError();
+    MScoreErrorsController(iocContext()).checkAndShowMScoreError();
 }
 
-mu::Ret NotationNoteInput::putNote(const PointF& pos, bool replace, bool insert)
+Ret NotationNoteInput::putNote(const PointF& pos, bool replace, bool insert)
 {
     TRACEFUNC;
 
-    startEdit();
+    startEdit(TranslatableString("undoableAction", "Enter note"));
     Ret ret = score()->putNote(pos, replace, insert);
     apply();
 
     notifyNoteAddedChanged();
     notifyAboutStateChanged();
 
-    MScoreErrorsController::checkAndShowMScoreError();
+    MScoreErrorsController(iocContext()).checkAndShowMScoreError();
 
     return ret;
 }
@@ -380,7 +388,7 @@ void NotationNoteInput::removeNote(const PointF& pos)
     mu::engraving::InputState& inputState = score()->inputState();
     bool restMode = inputState.rest();
 
-    startEdit();
+    startEdit(TranslatableString("undoableAction", "Delete note"));
     inputState.setRest(!restMode);
     score()->putNote(pos, false, false);
     inputState.setRest(restMode);
@@ -388,10 +396,10 @@ void NotationNoteInput::removeNote(const PointF& pos)
 
     notifyAboutStateChanged();
 
-    MScoreErrorsController::checkAndShowMScoreError();
+    MScoreErrorsController(iocContext()).checkAndShowMScoreError();
 }
 
-Notification NotationNoteInput::noteInputStarted() const
+Channel</*focusNotation*/ bool> NotationNoteInput::noteInputStarted() const
 {
     return m_noteInputStarted;
 }
@@ -411,7 +419,7 @@ void NotationNoteInput::setAccidental(AccidentalType accidentalType)
 
     notifyAboutStateChanged();
 
-    MScoreErrorsController::checkAndShowMScoreError();
+    MScoreErrorsController(iocContext()).checkAndShowMScoreError();
 }
 
 void NotationNoteInput::setArticulation(SymbolId articulationSymbolId)
@@ -426,7 +434,7 @@ void NotationNoteInput::setArticulation(SymbolId articulationSymbolId)
 
     notifyAboutStateChanged();
 
-    MScoreErrorsController::checkAndShowMScoreError();
+    MScoreErrorsController(iocContext()).checkAndShowMScoreError();
 }
 
 void NotationNoteInput::setDrumNote(int note)
@@ -446,13 +454,21 @@ void NotationNoteInput::setCurrentVoice(voice_idx_t voiceIndex)
     }
 
     mu::engraving::InputState& inputState = score()->inputState();
-    inputState.setVoice(voiceIndex);
 
-    if (inputState.segment()) {
-        mu::engraving::Segment* segment = inputState.segment()->measure()->first(mu::engraving::SegmentType::ChordRest);
-        inputState.setSegment(segment);
+    // TODO: Inserting notes to a new voice in the middle of a tuplet is not yet supported. In this case
+    // we'll move the input to the start of the tuplet...
+    if (const Segment* prevSeg = inputState.segment()) {
+        const ChordRest* prevCr = prevSeg->cr(inputState.track());
+        //! NOTE: if there's an existing ChordRest at the new voiceIndex, we don't need to move the cursor
+        if (prevCr && prevCr->topTuplet() && !prevSeg->cr(voiceIndex)) {
+            Segment* newSeg = score()->tick2segment(prevCr->topTuplet()->tick());
+            if (newSeg) {
+                inputState.setSegment(newSeg);
+            }
+        }
     }
 
+    inputState.setVoice(voiceIndex);
     notifyAboutStateChanged();
 }
 
@@ -464,24 +480,13 @@ void NotationNoteInput::setCurrentTrack(track_idx_t trackIndex)
     notifyAboutStateChanged();
 }
 
-void NotationNoteInput::resetInputPosition()
-{
-    mu::engraving::InputState& inputState = score()->inputState();
-
-    inputState.setTrack(mu::nidx);
-    inputState.setString(-1);
-    inputState.setSegment(nullptr);
-
-    notifyAboutStateChanged();
-}
-
 void NotationNoteInput::addTuplet(const TupletOptions& options)
 {
     TRACEFUNC;
 
     const mu::engraving::InputState& inputState = score()->inputState();
 
-    startEdit();
+    startEdit(TranslatableString("undoableAction", "Add tuplet"));
     score()->expandVoice();
     mu::engraving::ChordRest* chordRest = inputState.cr();
     if (chordRest) {
@@ -497,7 +502,7 @@ void NotationNoteInput::addTuplet(const TupletOptions& options)
     notifyAboutStateChanged();
 }
 
-mu::RectF NotationNoteInput::cursorRect() const
+muse::RectF NotationNoteInput::cursorRect() const
 {
     TRACEFUNC;
 
@@ -516,7 +521,7 @@ mu::RectF NotationNoteInput::cursorRect() const
         return {};
     }
 
-    mu::engraving::track_idx_t track = inputState.track() == mu::nidx ? 0 : inputState.track();
+    mu::engraving::track_idx_t track = inputState.track() == muse::nidx ? 0 : inputState.track();
     mu::engraving::staff_idx_t staffIdx = track / mu::engraving::VOICES;
 
     const Staff* staff = score()->staff(staffIdx);
@@ -537,7 +542,10 @@ mu::RectF NotationNoteInput::cursorRect() const
     double spatium = score()->style().spatium();
     double lineDist = staffType->lineDistance().val() * spatium;
     int lines = staffType->lines();
+    double yOffset = staffType ? staffType->yoffset().val() * spatium : 0.0;
     int inputStateStringsCount = inputState.string();
+
+    y += yOffset;
 
     int instrumentStringsCount = static_cast<int>(staff->part()->instrument()->stringData()->strings());
     if (staff->isTabStaff(inputState.tick()) && inputStateStringsCount >= 0 && inputStateStringsCount <= instrumentStringsCount) {
@@ -551,7 +559,7 @@ mu::RectF NotationNoteInput::cursorRect() const
 
     RectF result = RectF(x, y, w, h);
 
-    if (configuration()->canvasOrientation().val == framework::Orientation::Horizontal) {
+    if (configuration()->canvasOrientation().val == muse::Orientation::Horizontal) {
         result.translate(system->page()->pos());
     }
 
@@ -594,13 +602,24 @@ void NotationNoteInput::addTie()
 {
     TRACEFUNC;
 
-    startEdit();
+    // Calls `startEdit` internally
     score()->cmdAddTie();
-    apply();
 
     notifyAboutStateChanged();
 
-    MScoreErrorsController::checkAndShowMScoreError();
+    MScoreErrorsController(iocContext()).checkAndShowMScoreError();
+}
+
+void NotationNoteInput::addLaissezVib()
+{
+    TRACEFUNC;
+
+    // Calls `startEdit` internally
+    score()->cmdToggleLaissezVib();
+
+    notifyAboutStateChanged();
+
+    MScoreErrorsController(iocContext()).checkAndShowMScoreError();
 }
 
 Notification NotationNoteInput::noteAdded() const
@@ -623,9 +642,9 @@ mu::engraving::Score* NotationNoteInput::score() const
     return m_getScore->score();
 }
 
-void NotationNoteInput::startEdit()
+void NotationNoteInput::startEdit(const muse::TranslatableString& actionName)
 {
-    m_undoStack->prepareChanges();
+    m_undoStack->prepareChanges(actionName);
 }
 
 void NotationNoteInput::apply()
@@ -656,9 +675,9 @@ void NotationNoteInput::notifyNoteAddedChanged()
     m_noteAdded.notify();
 }
 
-void NotationNoteInput::notifyAboutNoteInputStarted()
+void NotationNoteInput::notifyAboutNoteInputStarted(bool focusNotation)
 {
-    m_noteInputStarted.notify();
+    m_noteInputStarted.send(focusNotation);
 }
 
 void NotationNoteInput::notifyAboutNoteInputEnded()
@@ -678,13 +697,13 @@ void NotationNoteInput::doubleNoteInputDuration()
 
     mu::engraving::EditData editData(m_scoreCallbacks);
 
-    startEdit();
+    startEdit(TranslatableString("undoableAction", "Double note input duration"));
     score()->cmdPadNoteIncreaseTAB(editData);
     apply();
 
     notifyAboutStateChanged();
 
-    MScoreErrorsController::checkAndShowMScoreError();
+    MScoreErrorsController(iocContext()).checkAndShowMScoreError();
 }
 
 void NotationNoteInput::halveNoteInputDuration()
@@ -693,11 +712,11 @@ void NotationNoteInput::halveNoteInputDuration()
 
     mu::engraving::EditData editData(m_scoreCallbacks);
 
-    startEdit();
+    startEdit(TranslatableString("undoableAction", "Halve note input duration"));
     score()->cmdPadNoteDecreaseTAB(editData);
     apply();
 
     notifyAboutStateChanged();
 
-    MScoreErrorsController::checkAndShowMScoreError();
+    MScoreErrorsController(iocContext()).checkAndShowMScoreError();
 }

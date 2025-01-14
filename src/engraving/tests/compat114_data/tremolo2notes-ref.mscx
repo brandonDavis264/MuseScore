@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<museScore version="4.20">
+<museScore version="4.50">
   <Score>
     <Division>480</Division>
     <Style>
       <frameSystemDistance>7</frameSystemDistance>
       <voltaPosAbove x="0" y="-2"/>
       <defaultsVersion>114</defaultsVersion>
-      <Spatium>1.764</Spatium>
+      <spatium>1.764</spatium>
       </Style>
     <showInvisible>1</showInvisible>
     <showUnprintable>1</showUnprintable>
@@ -81,11 +81,11 @@
               <pitch>72</pitch>
               <tpc>14</tpc>
               </Note>
-            <Tremolo>
+            <TremoloTwoChord>
               <subtype>c8</subtype>
               <l1>34</l1>
               <l2>30</l2>
-              </Tremolo>
+              </TremoloTwoChord>
             </Chord>
           <Chord>
             <durationType>whole</durationType>
@@ -108,11 +108,11 @@
               <pitch>72</pitch>
               <tpc>14</tpc>
               </Note>
-            <Tremolo>
+            <TremoloTwoChord>
               <subtype>c16</subtype>
               <l1>38</l1>
               <l2>36</l2>
-              </Tremolo>
+              </TremoloTwoChord>
             </Chord>
           <Chord>
             <durationType>whole</durationType>
@@ -135,11 +135,11 @@
               <pitch>72</pitch>
               <tpc>14</tpc>
               </Note>
-            <Tremolo>
+            <TremoloTwoChord>
               <subtype>c32</subtype>
               <l1>44</l1>
               <l2>42</l2>
-              </Tremolo>
+              </TremoloTwoChord>
             </Chord>
           <Chord>
             <durationType>whole</durationType>

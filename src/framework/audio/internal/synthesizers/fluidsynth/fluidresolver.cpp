@@ -26,12 +26,13 @@
 
 #include "log.h"
 
-using namespace mu::audio;
-using namespace mu::audio::synth;
+using namespace muse::audio;
+using namespace muse::audio::synth;
 
 static const AudioResourceVendor FLUID_VENDOR_NAME = "Fluid";
 
-FluidResolver::FluidResolver()
+FluidResolver::FluidResolver(const modularity::ContextPtr& iocCtx)
+    : muse::Injectable(iocCtx)
 {
     ONLY_AUDIO_WORKER_THREAD;
 
@@ -45,14 +46,13 @@ ISynthesizerPtr FluidResolver::resolveSynth(const TrackId /*trackId*/, const Aud
 {
     ONLY_AUDIO_WORKER_THREAD;
 
-    FluidSynthPtr synth = std::make_shared<FluidSynth>(params);
-
     auto search = m_resourcesCache.find(params.resourceMeta.id);
     if (search == m_resourcesCache.end()) {
         LOGE() << "Not found: " << params.resourceMeta.id;
-        return synth;
+        return nullptr;
     }
 
+    FluidSynthPtr synth = std::make_shared<FluidSynth>(params, iocContext());
     synth->addSoundFonts({ search->second.path });
     synth->setPreset(search->second.preset);
 
@@ -78,7 +78,7 @@ AudioResourceMetaList FluidResolver::resolveResources() const
     return result;
 }
 
-SoundPresetList FluidResolver::resolveSoundPresets(const audio::AudioInputParams&) const
+SoundPresetList FluidResolver::resolveSoundPresets(const audio::AudioResourceMeta&) const
 {
     return SoundPresetList();
 }
@@ -107,7 +107,7 @@ void FluidResolver::refresh()
             chooseAutomaticMeta.type = AudioResourceType::FluidSoundfont;
             chooseAutomaticMeta.vendor = FLUID_VENDOR_NAME;
             chooseAutomaticMeta.attributes = {
-                { PLAYBACK_SETUP_DATA_ATTRIBUTE, mpe::GENERIC_SETUP_DATA_STRING },
+                { PLAYBACK_SETUP_DATA_ATTRIBUTE, muse::mpe::GENERIC_SETUP_DATA_STRING },
                 { SOUNDFONT_NAME_ATTRIBUTE, String::fromStdString(name) }
             };
             chooseAutomaticMeta.hasNativeEditorSupport = false;
@@ -123,7 +123,7 @@ void FluidResolver::refresh()
             meta.type = AudioResourceType::FluidSoundfont;
             meta.vendor = FLUID_VENDOR_NAME;
             meta.attributes = {
-                { PLAYBACK_SETUP_DATA_ATTRIBUTE, mpe::GENERIC_SETUP_DATA_STRING },
+                { PLAYBACK_SETUP_DATA_ATTRIBUTE, muse::mpe::GENERIC_SETUP_DATA_STRING },
                 { SOUNDFONT_NAME_ATTRIBUTE, String::fromStdString(name) },
                 { PRESET_NAME_ATTRIBUTE, String::fromStdString(preset.name) },
                 { PRESET_BANK_ATTRIBUTE, String::number(preset.program.bank) },

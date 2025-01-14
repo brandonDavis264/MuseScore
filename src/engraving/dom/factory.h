@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -20,8 +20,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_ENGRAVING_FACTORY_H
-#define MU_ENGRAVING_FACTORY_H
+#pragma once
 
 #include <memory>
 
@@ -37,6 +36,7 @@ class TremoloTwoChord;
 class TremoloSingleChord;
 
 class SoundFlag;
+class SystemLock;
 
 class Factory
 {
@@ -111,9 +111,15 @@ public:
     static KeySig* copyKeySig(const KeySig& src);
     static std::shared_ptr<KeySig> makeKeySig(Segment* parent);
 
+    static LaissezVib* createLaissezVib(Note* parent, bool isAccessibleEnabled = true);
+    static LaissezVib* copyLaissezVib(const LaissezVib& src);
+
     static LayoutBreak* createLayoutBreak(MeasureBase* parent, bool isAccessibleEnabled = true);
     static LayoutBreak* copyLayoutBreak(const LayoutBreak& src);
     static std::shared_ptr<LayoutBreak> makeLayoutBreak(MeasureBase* parent);
+
+    static SystemLockIndicator* createSystemLockIndicator(System* parent, const SystemLock* lock, bool isAccessibleEnabled = true);
+    static SystemLockIndicator* copySystemLockIndicator(const SystemLockIndicator& src);
 
     static Lyrics* createLyrics(ChordRest* parent, bool isAccessibleEnabled = true);
     static Lyrics* copyLyrics(const Lyrics& src);
@@ -132,7 +138,13 @@ public:
     static NoteDot* createNoteDot(Rest* parent, bool isAccessibleEnabled = true);
     static NoteDot* copyNoteDot(const NoteDot& src);
 
+    static NoteLine* createNoteLine(Note* parent, bool isAccessibleEnabled = true);
+    static std::shared_ptr<NoteLine> makeNoteLine(Note* parent);
+
     static Page* createPage(RootItem* parent, bool isAccessibleEnabled = true);
+
+    static PartialTie* createPartialTie(Note* parent, bool isAccessibleEnabled = true);
+    static PartialTie* copyPartialTie(const PartialTie& src);
 
     static Rest* createRest(Segment* parent, bool isAccessibleEnabled = true);
     static Rest* createRest(Segment* parent, const TDuration& t, bool isAccessibleEnabled = true);
@@ -163,7 +175,7 @@ public:
 
     static StaffText* createStaffText(Segment* parent, TextStyleType textStyleType = TextStyleType::STAFF, bool isAccessibleEnabled = true);
 
-    static SoundFlag* createSoundFlag(Segment* parent, bool isAccessibleEnabled = true);
+    static SoundFlag* createSoundFlag(EngravingItem* parent, bool isAccessibleEnabled = true);
 
     static Expression* createExpression(Segment* parent, bool isAccessibleEnabled = true);
 
@@ -269,6 +281,8 @@ public:
 
     static VBox* createVBox(const ElementType& type, System* parent, bool isAccessibleEnabled = true);
 
+    static VBox* createTitleVBox(System* parent, bool isAccessibleEnabled = true);
+
     static HBox* createHBox(System* parent, bool isAccessibleEnabled = true);
 
     static TBox* createTBox(System* parent, bool isAccessibleEnabled = true);
@@ -285,6 +299,8 @@ public:
 
     static Capo* createCapo(Segment* parent, bool isAccessibleEnabled = true);
 
+    static TimeTickAnchor* createTimeTickAnchor(Segment* parent, bool isAccessibleEnabled = true);
+
     static StringTunings* createStringTunings(Segment* parent, bool isAccessibleEnabled = true);
     static StringTunings* copyStringTunings(const StringTunings& src);
     static std::shared_ptr<StringTunings> makeStringTunings(Segment* parent);
@@ -293,5 +309,3 @@ private:
     static EngravingItem* doCreateItem(ElementType type, EngravingItem* parent);
 };
 }
-
-#endif // MU_ENGRAVING_FACTORY_H

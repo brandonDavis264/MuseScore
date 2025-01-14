@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -25,10 +25,12 @@
 
 using namespace mu::instrumentsscene;
 using namespace mu::notation;
+using namespace muse;
+
 using ItemType = InstrumentsTreeItemType::ItemType;
 
 PartTreeItem::PartTreeItem(IMasterNotationPtr masterNotation, INotationPtr notation, QObject* parent)
-    : AbstractInstrumentsPanelTreeItem(ItemType::PART, masterNotation, notation, parent)
+    : AbstractInstrumentsPanelTreeItem(ItemType::PART, masterNotation, notation, parent), Injectable(iocCtxForQmlObject(this))
 {
     listenVisibilityChanged();
 }
@@ -131,11 +133,6 @@ size_t PartTreeItem::resolveNewPartIndex(const ID& partId) const
     return parts.size();
 }
 
-QString PartTreeItem::instrumentId() const
-{
-    return m_instrumentId;
-}
-
 MoveParams PartTreeItem::buildMoveParams(int sourceRow, int count, AbstractInstrumentsPanelTreeItem* destinationParent,
                                          int destinationRow) const
 {
@@ -189,4 +186,50 @@ void PartTreeItem::removeChildren(int row, int count, bool deleteChild)
     }
 
     AbstractInstrumentsPanelTreeItem::removeChildren(row, count, deleteChild);
+}
+
+QString PartTreeItem::instrumentId() const
+{
+    return m_instrumentId;
+}
+
+void PartTreeItem::replaceInstrument()
+{
+    InstrumentKey instrumentKey;
+    instrumentKey.partId = id();
+    instrumentKey.instrumentId = m_instrumentId;
+    instrumentKey.tick = Part::MAIN_INSTRUMENT_TICK;
+
+    RetVal<InstrumentTemplate> templ = selectInstrumentsScenario()->selectInstrument(instrumentKey);
+    if (!templ.ret) {
+        LOGE() << templ.ret.toString();
+        return;
+    }
+
+    Instrument instrument = Instrument::fromTemplate(&templ.val);
+
+    const StaffType* staffType = templ.val.staffTypePreset;
+    if (!staffType) {
+        staffType = StaffType::getDefaultPreset(templ.val.staffGroup);
+    }
+
+    masterNotation()->parts()->replaceInstrument(instrumentKey, instrument, staffType);
+}
+
+void PartTreeItem::resetAllFormatting()
+{
+    std::string title = muse::trc("instruments", "Are you sure you want to reset all formatting?");
+    std::string body = muse::trc("instruments", "This action can not be undone");
+
+    IInteractive::Button button = interactive()->question(title, body, {
+        IInteractive::Button::No,
+        IInteractive::Button::Yes
+    }).standardButton();
+
+    if (button != IInteractive::Button::Yes) {
+        return;
+    }
+
+    const Part* masterPart = masterNotation()->parts()->part(id());
+    notation()->parts()->replacePart(id(), masterPart->clone());
 }

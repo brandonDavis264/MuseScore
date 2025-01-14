@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -66,7 +66,7 @@ class Rest : public ChordRest
 
 public:
 
-    ~Rest() { DeleteAll(m_dots); }
+    ~Rest() { muse::DeleteAll(m_dots); }
 
     void hack_toRestType();
 
@@ -106,14 +106,15 @@ public:
     void setAccent(bool flag);
 
     bool isWholeRest() const;
+    bool isBreveRest() const;
 
     DeadSlapped* deadSlapped() const { return m_deadSlapped; }
 
     int upLine() const override;
     int downLine() const override;
-    mu::PointF stemPos() const override;
+    PointF stemPos() const override;
     double stemPosX() const override;
-    mu::PointF stemPosBeam() const override;
+    PointF stemPosBeam() const override;
     double rightEdge() const override;
     double centerX() const;
 
@@ -142,7 +143,7 @@ public:
 
     int computeNaturalLine(int lines) const; // Natural rest vertical position
     int computeVoiceOffset(int lines, LayoutData* ldata) const; // Vertical displacement in multi-voice cases
-    int computeWholeRestOffset(int voiceOffset, int lines) const;
+    int computeWholeOrBreveRestOffset(int voiceOffset, int lines) const;
 
     SymId getSymbol(DurationType type, int line, int lines) const;
     void updateSymbol(int line, int lines, LayoutData* ldata) const;
@@ -154,7 +155,7 @@ protected:
     Rest(const Rest&, bool link = false);
 
     Sid getPropertyStyle(Pid pid) const override;
-    virtual mu::RectF numberRect() const { return mu::RectF(); } // TODO: add style to show number over 1-measure rests
+    virtual RectF numberRect() const { return RectF(); } // TODO: add style to show number over 1-measure rests
 
 private:
 
@@ -162,10 +163,10 @@ private:
     Rest(Segment* parent);
     Rest(Segment* parent, const TDuration&);
 
-    mu::RectF drag(EditData&) override;
+    RectF drag(EditData&) override;
     double upPos() const override;
     double downPos() const override;
-    void setOffset(const mu::PointF& o) override;
+    void setOffset(const PointF& o) override;
 
     // values calculated by layout:
 

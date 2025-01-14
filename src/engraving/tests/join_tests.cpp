@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -61,7 +61,7 @@ void Engraving_JoinTests::join(const char* p1, const char* p2, int index)
 
     EXPECT_NE(m1, m2);
 
-    score->startCmd();
+    score->startCmd(TranslatableString::untranslatable("Engraving join tests"));
     score->cmdJoinMeasure(m1, m2);
     score->endCmd();
 
@@ -134,4 +134,14 @@ TEST_F(Engraving_JoinTests, join07)
 TEST_F(Engraving_JoinTests, join08)
 {
     join1("join08.mscx");
+}
+
+TEST_F(Engraving_JoinTests, join09)
+{
+    join("join09.mscx", "join09-ref.mscx");
+}
+
+TEST_F(Engraving_JoinTests, join10)
+{
+    join("join10.mscx", "join10-ref.mscx", 1);
 }

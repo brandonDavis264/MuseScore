@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -24,12 +24,17 @@
 
 #include "abstractinstrumentspaneltreeitem.h"
 
-#include "notation/inotationparts.h"
+#include "modularity/ioc.h"
+#include "iinteractive.h"
+#include "notation/iselectinstrumentscenario.h"
 
 namespace mu::instrumentsscene {
-class PartTreeItem : public AbstractInstrumentsPanelTreeItem
+class PartTreeItem : public AbstractInstrumentsPanelTreeItem, public muse::Injectable
 {
     Q_OBJECT
+
+    muse::Inject<notation::ISelectInstrumentsScenario> selectInstrumentsScenario { this };
+    muse::Inject<muse::IInteractive> interactive { this };
 
 public:
     PartTreeItem(notation::IMasterNotationPtr masterNotation, notation::INotationPtr notation, QObject* parent);
@@ -37,8 +42,6 @@ public:
     void init(const notation::Part* masterPart);
 
     bool isSelectable() const override;
-
-    Q_INVOKABLE QString instrumentId() const;
 
     MoveParams buildMoveParams(int sourceRow, int count, AbstractInstrumentsPanelTreeItem* destinationParent,
                                int destinationRow) const override;
@@ -48,11 +51,15 @@ public:
 
     void removeChildren(int row, int count, bool deleteChild) override;
 
+    Q_INVOKABLE QString instrumentId() const;
+    Q_INVOKABLE void replaceInstrument();
+    Q_INVOKABLE void resetAllFormatting();
+
 private:
     void listenVisibilityChanged();
-    void createAndAddPart(const ID& masterPartId);
+    void createAndAddPart(const muse::ID& masterPartId);
 
-    size_t resolveNewPartIndex(const ID& partId) const;
+    size_t resolveNewPartIndex(const muse::ID& partId) const;
 
     QString m_instrumentId;
     bool m_isInited = false;

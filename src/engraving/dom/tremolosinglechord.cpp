@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -22,16 +22,13 @@
 
 #include "tremolosinglechord.h"
 
-#include "draw/types/brush.h"
-#include "draw/types/pen.h"
 #include "draw/types/transform.h"
 
-#include "types/translatablestring.h"
 #include "types/typesconv.h"
 
 #include "style/style.h"
 
-#include "rendering/dev/beamtremololayout.h"
+#include "rendering/score/beamtremololayout.h"
 
 #include "beam.h"
 #include "chord.h"
@@ -42,7 +39,7 @@
 #include "log.h"
 
 using namespace mu;
-using namespace mu::draw;
+using namespace muse::draw;
 using namespace mu::engraving;
 
 namespace mu::engraving {
@@ -75,7 +72,7 @@ double TremoloSingleChord::chordMag() const
 
 double TremoloSingleChord::minHeight() const
 {
-    const double sw = style().styleS(Sid::tremoloStrokeWidth).val() * chordMag();
+    const double sw = style().styleS(Sid::tremoloLineWidth).val() * chordMag();
     const double td = style().styleS(Sid::tremoloDistance).val() * chordMag();
     return (lines() - 1) * td + sw;
 }
@@ -149,6 +146,11 @@ void TremoloSingleChord::styleChanged()
     computeShape();
 }
 
+staff_idx_t TremoloSingleChord::vStaffIdx() const
+{
+    return chord() ? chord()->vStaffIdx() : EngravingItem::vStaffIdx();
+}
+
 //---------------------------------------------------------
 //   basePath
 //---------------------------------------------------------
@@ -162,7 +164,7 @@ PainterPath TremoloSingleChord::basePath(double /*stretch*/) const
     const double sp = spatium() * chordMag();
 
     double w2  = sp * style().styleS(Sid::tremoloWidth).val() * .5;
-    double lw  = sp * style().styleS(Sid::tremoloStrokeWidth).val();
+    double lw  = sp * style().styleS(Sid::tremoloLineWidth).val();
     double td  = sp * style().styleS(Sid::tremoloDistance).val();
 
     PainterPath ppath;
@@ -200,9 +202,9 @@ void TremoloSingleChord::computeShape()
 
 void TremoloSingleChord::reset()
 {
+    EngravingItem::reset();
     undoChangeProperty(Pid::STEM_DIRECTION, DirectionV::AUTO);
     resetProperty(Pid::BEAM_NO_SLOPE);
-    setGenerated(true);
 }
 
 //---------------------------------------------------------
@@ -219,7 +221,7 @@ PointF TremoloSingleChord::pagePos() const
         return pos();
     }
     System* s = toSystem(e);
-    double yp = y() + s->staff(staffIdx())->y() + s->y();
+    double yp = y() + s->staff(vStaffIdx())->y() + s->y();
     return PointF(pageX(), yp);
 }
 

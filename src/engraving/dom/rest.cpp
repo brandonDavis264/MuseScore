@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -112,7 +112,7 @@ void Rest::hack_toRestType()
 //      replaced by special symbols with ledger lines
 //---------------------------------------------------------
 
-void Rest::setOffset(const mu::PointF& o)
+void Rest::setOffset(const PointF& o)
 {
     double _spatium = spatium();
     int line = lrint(o.y() / _spatium);
@@ -139,7 +139,7 @@ void Rest::setOffset(const mu::PointF& o)
 //   drag
 //---------------------------------------------------------
 
-mu::RectF Rest::drag(EditData& ed)
+RectF Rest::drag(EditData& ed)
 {
     // don't allow drag for Measure Rests, because they can't be easily laid out in correct position while dragging
     if (measure() && durationType().type() == DurationType::V_MEASURE) {
@@ -147,11 +147,11 @@ mu::RectF Rest::drag(EditData& ed)
     }
 
     PointF s(ed.delta);
-    RectF r(abbox());
+    RectF r(pageBoundingRect());
 
     // Limit horizontal drag range
     static const double xDragRange = spatium() * 5;
-    if (fabs(s.x()) > xDragRange) {
+    if (std::fabs(s.x()) > xDragRange) {
         s.rx() = xDragRange * (s.x() < 0 ? -1.0 : 1.0);
     }
     setOffset(PointF(s.x(), s.y()));
@@ -159,7 +159,7 @@ mu::RectF Rest::drag(EditData& ed)
     renderer()->layoutItem(this);
 
     score()->rebuildBspTree();
-    return abbox().united(r);
+    return pageBoundingRect().united(r);
 }
 
 //---------------------------------------------------------
@@ -183,7 +183,6 @@ bool Rest::acceptDrop(EditData& data) const
         || (type == ElementType::SYSTEM_TEXT)
         || (type == ElementType::TRIPLET_FEEL)
         || (type == ElementType::STAFF_TEXT)
-        || (type == ElementType::SOUND_FLAG)
         || (type == ElementType::PLAYTECH_ANNOTATION)
         || (type == ElementType::CAPO)
         || (type == ElementType::BAR_LINE)
@@ -224,7 +223,7 @@ bool Rest::acceptDrop(EditData& data) const
         ElementType::GLISSANDO
     };
 
-    return e->isSpanner() && !mu::contains(ignoredTypes, type);
+    return e->isSpanner() && !muse::contains(ignoredTypes, type);
 }
 
 //---------------------------------------------------------
@@ -443,7 +442,7 @@ int Rest::computeVoiceOffset(int lines, LayoutData* ldata) const
         }
     }
 
-    if (offsetVoices && staff()->mergeMatchingRests()) {
+    if (offsetVoices && staff()->shouldMergeMatchingRests()) {
         // automatically merge matching rests if nothing in any other voice
         // this is not always the right thing to do do, but is useful in choral music
         // and can be enabled via a staff property
@@ -485,19 +484,20 @@ int Rest::computeVoiceOffset(int lines, LayoutData* ldata) const
     return voiceLineOffset * upSign;
 }
 
-int Rest::computeWholeRestOffset(int voiceOffset, int lines) const
+int Rest::computeWholeOrBreveRestOffset(int voiceOffset, int lines) const
 {
-    if (!isWholeRest()) {
-        return 0;
-    }
     int lineMove = 0;
-    bool moveToLineAbove = (lines > 5)
-                           || ((lines > 1 || voiceOffset == -1 || voiceOffset == 2) && !(voiceOffset == -2 || voiceOffset == 1));
-    if (moveToLineAbove) {
-        lineMove = -1;
+    if (isWholeRest()) {
+        bool moveToLineAbove = (lines > 5)
+                               || ((lines > 1 || voiceOffset == -1 || voiceOffset == 2) && !(voiceOffset == -2 || voiceOffset == 1));
+        if (moveToLineAbove) {
+            lineMove = -1;
+        }
+    } else if (isBreveRest() && lines == 1) {
+        lineMove = 1;
     }
 
-    if (!isFullMeasureRest()) {
+    if (!isFullMeasureRest() || !measure()) {
         return lineMove;
     }
 
@@ -530,7 +530,7 @@ int Rest::computeWholeRestOffset(int voiceOffset, int lines) const
         }
     }
 
-    if (hasNotesAbove && hasNotesBelow) {
+    if (hasNotesAbove == hasNotesBelow) {
         return lineMove; // Don't do anything
     }
 
@@ -547,6 +547,10 @@ int Rest::computeWholeRestOffset(int voiceOffset, int lines) const
         lineMove = std::min(lineMove, topLine - centerLine);
     }
 
+    if (isBreveRest()) {
+        lineMove++;
+    }
+
     return lineMove;
 }
 
@@ -555,6 +559,13 @@ bool Rest::isWholeRest() const
     TDuration durType = durationType();
     return durType == DurationType::V_WHOLE
            || (durType == DurationType::V_MEASURE && measure() && measure()->ticks() < Fraction(2, 1));
+}
+
+bool Rest::isBreveRest() const
+{
+    TDuration durType = durationType();
+    return durType == DurationType::V_BREVE
+           || (durType == DurationType::V_MEASURE && measure() && measure()->ticks() >= Fraction(2, 1));
 }
 
 int Rest::computeNaturalLine(int lines) const
@@ -745,8 +756,8 @@ void Rest::setAccent(bool flag)
 
 String Rest::accessibleInfo() const
 {
-    String voice = mtrc("engraving", "Voice: %1").arg(track() % VOICES + 1);
-    return mtrc("engraving", "%1; Duration: %2; %3").arg(EngravingItem::accessibleInfo(), durationUserName(), voice);
+    String voice = muse::mtrc("engraving", "Voice: %1").arg(track() % VOICES + 1);
+    return muse::mtrc("engraving", "%1; Duration: %2; %3").arg(EngravingItem::accessibleInfo(), durationUserName(), voice);
 }
 
 //---------------------------------------------------------
@@ -757,12 +768,12 @@ String Rest::screenReaderInfo() const
 {
     Measure* m = measure();
     bool voices = m ? m->hasVoices(staffIdx()) : false;
-    String voice = voices ? (u"; " + mtrc("engraving", "Voice: %1").arg(track() % VOICES + 1)) : u"";
+    String voice = voices ? (u"; " + muse::mtrc("engraving", "Voice: %1").arg(track() % VOICES + 1)) : u"";
     String crossStaff;
     if (staffMove() < 0) {
-        crossStaff = u"; " + mtrc("engraving", "Cross-staff above");
+        crossStaff = u"; " + muse::mtrc("engraving", "Cross-staff above");
     } else if (staffMove() > 0) {
-        crossStaff = u"; " + mtrc("engraving", "Cross-staff below");
+        crossStaff = u"; " + muse::mtrc("engraving", "Cross-staff below");
     }
     return String(u"%1 %2%3%4").arg(EngravingItem::accessibleInfo(), durationUserName(), crossStaff, voice);
 }
@@ -785,6 +796,8 @@ void Rest::add(EngravingItem* e)
         break;
     case ElementType::DEAD_SLAPPED:
         m_deadSlapped = toDeadSlapped(e);
+        e->added();
+        break;
     default:
         ChordRest::add(e);
         break;

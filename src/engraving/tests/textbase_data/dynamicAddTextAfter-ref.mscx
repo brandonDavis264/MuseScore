@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<museScore version="4.20">
+<museScore version="4.50">
   <Score>
     <Division>480</Division>
     <Style>
       <defaultsVersion>301</defaultsVersion>
-      <Spatium>1.76389</Spatium>
+      <spatium>1.76389</spatium>
       </Style>
     <showInvisible>1</showInvisible>
     <showUnprintable>1</showUnprintable>
@@ -108,6 +108,7 @@
       <VBox>
         <height>10</height>
         <boxAutoSize>0</boxAutoSize>
+        <sizeIsSpatiumDependent>1</sizeIsSpatiumDependent>
         <Text>
           <style>title</style>
           <text>Test</text>
@@ -128,7 +129,8 @@
             <text>𝅘𝅥 = 100</text>
             </Tempo>
           <Dynamic>
-            <subtype>other-dynamics</subtype>
+            <subtype>f</subtype>
+            <velocity>96</velocity>
             <text><sym>dynamicForte</sym><font face="FreeSerif"/> ma non troppo</text>
             </Dynamic>
           <Chord>

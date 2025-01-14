@@ -21,8 +21,8 @@
  */
 #include "fontmetrics.h"
 
-using namespace mu;
-using namespace mu::draw;
+using namespace muse;
+using namespace muse::draw;
 
 FontMetrics::FontMetrics(const Font& font)
     : m_font(font)
@@ -42,6 +42,11 @@ double FontMetrics::xHeight() const
 double FontMetrics::height() const
 {
     return fontProvider()->height(m_font);
+}
+
+double FontMetrics::capHeight() const
+{
+    return fontProvider()->capHeight(m_font);
 }
 
 double FontMetrics::ascent() const

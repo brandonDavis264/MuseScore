@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -36,8 +36,8 @@
 namespace mu::appshell {
 class WinFramelessWindowController : public QObject, public FramelessWindowController
 {
-    INJECT(ui::IUiConfiguration, uiConfiguration)
-    INJECT(ui::IMainWindow, mainWindow)
+    INJECT(muse::ui::IUiConfiguration, uiConfiguration)
+    INJECT(muse::ui::IMainWindow, mainWindow)
 
 public:
     explicit WinFramelessWindowController();
@@ -46,11 +46,12 @@ public:
 
 private:
     bool eventFilter(QObject* watched, QEvent* event) override;
-    bool nativeEventFilter(const QByteArray& eventType, void* message, long* result) override;
+    bool nativeEventFilter(const QByteArray& eventType, void* message, qintptr* result) override;
 
-    bool removeWindowFrame(MSG* message, long* result);
-    bool calculateWindowSize(MSG* msg, long* result);
-    bool processMouseMove(MSG* message, long* result) const;
+    bool removeWindowFrame(MSG* message, qintptr* result);
+    bool calculateWindowSize(MSG* msg, qintptr* result);
+    bool processMouseMove(MSG* message, qintptr* result) const;
+
     bool processMouseRightClick(MSG* message) const;
 
     void updateContextMenuState(MSG* message) const;

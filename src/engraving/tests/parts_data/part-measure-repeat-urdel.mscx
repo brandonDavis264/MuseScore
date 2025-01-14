@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<museScore version="4.20">
+<museScore version="4.50">
   <Score>
     <Division>480</Division>
     <Style>
       <defaultsVersion>301</defaultsVersion>
-      <Spatium>1.764</Spatium>
+      <spatium>1.764</spatium>
       </Style>
     <showInvisible>1</showInvisible>
     <showUnprintable>1</showUnprintable>
@@ -98,6 +98,7 @@
       <VBox>
         <height>10</height>
         <boxAutoSize>0</boxAutoSize>
+        <sizeIsSpatiumDependent>1</sizeIsSpatiumDependent>
         <linkedMain/>
         <Text>
           <linkedMain/>
@@ -182,6 +183,7 @@
           </LayoutBreak>
         <voice>
           <Rest>
+            <linkedMain/>
             <durationType>measure</durationType>
             <duration>4/4</duration>
             </Rest>
@@ -194,6 +196,7 @@
           </LayoutBreak>
         <voice>
           <Rest>
+            <linkedMain/>
             <durationType>measure</durationType>
             <duration>4/4</duration>
             </Rest>
@@ -207,6 +210,7 @@
         <voice>
           <MeasureRepeat>
             <subtype>4</subtype>
+            <linkedMain/>
             <durationType>measure</durationType>
             <duration>4/4</duration>
             </MeasureRepeat>
@@ -219,6 +223,7 @@
           </LayoutBreak>
         <voice>
           <Rest>
+            <linkedMain/>
             <durationType>measure</durationType>
             <duration>4/4</duration>
             </Rest>
@@ -231,6 +236,7 @@
           </LayoutBreak>
         <voice>
           <Rest>
+            <linkedMain/>
             <durationType>measure</durationType>
             <duration>4/4</duration>
             </Rest>
@@ -803,7 +809,7 @@
       <Division>480</Division>
       <Style>
         <defaultsVersion>301</defaultsVersion>
-        <Spatium>1.74978</Spatium>
+        <spatium>1.74978</spatium>
         </Style>
       <showInvisible>1</showInvisible>
       <showUnprintable>1</showUnprintable>
@@ -851,6 +857,7 @@
       <Staff id="1">
         <VBox>
           <height>10</height>
+          <sizeIsSpatiumDependent>1</sizeIsSpatiumDependent>
           <linked>
             </linked>
           <Text>
@@ -938,9 +945,6 @@
             </voice>
           </Measure>
         <Measure>
-          <LayoutBreak>
-            <subtype>nobreak</subtype>
-            </LayoutBreak>
           <voice>
             <Rest>
               <linked>
@@ -951,11 +955,10 @@
             </voice>
           </Measure>
         <Measure>
-          <LayoutBreak>
-            <subtype>nobreak</subtype>
-            </LayoutBreak>
           <voice>
             <Rest>
+              <linked>
+                </linked>
               <durationType>measure</durationType>
               <duration>4/4</duration>
               </Rest>
@@ -963,11 +966,10 @@
           </Measure>
         <Measure>
           <measureRepeatCount>1</measureRepeatCount>
-          <LayoutBreak>
-            <subtype>nobreak</subtype>
-            </LayoutBreak>
           <voice>
             <Rest>
+              <linked>
+                </linked>
               <durationType>measure</durationType>
               <duration>4/4</duration>
               </Rest>
@@ -975,12 +977,11 @@
           </Measure>
         <Measure>
           <measureRepeatCount>2</measureRepeatCount>
-          <LayoutBreak>
-            <subtype>nobreak</subtype>
-            </LayoutBreak>
           <voice>
             <MeasureRepeat>
               <subtype>4</subtype>
+              <linked>
+                </linked>
               <durationType>measure</durationType>
               <duration>4/4</duration>
               </MeasureRepeat>
@@ -988,11 +989,10 @@
           </Measure>
         <Measure>
           <measureRepeatCount>3</measureRepeatCount>
-          <LayoutBreak>
-            <subtype>nobreak</subtype>
-            </LayoutBreak>
           <voice>
             <Rest>
+              <linked>
+                </linked>
               <durationType>measure</durationType>
               <duration>4/4</duration>
               </Rest>
@@ -1000,11 +1000,10 @@
           </Measure>
         <Measure>
           <measureRepeatCount>4</measureRepeatCount>
-          <LayoutBreak>
-            <subtype>nobreak</subtype>
-            </LayoutBreak>
           <voice>
             <Rest>
+              <linked>
+                </linked>
               <durationType>measure</durationType>
               <duration>4/4</duration>
               </Rest>
@@ -1258,7 +1257,7 @@
       <Division>480</Division>
       <Style>
         <defaultsVersion>301</defaultsVersion>
-        <Spatium>1.74978</Spatium>
+        <spatium>1.74978</spatium>
         </Style>
       <showInvisible>1</showInvisible>
       <showUnprintable>1</showUnprintable>
@@ -1306,6 +1305,7 @@
       <Staff id="1">
         <VBox>
           <height>10</height>
+          <sizeIsSpatiumDependent>1</sizeIsSpatiumDependent>
           <linked>
             <location>
               <staves>-1</staves>
@@ -1412,9 +1412,6 @@
           </Measure>
         <Measure>
           <measureRepeatCount>1</measureRepeatCount>
-          <LayoutBreak>
-            <subtype>nobreak</subtype>
-            </LayoutBreak>
           <voice>
             <MeasureRepeat>
               <subtype>1</subtype>
@@ -1427,9 +1424,6 @@
           </Measure>
         <Measure>
           <measureRepeatCount>1</measureRepeatCount>
-          <LayoutBreak>
-            <subtype>nobreak</subtype>
-            </LayoutBreak>
           <voice>
             <MeasureRepeat>
               <subtype>2</subtype>
@@ -1442,9 +1436,6 @@
           </Measure>
         <Measure>
           <measureRepeatCount>2</measureRepeatCount>
-          <LayoutBreak>
-            <subtype>nobreak</subtype>
-            </LayoutBreak>
           <voice>
             <Rest>
               <linked>
@@ -1456,9 +1447,6 @@
           </Measure>
         <Measure>
           <measureRepeatCount>1</measureRepeatCount>
-          <LayoutBreak>
-            <subtype>nobreak</subtype>
-            </LayoutBreak>
           <voice>
             <Rest>
               <linked>
@@ -1470,9 +1458,6 @@
           </Measure>
         <Measure>
           <measureRepeatCount>2</measureRepeatCount>
-          <LayoutBreak>
-            <subtype>nobreak</subtype>
-            </LayoutBreak>
           <voice>
             <MeasureRepeat>
               <subtype>4</subtype>
@@ -1485,9 +1470,6 @@
           </Measure>
         <Measure>
           <measureRepeatCount>3</measureRepeatCount>
-          <LayoutBreak>
-            <subtype>nobreak</subtype>
-            </LayoutBreak>
           <voice>
             <Rest>
               <linked>

@@ -20,32 +20,35 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_AUDIO_ISYNTHESIZER_H
-#define MU_AUDIO_ISYNTHESIZER_H
+#ifndef MUSE_AUDIO_ISYNTHESIZER_H
+#define MUSE_AUDIO_ISYNTHESIZER_H
 
-#include "async/channel.h"
-#include "async/asyncable.h"
+#include "global/async/channel.h"
+#include "global/async/asyncable.h"
+#include "global/modularity/ioc.h"
 #include "mpe/events.h"
-#include "modularity/ioc.h"
 
 #include "../audiotypes.h"
 #include "../isynthesizer.h"
 #include "../iaudioconfiguration.h"
+#include "worker/iaudioengine.h"
 
-#include "abstracteventsequencer.h"
-
-namespace mu::audio::synth {
-class AbstractSynthesizer : public ISynthesizer, public async::Asyncable
+namespace muse::audio::synth {
+class AbstractSynthesizer : public ISynthesizer, public Injectable, public async::Asyncable
 {
-    INJECT_STATIC(IAudioConfiguration, config)
 public:
-    AbstractSynthesizer(const audio::AudioInputParams& params);
+    muse::Inject<IAudioConfiguration> config = { this };
+    muse::Inject<IAudioEngine> audioEngine = { this };
+
+public:
+    AbstractSynthesizer(const audio::AudioInputParams& params, const modularity::ContextPtr& iocCtx);
     virtual ~AbstractSynthesizer() = default;
 
     const audio::AudioInputParams& params() const override;
     async::Channel<audio::AudioInputParams> paramsChanged() const override;
 
     void setup(const mpe::PlaybackData& playbackData) override;
+
     void revokePlayingNotes() override;
 
 protected:
@@ -68,4 +71,4 @@ protected:
 };
 }
 
-#endif // MU_AUDIO_ISYNTHESIZER_H
+#endif // MUSE_AUDIO_ISYNTHESIZER_H

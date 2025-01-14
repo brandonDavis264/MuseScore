@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -31,9 +31,10 @@
 
 using namespace mu;
 using namespace mu::notation;
-using namespace mu::framework;
-using namespace mu::async;
-using namespace mu::ui;
+using namespace muse;
+using namespace muse::async;
+using namespace muse::draw;
+using namespace muse::ui;
 
 static const std::string module_name("notation");
 
@@ -58,6 +59,7 @@ static const Settings::Key MOUSE_ZOOM_PRECISION(module_name, "ui/canvas/zoomPrec
 static const Settings::Key USER_STYLES_PATH(module_name, "application/paths/myStyles");
 
 static const Settings::Key IS_MIDI_INPUT_ENABLED(module_name, "io/midi/enableInput");
+static const Settings::Key USE_MIDI_INPUT_WRITTEN_PITCH(module_name, "io/midi/useWrittenPitch");
 static const Settings::Key IS_AUTOMATICALLY_PAN_ENABLED(module_name, "application/playback/panPlayback");
 static const Settings::Key PLAYBACK_SMOOTH_PANNING(module_name, "application/playback/smoothPan");
 static const Settings::Key IS_PLAY_REPEATS_ENABLED(module_name, "application/playback/playRepeats");
@@ -88,6 +90,11 @@ static const Settings::Key NEED_TO_SHOW_ADD_FIGURED_BASS_ERROR_MESSAGE_KEY(modul
 static const Settings::Key NEED_TO_SHOW_ADD_GUITAR_BEND_ERROR_MESSAGE_KEY(module_name,  "ui/dialogs/needToShowAddGuitarBendErrorMessage");
 
 static const Settings::Key PIANO_KEYBOARD_NUMBER_OF_KEYS(module_name,  "pianoKeyboard/numberOfKeys");
+
+static const Settings::Key USE_NEW_PERCUSSION_PANEL_KEY(module_name,  "ui/useNewPercussionPanel");
+static const Settings::Key AUTO_SHOW_PERCUSSION_PANEL_KEY(module_name,  "ui/autoShowPercussionPanel");
+static const Settings::Key SHOW_PERCUSSION_PANEL_SWAP_DIALOG(module_name,  "ui/showPercussionPanelPadSwapDialog");
+static const Settings::Key PERCUSSION_PANEL_MOVE_MIDI_NOTES_AND_SHORTCUTS(module_name,  "ui/percussionPanelMoveMidiNotesAndShortcuts");
 
 static const Settings::Key STYLE_FILE_IMPORT_PATH_KEY(module_name, "import/style/styleFile");
 
@@ -168,7 +175,7 @@ void NotationConfiguration::init()
     settings()->setDefaultValue(IS_COUNT_IN_ENABLED, Val(false));
 
     settings()->setDefaultValue(PLAYBACK_SMOOTH_PANNING, Val(false));
-    settings()->setDescription(PLAYBACK_SMOOTH_PANNING, trc("notation", "Smooth panning"));
+    settings()->setDescription(PLAYBACK_SMOOTH_PANNING, muse::trc("notation", "Smooth panning"));
     settings()->setCanBeManuallyEdited(PLAYBACK_SMOOTH_PANNING, true);
 
     settings()->valueChanged(IS_PLAY_CHORD_SYMBOLS_ENABLED).onReceive(nullptr, [this](const Val&) {
@@ -214,7 +221,45 @@ void NotationConfiguration::init()
         m_pianoKeyboardNumberOfKeys.set(val.toInt());
     });
 
+    settings()->setDefaultValue(USE_MIDI_INPUT_WRITTEN_PITCH, Val(true));
+    m_midiInputUseWrittenPitch.val = settings()->value(USE_MIDI_INPUT_WRITTEN_PITCH).toBool();
+    settings()->valueChanged(USE_MIDI_INPUT_WRITTEN_PITCH).onReceive(this, [this](const Val& val) {
+        m_midiInputUseWrittenPitch.set(val.toBool());
+    });
+
+    settings()->setDefaultValue(USE_NEW_PERCUSSION_PANEL_KEY, Val(false)); // TODO: true when new percussion panel is ready
+    settings()->valueChanged(USE_NEW_PERCUSSION_PANEL_KEY).onReceive(this, [this](const Val&) {
+        m_useNewPercussionPanelChanged.notify();
+    });
+
+    settings()->setDefaultValue(AUTO_SHOW_PERCUSSION_PANEL_KEY, Val(true));
+    settings()->valueChanged(AUTO_SHOW_PERCUSSION_PANEL_KEY).onReceive(this, [this](const Val&) {
+        m_autoShowPercussionPanelChanged.notify();
+    });
+
+    settings()->setDefaultValue(SHOW_PERCUSSION_PANEL_SWAP_DIALOG, Val(true));
+    settings()->valueChanged(SHOW_PERCUSSION_PANEL_SWAP_DIALOG).onReceive(this, [this](const Val&) {
+        m_showPercussionPanelPadSwapDialogChanged.notify();
+    });
+
+    settings()->setDefaultValue(PERCUSSION_PANEL_MOVE_MIDI_NOTES_AND_SHORTCUTS, Val(true));
+    settings()->valueChanged(PERCUSSION_PANEL_MOVE_MIDI_NOTES_AND_SHORTCUTS).onReceive(this, [this](const Val&) {
+        m_percussionPanelMoveMidiNotesAndShortcutsChanged.notify();
+    });
+
     engravingConfiguration()->scoreInversionChanged().onNotify(this, [this]() {
+        m_foregroundChanged.notify();
+    });
+
+    engravingConfiguration()->formattingColorChanged().onReceive(this, [this](const Color&) {
+        m_foregroundChanged.notify();
+    });
+
+    engravingConfiguration()->invisibleColorChanged().onReceive(this, [this](const Color&) {
+        m_foregroundChanged.notify();
+    });
+
+    engravingConfiguration()->unlinkedColorChanged().onReceive(this, [this](const Color&) {
         m_foregroundChanged.notify();
     });
 
@@ -224,11 +269,10 @@ void NotationConfiguration::init()
 
     mu::engraving::MScore::setHRaster(DEFAULT_GRID_SIZE_SPATIUM);
     mu::engraving::MScore::setVRaster(DEFAULT_GRID_SIZE_SPATIUM);
-}
 
-QColor NotationConfiguration::anchorLineColor() const
-{
-    return selectionColor(3);
+    context()->currentProjectChanged().onNotify(this, [this]() {
+        resetStyleDialogPageIndices();
+    });
 }
 
 QColor NotationConfiguration::backgroundColor() const
@@ -257,17 +301,17 @@ void NotationConfiguration::setBackgroundColor(const QColor& color)
     }
 }
 
-io::path_t NotationConfiguration::backgroundWallpaperPath() const
+muse::io::path_t NotationConfiguration::backgroundWallpaperPath() const
 {
     return settings()->value(BACKGROUND_WALLPAPER_PATH).toString();
 }
 
 const QPixmap& NotationConfiguration::backgroundWallpaper() const
 {
-    io::path_t path = backgroundWallpaperPath();
+    muse::io::path_t path = backgroundWallpaperPath();
 
     static QPixmap wallpaper;
-    static io::path_t lastPath;
+    static muse::io::path_t lastPath;
 
     if (path.empty()) {
         wallpaper = QPixmap();
@@ -280,7 +324,7 @@ const QPixmap& NotationConfiguration::backgroundWallpaper() const
     return wallpaper;
 }
 
-void NotationConfiguration::setBackgroundWallpaperPath(const io::path_t& path)
+void NotationConfiguration::setBackgroundWallpaperPath(const muse::io::path_t& path)
 {
     settings()->setSharedValue(BACKGROUND_WALLPAPER_PATH, Val(path.toStdString()));
 }
@@ -307,7 +351,7 @@ void NotationConfiguration::resetBackground()
     settings()->setSharedValue(BACKGROUND_WALLPAPER_PATH, settings()->defaultValue(BACKGROUND_WALLPAPER_PATH));
 }
 
-async::Notification NotationConfiguration::backgroundChanged() const
+muse::async::Notification NotationConfiguration::backgroundChanged() const
 {
     return m_backgroundChanged;
 }
@@ -326,17 +370,17 @@ void NotationConfiguration::setForegroundColor(const QColor& color)
     settings()->setSharedValue(FOREGROUND_COLOR, Val(color));
 }
 
-io::path_t NotationConfiguration::foregroundWallpaperPath() const
+muse::io::path_t NotationConfiguration::foregroundWallpaperPath() const
 {
     return settings()->value(FOREGROUND_WALLPAPER_PATH).toString();
 }
 
 const QPixmap& NotationConfiguration::foregroundWallpaper() const
 {
-    io::path_t path = foregroundWallpaperPath();
+    muse::io::path_t path = foregroundWallpaperPath();
 
     static QPixmap wallpaper;
-    static io::path_t lastPath;
+    static muse::io::path_t lastPath;
 
     if (path.empty()) {
         wallpaper = QPixmap();
@@ -349,7 +393,7 @@ const QPixmap& NotationConfiguration::foregroundWallpaper() const
     return wallpaper;
 }
 
-void NotationConfiguration::setForegroundWallpaperPath(const io::path_t& path)
+void NotationConfiguration::setForegroundWallpaperPath(const muse::io::path_t& path)
 {
     return settings()->setSharedValue(FOREGROUND_WALLPAPER_PATH, Val(path.toStdString()));
 }
@@ -373,12 +417,12 @@ void NotationConfiguration::resetForeground()
     engravingConfiguration()->setScoreInversionEnabled(false);
 }
 
-async::Notification NotationConfiguration::foregroundChanged() const
+muse::async::Notification NotationConfiguration::foregroundChanged() const
 {
     return m_foregroundChanged;
 }
 
-io::path_t NotationConfiguration::wallpapersDefaultDirPath() const
+muse::io::path_t NotationConfiguration::wallpapersDefaultDirPath() const
 {
     return globalConfiguration()->appDataPath() + "/wallpapers";
 }
@@ -425,7 +469,9 @@ QColor NotationConfiguration::selectionColor(engraving::voice_idx_t voiceIndex) 
 
 QColor NotationConfiguration::dropRectColor() const
 {
-    return QColor(80, 0, 0, 80);
+    QColor color = selectionColor();
+    color.setAlpha(80);
+    return color;
 }
 
 int NotationConfiguration::selectionProximity() const
@@ -495,37 +541,37 @@ int NotationConfiguration::fontSize() const
     return uiConfiguration()->fontSize(FontSizeType::BODY);
 }
 
-io::path_t NotationConfiguration::userStylesPath() const
+muse::io::path_t NotationConfiguration::userStylesPath() const
 {
     return settings()->value(USER_STYLES_PATH).toPath();
 }
 
-void NotationConfiguration::setUserStylesPath(const io::path_t& path)
+void NotationConfiguration::setUserStylesPath(const muse::io::path_t& path)
 {
     settings()->setSharedValue(USER_STYLES_PATH, Val(path));
 }
 
-async::Channel<io::path_t> NotationConfiguration::userStylesPathChanged() const
+muse::async::Channel<muse::io::path_t> NotationConfiguration::userStylesPathChanged() const
 {
     return m_userStylesPathChanged;
 }
 
-io::path_t NotationConfiguration::defaultStyleFilePath() const
+muse::io::path_t NotationConfiguration::defaultStyleFilePath() const
 {
     return engravingConfiguration()->defaultStyleFilePath();
 }
 
-void NotationConfiguration::setDefaultStyleFilePath(const io::path_t& path)
+void NotationConfiguration::setDefaultStyleFilePath(const muse::io::path_t& path)
 {
     engravingConfiguration()->setDefaultStyleFilePath(path.toQString());
 }
 
-io::path_t NotationConfiguration::partStyleFilePath() const
+muse::io::path_t NotationConfiguration::partStyleFilePath() const
 {
     return engravingConfiguration()->partStyleFilePath();
 }
 
-void NotationConfiguration::setPartStyleFilePath(const io::path_t& path)
+void NotationConfiguration::setPartStyleFilePath(const muse::io::path_t& path)
 {
     engravingConfiguration()->setPartStyleFilePath(path.toQString());
 }
@@ -586,7 +632,7 @@ void NotationConfiguration::setIsPlayChordSymbolsEnabled(bool enabled)
     settings()->setSharedValue(IS_PLAY_CHORD_SYMBOLS_ENABLED, Val(enabled));
 }
 
-async::Notification NotationConfiguration::isPlayChordSymbolsChanged() const
+muse::async::Notification NotationConfiguration::isPlayChordSymbolsChanged() const
 {
     return m_isPlayChordSymbolsChanged;
 }
@@ -621,19 +667,19 @@ double NotationConfiguration::notationScaling() const
     return uiConfiguration()->physicalDpi() / mu::engraving::DPI;
 }
 
-ValCh<framework::Orientation> NotationConfiguration::canvasOrientation() const
+ValCh<muse::Orientation> NotationConfiguration::canvasOrientation() const
 {
-    ValCh<framework::Orientation> orientation;
+    ValCh<muse::Orientation> orientation;
     orientation.ch = m_canvasOrientationChanged;
     bool isVertical = settings()->value(IS_CANVAS_ORIENTATION_VERTICAL_KEY).toBool();
-    orientation.val = isVertical ? framework::Orientation::Vertical : framework::Orientation::Horizontal;
+    orientation.val = isVertical ? muse::Orientation::Vertical : muse::Orientation::Horizontal;
 
     return orientation;
 }
 
-void NotationConfiguration::setCanvasOrientation(framework::Orientation orientation)
+void NotationConfiguration::setCanvasOrientation(muse::Orientation orientation)
 {
-    bool isVertical = orientation == framework::Orientation::Vertical;
+    bool isVertical = orientation == muse::Orientation::Vertical;
     mu::engraving::MScore::setVerticalOrientation(isVertical);
 
     settings()->setSharedValue(IS_CANVAS_ORIENTATION_VERTICAL_KEY, Val(isVertical));
@@ -707,7 +753,7 @@ void NotationConfiguration::setTestModeEnabled(std::optional<bool> enabled)
     mu::engraving::MScore::testMode = enabled ? enabled.value() : false;
 }
 
-io::path_t NotationConfiguration::instrumentListPath() const
+muse::io::path_t NotationConfiguration::instrumentListPath() const
 {
     return globalConfiguration()->appDataPath() + "instruments/instruments.xml";
 }
@@ -716,10 +762,10 @@ io::paths_t NotationConfiguration::scoreOrderListPaths() const
 {
     io::paths_t paths;
 
-    io::path_t firstScoreOrderListPath = this->firstScoreOrderListPath();
+    muse::io::path_t firstScoreOrderListPath = this->firstScoreOrderListPath();
     paths.push_back(firstScoreOrderListPath);
 
-    io::path_t secondScoreOrderListPath = this->secondScoreOrderListPath();
+    muse::io::path_t secondScoreOrderListPath = this->secondScoreOrderListPath();
     if (!secondScoreOrderListPath.empty()) {
         paths.push_back(secondScoreOrderListPath);
     }
@@ -727,7 +773,7 @@ io::paths_t NotationConfiguration::scoreOrderListPaths() const
     return paths;
 }
 
-async::Notification NotationConfiguration::scoreOrderListPathsChanged() const
+muse::async::Notification NotationConfiguration::scoreOrderListPathsChanged() const
 {
     return m_scoreOrderListPathsChanged;
 }
@@ -754,51 +800,51 @@ void NotationConfiguration::setUserScoreOrderListPaths(const io::paths_t& paths)
     }
 }
 
-io::path_t NotationConfiguration::stringTuningsPresetsPath() const
+muse::io::path_t NotationConfiguration::stringTuningsPresetsPath() const
 {
     return globalConfiguration()->appDataPath() + "instruments/string_tunings_presets.json";
 }
 
-bool NotationConfiguration::isSnappedToGrid(framework::Orientation gridOrientation) const
+bool NotationConfiguration::isSnappedToGrid(muse::Orientation gridOrientation) const
 {
     switch (gridOrientation) {
-    case framework::Orientation::Horizontal: return settings()->value(IS_SNAPPED_TO_HORIZONTAL_GRID_KEY).toBool();
-    case framework::Orientation::Vertical: return settings()->value(IS_SNAPPED_TO_VERTICAL_GRID_KEY).toBool();
+    case muse::Orientation::Horizontal: return settings()->value(IS_SNAPPED_TO_HORIZONTAL_GRID_KEY).toBool();
+    case muse::Orientation::Vertical: return settings()->value(IS_SNAPPED_TO_VERTICAL_GRID_KEY).toBool();
     }
 
     return false;
 }
 
-void NotationConfiguration::setIsSnappedToGrid(framework::Orientation gridOrientation, bool isSnapped)
+void NotationConfiguration::setIsSnappedToGrid(muse::Orientation gridOrientation, bool isSnapped)
 {
     switch (gridOrientation) {
-    case framework::Orientation::Horizontal:
+    case muse::Orientation::Horizontal:
         settings()->setSharedValue(IS_SNAPPED_TO_HORIZONTAL_GRID_KEY, Val(isSnapped));
         break;
-    case framework::Orientation::Vertical:
+    case muse::Orientation::Vertical:
         settings()->setSharedValue(IS_SNAPPED_TO_VERTICAL_GRID_KEY, Val(isSnapped));
         break;
     }
 }
 
-int NotationConfiguration::gridSizeSpatium(framework::Orientation gridOrientation) const
+int NotationConfiguration::gridSizeSpatium(muse::Orientation gridOrientation) const
 {
     switch (gridOrientation) {
-    case framework::Orientation::Horizontal: return settings()->value(HORIZONTAL_GRID_SIZE_KEY).toInt();
-    case framework::Orientation::Vertical: return settings()->value(VERTICAL_GRID_SIZE_KEY).toInt();
+    case muse::Orientation::Horizontal: return settings()->value(HORIZONTAL_GRID_SIZE_KEY).toInt();
+    case muse::Orientation::Vertical: return settings()->value(VERTICAL_GRID_SIZE_KEY).toInt();
     }
 
     return DEFAULT_GRID_SIZE_SPATIUM;
 }
 
-void NotationConfiguration::setGridSize(framework::Orientation gridOrientation, int sizeSpatium)
+void NotationConfiguration::setGridSize(muse::Orientation gridOrientation, int sizeSpatium)
 {
     switch (gridOrientation) {
-    case framework::Orientation::Horizontal:
+    case muse::Orientation::Horizontal:
         mu::engraving::MScore::setHRaster(sizeSpatium);
         settings()->setSharedValue(HORIZONTAL_GRID_SIZE_KEY, Val(sizeSpatium));
         break;
-    case framework::Orientation::Vertical:
+    case muse::Orientation::Vertical:
         mu::engraving::MScore::setVRaster(sizeSpatium);
         settings()->setSharedValue(VERTICAL_GRID_SIZE_KEY, Val(sizeSpatium));
         break;
@@ -855,37 +901,133 @@ ValCh<int> NotationConfiguration::pianoKeyboardNumberOfKeys() const
     return m_pianoKeyboardNumberOfKeys;
 }
 
+bool NotationConfiguration::useNewPercussionPanel() const
+{
+    return settings()->value(USE_NEW_PERCUSSION_PANEL_KEY).toBool();
+}
+
+void NotationConfiguration::setUseNewPercussionPanel(bool use)
+{
+    settings()->setSharedValue(USE_NEW_PERCUSSION_PANEL_KEY, Val(use));
+}
+
+Notification NotationConfiguration::useNewPercussionPanelChanged() const
+{
+    return m_useNewPercussionPanelChanged;
+}
+
+bool NotationConfiguration::autoShowPercussionPanel() const
+{
+    return settings()->value(AUTO_SHOW_PERCUSSION_PANEL_KEY).toBool();
+}
+
+void NotationConfiguration::setAutoShowPercussionPanel(bool autoShow)
+{
+    settings()->setSharedValue(AUTO_SHOW_PERCUSSION_PANEL_KEY, Val(autoShow));
+}
+
+Notification NotationConfiguration::autoShowPercussionPanelChanged() const
+{
+    return m_autoShowPercussionPanelChanged;
+}
+
+bool NotationConfiguration::showPercussionPanelPadSwapDialog() const
+{
+    return settings()->value(SHOW_PERCUSSION_PANEL_SWAP_DIALOG).toBool();
+}
+
+void NotationConfiguration::setShowPercussionPanelPadSwapDialog(bool show)
+{
+    settings()->setSharedValue(SHOW_PERCUSSION_PANEL_SWAP_DIALOG, Val(show));
+}
+
+Notification NotationConfiguration::showPercussionPanelPadSwapDialogChanged() const
+{
+    return m_showPercussionPanelPadSwapDialogChanged;
+}
+
+bool NotationConfiguration::percussionPanelMoveMidiNotesAndShortcuts() const
+{
+    return settings()->value(PERCUSSION_PANEL_MOVE_MIDI_NOTES_AND_SHORTCUTS).toBool();
+}
+
+void NotationConfiguration::setPercussionPanelMoveMidiNotesAndShortcuts(bool move)
+{
+    settings()->setSharedValue(PERCUSSION_PANEL_MOVE_MIDI_NOTES_AND_SHORTCUTS, Val(move));
+}
+
+Notification NotationConfiguration::percussionPanelMoveMidiNotesAndShortcutsChanged() const
+{
+    return m_percussionPanelMoveMidiNotesAndShortcutsChanged;
+}
+
 void NotationConfiguration::setPianoKeyboardNumberOfKeys(int number)
 {
     settings()->setSharedValue(PIANO_KEYBOARD_NUMBER_OF_KEYS, Val(number));
 }
 
-io::path_t NotationConfiguration::firstScoreOrderListPath() const
+ValCh<bool> NotationConfiguration::midiUseWrittenPitch() const
+{
+    return m_midiInputUseWrittenPitch;
+}
+
+void NotationConfiguration::setMidiUseWrittenPitch(bool useWrittenPitch)
+{
+    settings()->setSharedValue(USE_MIDI_INPUT_WRITTEN_PITCH, Val(useWrittenPitch));
+}
+
+muse::io::path_t NotationConfiguration::firstScoreOrderListPath() const
 {
     return settings()->value(FIRST_SCORE_ORDER_LIST_KEY).toString();
 }
 
-void NotationConfiguration::setFirstScoreOrderListPath(const io::path_t& path)
+void NotationConfiguration::setFirstScoreOrderListPath(const muse::io::path_t& path)
 {
     settings()->setSharedValue(FIRST_SCORE_ORDER_LIST_KEY, Val(path.toStdString()));
 }
 
-io::path_t NotationConfiguration::secondScoreOrderListPath() const
+muse::io::path_t NotationConfiguration::secondScoreOrderListPath() const
 {
     return settings()->value(SECOND_SCORE_ORDER_LIST_KEY).toString();
 }
 
-void NotationConfiguration::setSecondScoreOrderListPath(const io::path_t& path)
+void NotationConfiguration::setSecondScoreOrderListPath(const muse::io::path_t& path)
 {
     settings()->setSharedValue(SECOND_SCORE_ORDER_LIST_KEY, Val(path.toStdString()));
 }
 
-mu::io::path_t NotationConfiguration::styleFileImportPath() const
+muse::io::path_t NotationConfiguration::styleFileImportPath() const
 {
     return settings()->value(STYLE_FILE_IMPORT_PATH_KEY).toString();
 }
 
-void NotationConfiguration::setStyleFileImportPath(const io::path_t& path)
+void NotationConfiguration::setStyleFileImportPath(const muse::io::path_t& path)
 {
     settings()->setSharedValue(STYLE_FILE_IMPORT_PATH_KEY, Val(path.toStdString()));
+}
+
+int NotationConfiguration::styleDialogLastPageIndex() const
+{
+    return m_styleDialogLastPageIndex;
+}
+
+void NotationConfiguration::setStyleDialogLastPageIndex(int value)
+{
+    m_styleDialogLastPageIndex = value;
+}
+
+int NotationConfiguration::styleDialogLastSubPageIndex() const
+{
+    return m_styleDialogLastSubPageIndex;
+}
+
+void NotationConfiguration::setStyleDialogLastSubPageIndex(int value)
+{
+    m_styleDialogLastSubPageIndex = value;
+}
+
+void NotationConfiguration::resetStyleDialogPageIndices()
+{
+    setStyleDialogLastPageIndex(0);
+    setStyleDialogLastSubPageIndex(0);
 }

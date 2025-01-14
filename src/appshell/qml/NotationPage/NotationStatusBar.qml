@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -24,8 +24,8 @@ import QtQuick.Window 2.15
 import QtQuick.Layouts 1.15
 
 import MuseScore.AppShell 1.0
-import MuseScore.UiComponents 1.0
-import MuseScore.Ui 1.0
+import Muse.UiComponents 1.0
+import Muse.Ui 1.0
 import MuseScore.NotationScene 1.0
 import MuseScore.Playback 1.0
 
@@ -36,14 +36,15 @@ Item {
         id: model
     }
 
-    NavigationSection {
+    property NavigationSection navigationSection: NavigationSection {
         id: navSec
         name: "NotationStatusBar"
         enabled: root.enabled && root.visible
         order: 8
     }
 
-    property NavigationPanel navigationPanel: NavigationPanel {
+    NavigationPanel {
+        id: navPanel
         name: "NotationStatusBar"
         enabled: root.enabled && root.visible
         order: 0
@@ -112,7 +113,7 @@ Item {
             transparent: true
             visible: statusBarRow.remainingSpace > width + concertPitchControl.width
 
-            navigation.panel: root.navigationPanel
+            navigation.panel: navPanel
             navigation.order: 1
 
             onClicked: {
@@ -133,7 +134,7 @@ Item {
             enabled: model.concertPitchItem.enabled
             visible: statusBarRow.remainingSpace > width
 
-            navigation.panel: root.navigationPanel
+            navigation.panel: navPanel
             navigation.order: 2
 
             onToggleConcertPitchRequested: {
@@ -151,7 +152,7 @@ Item {
             currentViewMode: model.currentViewMode
             availableViewModeList: model.availableViewModeList
 
-            navigation.panel: root.navigationPanel
+            navigation.panel: navPanel
             navigation.order: 3
 
             onChangeCurrentViewModeRequested: function(newViewMode) {
@@ -170,7 +171,7 @@ Item {
             maxZoomPercentage: model.maxZoomPercentage()
             availableZoomList: model.availableZoomList
 
-            navigationPanel: root.navigationPanel
+            navigationPanel: navPanel
             navigationOrderMin: 4
 
             onChangeZoomPercentageRequested: function(newZoomPercentage) {
@@ -200,7 +201,7 @@ Item {
             visible: !concertPitchControl.visible ||
                      !workspaceControl.visible
 
-            navigation.panel: root.navigationPanel
+            navigation.panel: navPanel
             navigation.order: zoomControl.navigationOrderMax + 1
 
             menuModel: {

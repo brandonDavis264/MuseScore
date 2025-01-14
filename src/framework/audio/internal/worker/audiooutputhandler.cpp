@@ -22,29 +22,31 @@
 
 #include "audiooutputhandler.h"
 
-#include "async/async.h"
-#include "containers.h"
+#include "global/async/async.h"
+#include "global/containers.h"
 
 #include "internal/audiosanitizer.h"
 #include "internal/audiothread.h"
 #include "internal/worker/audioengine.h"
 #include "audioerrors.h"
 
-#ifdef MUE_ENABLE_AUDIO_EXPORT
+#include "muse_framework_config.h"
+#ifdef MUSE_MODULE_AUDIO_EXPORT
 #include "internal/soundtracks/soundtrackwriter.h"
 #endif
 
 #include "log.h"
 
-using namespace mu::audio;
-using namespace mu::async;
+using namespace muse;
+using namespace muse::audio;
+using namespace muse::async;
 
-#ifdef MUE_ENABLE_AUDIO_EXPORT
-using namespace mu::audio::soundtrack;
+#ifdef MUSE_MODULE_AUDIO_EXPORT
+using namespace muse::audio::soundtrack;
 #endif
 
-AudioOutputHandler::AudioOutputHandler(IGetTrackSequence* getSequence)
-    : m_getSequence(getSequence)
+AudioOutputHandler::AudioOutputHandler(IGetTrackSequence* getSequence, const modularity::ContextPtr& iocCtx)
+    : Injectable(iocCtx), m_getSequence(getSequence)
 {
     ONLY_AUDIO_MAIN_OR_WORKER_THREAD;
 
@@ -196,15 +198,15 @@ Promise<bool> AudioOutputHandler::saveSoundTrack(const TrackSequenceId sequenceI
             return reject(static_cast<int>(Err::InvalidSequenceId), "invalid sequence id");
         }
 
-#ifdef MUE_ENABLE_AUDIO_EXPORT
+#ifdef MUSE_MODULE_AUDIO_EXPORT
         s->player()->stop();
         s->player()->seek(0);
         msecs_t totalDuration = s->player()->duration();
 
-        SoundTrackWriterPtr writer = std::make_shared<SoundTrackWriter>(destination, format, totalDuration, mixer());
+        SoundTrackWriterPtr writer = std::make_shared<SoundTrackWriter>(destination, format, totalDuration, mixer(), iocContext());
         m_saveSoundTracksWritersMap[sequenceId] = writer;
 
-        framework::Progress progress = saveSoundTrackProgress(sequenceId);
+        Progress progress = saveSoundTrackProgress(sequenceId);
         writer->progress().progressChanged.onReceive(this, [&progress](int64_t current, int64_t total, std::string title) {
             progress.progressChanged.send(current, total, title);
         });
@@ -227,17 +229,17 @@ Promise<bool> AudioOutputHandler::saveSoundTrack(const TrackSequenceId sequenceI
 
 void AudioOutputHandler::abortSavingAllSoundTracks()
 {
-#ifdef MUE_ENABLE_AUDIO_EXPORT
+#ifdef MUSE_MODULE_AUDIO_EXPORT
     for (auto writer : m_saveSoundTracksWritersMap) {
         writer.second->abort();
     }
 #endif
 }
 
-mu::framework::Progress AudioOutputHandler::saveSoundTrackProgress(const TrackSequenceId sequenceId)
+Progress AudioOutputHandler::saveSoundTrackProgress(const TrackSequenceId sequenceId)
 {
     if (!contains(m_saveSoundTracksProgressMap, sequenceId)) {
-        m_saveSoundTracksProgressMap.emplace(sequenceId, framework::Progress());
+        m_saveSoundTracksProgressMap.emplace(sequenceId, Progress());
     }
 
     return m_saveSoundTracksProgressMap[sequenceId];
@@ -250,7 +252,7 @@ void AudioOutputHandler::clearAllFx()
 
 std::shared_ptr<Mixer> AudioOutputHandler::mixer() const
 {
-    return AudioEngine::instance()->mixer();
+    return audioEngine()->mixer();
 }
 
 ITrackSequencePtr AudioOutputHandler::sequence(const TrackSequenceId id) const

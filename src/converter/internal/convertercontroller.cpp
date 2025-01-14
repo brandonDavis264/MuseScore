@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -21,63 +21,112 @@
  */
 #include "convertercontroller.h"
 
-#include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QJsonParseError>
 
-#include "io/dir.h"
-#include "stringutils.h"
+#include "global/io/file.h"
+#include "global/io/dir.h"
 
 #include "convertercodes.h"
 #include "compat/backendapi.h"
+#include "internal/converterutils.h"
 
 #include "log.h"
 
 using namespace mu::converter;
 using namespace mu::project;
 using namespace mu::notation;
+using namespace muse;
+using namespace muse::io;
 
 static const std::string PDF_SUFFIX = "pdf";
 static const std::string PNG_SUFFIX = "png";
 static const std::string SVG_SUFFIX = "svg";
 
-mu::Ret ConverterController::batchConvert(const io::path_t& batchJobFile, const io::path_t& stylePath, bool forceMode,
-                                          const String& soundProfile)
+Ret ConverterController::batchConvert(const muse::io::path_t& batchJobFile, const muse::io::path_t& stylePath, bool forceMode,
+                                      const String& soundProfile, const muse::UriQuery& extensionUri, muse::ProgressPtr progress)
 {
     TRACEFUNC;
+
+    if (progress) {
+        progress->started.notify();
+    }
 
     RetVal<BatchJob> batchJob = parseBatchJob(batchJobFile);
     if (!batchJob.ret) {
         LOGE() << "failed parse batch job file, err: " << batchJob.ret.toString();
+        if (progress) {
+            progress->finished.send(ProgressResult(batchJob.ret));
+        }
         return batchJob.ret;
     }
 
     StringList errors;
 
+    int64_t current = 0;
+    int64_t total = batchJob.val.size();
     for (const Job& job : batchJob.val) {
-        Ret ret = fileConvert(job.in, job.out, stylePath, forceMode, soundProfile);
+        if (progress) {
+            ++current;
+            progress->progressChanged.send(current, total, job.in.toStdString());
+        }
+
+        Ret ret = fileConvert(job.in, job.out, stylePath, forceMode, soundProfile, extensionUri, job.transposeOptions);
         if (!ret) {
             errors.emplace_back(String(u"failed convert, err: %1, in: %2, out: %3")
                                 .arg(String::fromStdString(ret.toString())).arg(job.in.toString()).arg(job.out.toString()));
         }
     }
 
+    Ret ret;
     if (!errors.empty()) {
-        return make_ret(Err::ConvertFailed, errors.join(u"\n").toStdString());
+        ret = make_ret(Err::ConvertFailed, errors.join(u"\n").toStdString());
+    } else {
+        ret = make_ret(Ret::Code::Ok);
     }
 
-    return make_ret(Ret::Code::Ok);
+    if (progress) {
+        progress->finished.send(ProgressResult(ret));
+    }
+
+    return ret;
 }
 
-mu::Ret ConverterController::fileConvert(const io::path_t& in, const io::path_t& out, const io::path_t& stylePath, bool forceMode,
-                                         const String& soundProfile)
+Ret ConverterController::fileConvert(const muse::io::path_t& in, const muse::io::path_t& out,
+                                     const muse::io::path_t& stylePath,
+                                     bool forceMode,
+                                     const muse::String& soundProfile,
+                                     const muse::UriQuery& extensionUri,
+                                     const std::string& transposeOptionsJson)
+{
+    std::optional<TransposeOptions> transposeOptions;
+
+    if (!transposeOptionsJson.empty()) {
+        RetVal<TransposeOptions> transposeOptionsRet = ConverterUtils::parseTransposeOptions(transposeOptionsJson);
+        if (!transposeOptionsRet.ret) {
+            return transposeOptionsRet.ret;
+        }
+
+        transposeOptions = transposeOptionsRet.val;
+    }
+
+    return fileConvert(in, out, stylePath, forceMode, soundProfile, extensionUri, transposeOptions);
+}
+
+Ret ConverterController::fileConvert(const muse::io::path_t& in, const muse::io::path_t& out,
+                                     const muse::io::path_t& stylePath,
+                                     bool forceMode,
+                                     const String& soundProfile,
+                                     const muse::UriQuery& extensionUri,
+                                     const std::optional<notation::TransposeOptions>& transposeOptions)
 {
     TRACEFUNC;
 
     LOGI() << "in: " << in << ", out: " << out;
-    auto notationProject = notationCreator()->newProject();
+
+    auto notationProject = notationCreator()->newProject(iocContext());
     IF_ASSERT_FAILED(notationProject) {
         return make_ret(Err::UnknownError);
     }
@@ -99,21 +148,39 @@ mu::Ret ConverterController::fileConvert(const io::path_t& in, const io::path_t&
         notationProject->audioSettings()->setActiveSoundProfile(soundProfile);
     }
 
-    globalContext()->setCurrentProject(notationProject);
-
-    if (suffix == engraving::MSCZ || suffix == engraving::MSCX || suffix == engraving::MSCS) {
-        return notationProject->save(out);
+    if (transposeOptions.has_value()) {
+        ret = ConverterUtils::applyTranspose(notationProject->masterNotation()->notation(), transposeOptions.value());
+        if (!ret) {
+            LOGE() << "Failed to apply transposition, err: " << ret.toString();
+            return ret;
+        }
     }
 
-    if (isConvertPageByPage(suffix)) {
-        ret = convertPageByPage(writer, notationProject->masterNotation()->notation(), out);
+    globalContext()->setCurrentProject(notationProject);
+
+    // use a extension for convert
+    if (extensionUri.isValid()) {
+        ret = convertByExtension(writer, notationProject->masterNotation()->notation(), out, extensionUri);
         if (!ret) {
-            LOGE() << "Failed to convert page by page, err: " << ret.toString();
+            LOGE() << "Failed to convert by extension, err: " << ret.toString();
         }
-    } else {
-        ret = convertFullNotation(writer, notationProject->masterNotation()->notation(), out);
-        if (!ret) {
-            LOGE() << "Failed to convert full notation, err: " << ret.toString();
+    }
+    // standart convert
+    else {
+        if (suffix == engraving::MSCZ || suffix == engraving::MSCX || suffix == engraving::MSCS) {
+            return notationProject->save(out);
+        }
+
+        if (isConvertPageByPage(suffix)) {
+            ret = convertPageByPage(writer, notationProject->masterNotation()->notation(), out);
+            if (!ret) {
+                LOGE() << "Failed to convert page by page, err: " << ret.toString();
+            }
+        } else {
+            ret = convertFullNotation(writer, notationProject->masterNotation()->notation(), out);
+            if (!ret) {
+                LOGE() << "Failed to convert full notation, err: " << ret.toString();
+            }
         }
     }
 
@@ -122,12 +189,12 @@ mu::Ret ConverterController::fileConvert(const io::path_t& in, const io::path_t&
     return ret;
 }
 
-mu::Ret ConverterController::convertScoreParts(const mu::io::path_t& in, const mu::io::path_t& out, const mu::io::path_t& stylePath,
-                                               bool forceMode)
+Ret ConverterController::convertScoreParts(const muse::io::path_t& in, const muse::io::path_t& out, const muse::io::path_t& stylePath,
+                                           bool forceMode)
 {
     TRACEFUNC;
 
-    auto notationProject = notationCreator()->newProject();
+    auto notationProject = notationCreator()->newProject(iocContext());
     IF_ASSERT_FAILED(notationProject) {
         return make_ret(Err::UnknownError);
     }
@@ -155,7 +222,7 @@ mu::Ret ConverterController::convertScoreParts(const mu::io::path_t& in, const m
     return make_ret(Ret::Code::Ok);
 }
 
-mu::RetVal<ConverterController::BatchJob> ConverterController::parseBatchJob(const io::path_t& batchJobFile) const
+RetVal<ConverterController::BatchJob> ConverterController::parseBatchJob(const muse::io::path_t& batchJobFile) const
 {
     TRACEFUNC;
 
@@ -180,12 +247,23 @@ mu::RetVal<ConverterController::BatchJob> ConverterController::parseBatchJob(con
         return io::Dir::fromNativeSeparators(path).toQString();
     };
 
-    for (const QJsonValue v : arr) {
+    for (const QJsonValue& v : arr) {
         QJsonObject obj = v.toObject();
 
         Job job;
         job.in = correctUserInputPath(obj["in"].toString());
         job.out = correctUserInputPath(obj["out"].toString());
+
+        QJsonObject transposeOptionsObj = obj["transpose"].toObject();
+        if (!transposeOptionsObj.isEmpty()) {
+            RetVal<TransposeOptions> transposeOptions = ConverterUtils::parseTransposeOptions(transposeOptionsObj);
+            if (!transposeOptions.ret) {
+                rv.ret = transposeOptions.ret;
+                return rv;
+            }
+
+            job.transposeOptions = transposeOptions.val;
+        }
 
         if (!job.in.empty() && !job.out.empty()) {
             rv.val.push_back(std::move(job));
@@ -194,6 +272,32 @@ mu::RetVal<ConverterController::BatchJob> ConverterController::parseBatchJob(con
 
     rv.ret = make_ret(Ret::Code::Ok);
     return rv;
+}
+
+Ret ConverterController::convertByExtension(INotationWriterPtr writer, INotationPtr notation, const muse::io::path_t& out,
+                                            const muse::UriQuery& extensionUri)
+{
+    //! NOTE First we do the extension, it can modify the notation (score)
+    Ret ret = extensionsProvider()->perform(extensionUri);
+    if (!ret) {
+        return ret;
+    }
+
+    File file(out);
+    if (!file.open(File::WriteOnly)) {
+        return make_ret(Err::OutFileFailedOpen);
+    }
+
+    file.setMeta("file_path", out.toStdString());
+    ret = writer->write(notation, file);
+    if (!ret) {
+        LOGE() << "failed write, err: " << ret.toString() << ", path: " << out;
+        return make_ret(Err::OutFileFailedWrite);
+    }
+
+    file.close();
+
+    return make_ret(Ret::Code::Ok);
 }
 
 bool ConverterController::isConvertPageByPage(const std::string& suffix) const
@@ -206,24 +310,26 @@ bool ConverterController::isConvertPageByPage(const std::string& suffix) const
     return types.contains(suffix);
 }
 
-mu::Ret ConverterController::convertPageByPage(INotationWriterPtr writer, INotationPtr notation, const mu::io::path_t& out) const
+Ret ConverterController::convertPageByPage(INotationWriterPtr writer, INotationPtr notation, const muse::io::path_t& out) const
 {
     TRACEFUNC;
 
     for (size_t i = 0; i < notation->elements()->pages().size(); i++) {
-        const QString filePath
-            = io::path_t(io::dirpath(out) + "/" + io::completeBasename(out) + "-%1." + io::suffix(out)).toQString().arg(i + 1);
+        const String filePath = muse::io::path_t(io::dirpath(out) + "/"
+                                                 + io::completeBasename(out) + "-%1."
+                                                 + io::suffix(out)).toString().arg(i + 1);
 
-        QFile file(filePath);
-        if (!file.open(QFile::WriteOnly)) {
+        File file(filePath);
+        if (!file.open(File::WriteOnly)) {
             return make_ret(Err::OutFileFailedOpen);
         }
 
-        INotationWriter::Options options {
+        INotationWriter::Options options = {
             { INotationWriter::OptionKey::PAGE_NUMBER, Val(static_cast<int>(i)) },
         };
 
-        file.setProperty("path", out.toQString());
+        file.setMeta("dir_path", out.toStdString());
+        file.setMeta("file_path", filePath.toStdString());
 
         Ret ret = writer->write(notation, file, options);
         if (!ret) {
@@ -237,14 +343,14 @@ mu::Ret ConverterController::convertPageByPage(INotationWriterPtr writer, INotat
     return make_ret(Ret::Code::Ok);
 }
 
-mu::Ret ConverterController::convertFullNotation(INotationWriterPtr writer, INotationPtr notation, const mu::io::path_t& out) const
+Ret ConverterController::convertFullNotation(INotationWriterPtr writer, INotationPtr notation, const muse::io::path_t& out) const
 {
-    QFile file(out.toQString());
-    if (!file.open(QFile::WriteOnly)) {
+    File file(out);
+    if (!file.open(File::WriteOnly)) {
         return make_ret(Err::OutFileFailedOpen);
     }
 
-    file.setProperty("path", out.toQString());
+    file.setMeta("file_path", out.toStdString());
     Ret ret = writer->write(notation, file);
     if (!ret) {
         LOGE() << "failed write, err: " << ret.toString() << ", path: " << out;
@@ -256,8 +362,8 @@ mu::Ret ConverterController::convertFullNotation(INotationWriterPtr writer, INot
     return make_ret(Ret::Code::Ok);
 }
 
-mu::Ret ConverterController::convertScorePartsToPdf(INotationWriterPtr writer, IMasterNotationPtr masterNotation,
-                                                    const io::path_t& out) const
+Ret ConverterController::convertScorePartsToPdf(INotationWriterPtr writer, IMasterNotationPtr masterNotation,
+                                                const muse::io::path_t& out) const
 {
     TRACEFUNC;
 
@@ -268,8 +374,8 @@ mu::Ret ConverterController::convertScorePartsToPdf(INotationWriterPtr writer, I
         notations.push_back(e->notation());
     }
 
-    QFile file(out.toQString());
-    if (!file.open(QFile::WriteOnly)) {
+    File file(out);
+    if (!file.open(File::WriteOnly)) {
         return make_ret(Err::OutFileFailedOpen);
     }
 
@@ -288,8 +394,8 @@ mu::Ret ConverterController::convertScorePartsToPdf(INotationWriterPtr writer, I
     return make_ret(Ret::Code::Ok);
 }
 
-mu::Ret ConverterController::convertScorePartsToPngs(INotationWriterPtr writer, mu::notation::IMasterNotationPtr masterNotation,
-                                                     const io::path_t& out) const
+Ret ConverterController::convertScorePartsToPngs(INotationWriterPtr writer, mu::notation::IMasterNotationPtr masterNotation,
+                                                 const muse::io::path_t& out) const
 {
     TRACEFUNC;
 
@@ -303,7 +409,7 @@ mu::Ret ConverterController::convertScorePartsToPngs(INotationWriterPtr writer, 
         excerpts.push_back(e->notation());
     }
 
-    io::path_t pngFilePath = io::dirpath(out) + "/" + io::path_t(io::completeBasename(out) + "-excerpt.png");
+    muse::io::path_t pngFilePath = io::dirpath(out) + "/" + muse::io::path_t(io::completeBasename(out) + "-excerpt.png");
 
     for (size_t i = 0; i < excerpts.size(); i++) {
         Ret ret2 = convertPageByPage(writer, excerpts[i], pngFilePath);
@@ -315,52 +421,52 @@ mu::Ret ConverterController::convertScorePartsToPngs(INotationWriterPtr writer, 
     return make_ret(Ret::Code::Ok);
 }
 
-mu::Ret ConverterController::exportScoreMedia(const mu::io::path_t& in, const mu::io::path_t& out,
-                                              const mu::io::path_t& highlightConfigPath,
-                                              const io::path_t& stylePath, bool forceMode)
+Ret ConverterController::exportScoreMedia(const muse::io::path_t& in, const muse::io::path_t& out,
+                                          const muse::io::path_t& highlightConfigPath,
+                                          const muse::io::path_t& stylePath, bool forceMode)
 {
     TRACEFUNC;
 
     return BackendApi::exportScoreMedia(in, out, highlightConfigPath, stylePath, forceMode);
 }
 
-mu::Ret ConverterController::exportScoreMeta(const mu::io::path_t& in, const mu::io::path_t& out, const io::path_t& stylePath,
-                                             bool forceMode)
+Ret ConverterController::exportScoreMeta(const muse::io::path_t& in, const muse::io::path_t& out, const muse::io::path_t& stylePath,
+                                         bool forceMode)
 {
     TRACEFUNC;
 
     return BackendApi::exportScoreMeta(in, out, stylePath, forceMode);
 }
 
-mu::Ret ConverterController::exportScoreParts(const mu::io::path_t& in, const mu::io::path_t& out, const io::path_t& stylePath,
-                                              bool forceMode)
+Ret ConverterController::exportScoreParts(const muse::io::path_t& in, const muse::io::path_t& out, const muse::io::path_t& stylePath,
+                                          bool forceMode)
 {
     TRACEFUNC;
 
     return BackendApi::exportScoreParts(in, out, stylePath, forceMode);
 }
 
-mu::Ret ConverterController::exportScorePartsPdfs(const mu::io::path_t& in, const mu::io::path_t& out, const io::path_t& stylePath,
-                                                  bool forceMode)
+Ret ConverterController::exportScorePartsPdfs(const muse::io::path_t& in, const muse::io::path_t& out, const muse::io::path_t& stylePath,
+                                              bool forceMode)
 {
     TRACEFUNC;
 
     return BackendApi::exportScorePartsPdfs(in, out, stylePath, forceMode);
 }
 
-mu::Ret ConverterController::exportScoreTranspose(const mu::io::path_t& in, const mu::io::path_t& out, const std::string& optionsJson,
-                                                  const io::path_t& stylePath, bool forceMode)
+Ret ConverterController::exportScoreTranspose(const muse::io::path_t& in, const muse::io::path_t& out, const std::string& optionsJson,
+                                              const muse::io::path_t& stylePath, bool forceMode)
 {
     TRACEFUNC;
 
     return BackendApi::exportScoreTranspose(in, out, optionsJson, stylePath, forceMode);
 }
 
-mu::Ret ConverterController::exportScoreVideo(const io::path_t& in, const io::path_t& out)
+Ret ConverterController::exportScoreVideo(const muse::io::path_t& in, const muse::io::path_t& out)
 {
     TRACEFUNC;
 
-    auto notationProject = notationCreator()->newProject();
+    auto notationProject = notationCreator()->newProject(iocContext());
     IF_ASSERT_FAILED(notationProject) {
         return make_ret(Err::UnknownError);
     }
@@ -386,7 +492,7 @@ mu::Ret ConverterController::exportScoreVideo(const io::path_t& in, const io::pa
     return make_ret(Ret::Code::Ok);
 }
 
-mu::Ret ConverterController::updateSource(const io::path_t& in, const std::string& newSource, bool forceMode)
+Ret ConverterController::updateSource(const muse::io::path_t& in, const std::string& newSource, bool forceMode)
 {
     TRACEFUNC;
 

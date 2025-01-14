@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -20,8 +20,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_ENGRAVING_MARKER_H
-#define MU_ENGRAVING_MARKER_H
+#pragma once
 
 #include "textbase.h"
 
@@ -49,6 +48,7 @@ public:
     Marker* clone() const override { return new Marker(*this); }
 
     int subtype() const override { return int(m_markerType); }
+    TranslatableString subtypeUserName() const override;
 
     Measure* measure() const { return (Measure*)explicitParent(); }
 
@@ -69,10 +69,15 @@ public:
 
     void setLayoutToParentWidth(bool v) { m_layoutToParentWidth = v; }
 
+    static constexpr std::array<MarkerType, 4> RIGHT_MARKERS {
+        MarkerType::TOCODA,
+        MarkerType::TOCODASYM,
+        MarkerType::DA_CODA,
+        MarkerType::DA_DBLCODA,
+    };
+
 private:
     MarkerType m_markerType = MarkerType::SEGNO;
     String m_label;                 ///< referenced from Jump() element
 };
 } // namespace mu::engraving
-
-#endif

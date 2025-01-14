@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -145,8 +145,6 @@ TextLine::TextLine(EngravingItem* parent, bool system)
     setEndHookHeight(Spatium(1.5));
     setGapBetweenTextAndLine(Spatium(0.5));
 
-    initElementStyle(&textLineStyle);
-
     resetProperty(Pid::BEGIN_TEXT_PLACE);
     resetProperty(Pid::CONTINUE_TEXT_PLACE);
     resetProperty(Pid::END_TEXT_PLACE);
@@ -246,7 +244,7 @@ Sid TextLine::getPropertyStyle(Pid pid) const
 //   propertyDefault
 //---------------------------------------------------------
 
-engraving::PropertyValue TextLine::propertyDefault(Pid propertyId) const
+PropertyValue TextLine::propertyDefault(Pid propertyId) const
 {
     switch (propertyId) {
     case Pid::PLACEMENT:
@@ -281,12 +279,22 @@ engraving::PropertyValue TextLine::propertyDefault(Pid propertyId) const
 }
 
 //---------------------------------------------------------
+//   allowTimeAnchor
+//---------------------------------------------------------
+bool TextLine::allowTimeAnchor() const
+{
+    return !(anchor() == Spanner::Anchor::NOTE);
+}
+
+//---------------------------------------------------------
 //   setProperty
 //---------------------------------------------------------
 
 bool TextLine::setProperty(Pid id, const engraving::PropertyValue& v)
 {
     switch (id) {
+    case Pid::PLAY:
+        break;
     case Pid::PLACEMENT:
         setPlacement(v.value<PlacementV>());
         break;
@@ -295,6 +303,21 @@ bool TextLine::setProperty(Pid id, const engraving::PropertyValue& v)
     }
     triggerLayout();
     return true;
+}
+
+//---------------------------------------------------------
+//   getProperty
+//---------------------------------------------------------
+
+PropertyValue TextLine::getProperty(Pid id) const
+{
+    switch (id) {
+    case Pid::PLAY:
+        return PropertyValue();
+    default:
+        break;
+    }
+    return TextLineBase::getProperty(id);
 }
 
 //---------------------------------------------------------

@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -30,35 +30,30 @@
 #include "../../renderingcontext.h"
 
 using namespace mu::engraving;
+using namespace muse;
 
-static mu::mpe::ArticulationType toArticulationType(TremoloType type)
+static mpe::ArticulationType toArticulationType(TremoloType type)
 {
     switch (type) {
     case TremoloType::R8:
     case TremoloType::C8:
-        return mu::mpe::ArticulationType::Tremolo8th;
-        break;
-
+        return mpe::ArticulationType::Tremolo8th;
     case TremoloType::R16:
     case TremoloType::C16:
-        return mu::mpe::ArticulationType::Tremolo16th;
-        break;
-
+        return mpe::ArticulationType::Tremolo16th;
     case TremoloType::R32:
     case TremoloType::C32:
-        return mu::mpe::ArticulationType::Tremolo32nd;
-        break;
-
+        return mpe::ArticulationType::Tremolo32nd;
     case TremoloType::R64:
     case TremoloType::C64:
-        return mu::mpe::ArticulationType::Tremolo64th;
-        break;
-
-    default:
+        return mpe::ArticulationType::Tremolo64th;
+    case TremoloType::BUZZ_ROLL:
+        return mpe::ArticulationType::TremoloBuzz;
+    case TremoloType::INVALID_TREMOLO:
         break;
     }
 
-    return mu::mpe::ArticulationType::Undefined;
+    return mpe::ArticulationType::Undefined;
 }
 
 void TremoloSingleMetaParser::doParse(const EngravingItem* item, const RenderingContext& ctx, mpe::ArticulationMap& result)
@@ -85,7 +80,7 @@ void TremoloSingleMetaParser::doParse(const EngravingItem* item, const Rendering
     articulationMeta.type = type;
     articulationMeta.pattern = pattern;
     articulationMeta.timestamp = ctx.nominalTimestamp;
-    articulationMeta.overallDuration = timestampFromTicks(tremolo->score(), ctx.nominalPositionStartTick + overallDurationTicks)
+    articulationMeta.overallDuration = timestampFromTicks(ctx.score, ctx.nominalPositionStartTick + overallDurationTicks)
                                        - ctx.nominalTimestamp;
 
     appendArticulationData(std::move(articulationMeta), result);
@@ -127,7 +122,7 @@ void TremoloTwoMetaParser::doParse(const EngravingItem* item, const RenderingCon
     articulationMeta.type = type;
     articulationMeta.pattern = pattern;
     articulationMeta.timestamp = ctx.nominalTimestamp;
-    articulationMeta.overallDuration = timestampFromTicks(tremolo->score(), ctx.nominalPositionStartTick + overallDurationTicks)
+    articulationMeta.overallDuration = timestampFromTicks(ctx.score, ctx.nominalPositionStartTick + overallDurationTicks)
                                        - ctx.nominalTimestamp;
 
     appendArticulationData(std::move(articulationMeta), result);

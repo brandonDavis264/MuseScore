@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -23,14 +23,12 @@
 #ifndef MU_ENGRAVING_TREMOLOTWOCHORD_H
 #define MU_ENGRAVING_TREMOLOTWOCHORD_H
 
-#include <memory>
-
 #include "beambase.h"
 #include "engravingitem.h"
 
 #include "durationtype.h"
 #include "draw/types/painterpath.h"
-#include "types/types.h"
+#include "../types/types.h"
 #include "beam.h"
 #include "chord.h"
 
@@ -58,11 +56,6 @@ public:
     void setTremoloType(TremoloType t);
     TremoloType tremoloType() const { return m_tremoloType; }
 
-    DirectionV direction() const { return m_direction; }
-    void setDirection(DirectionV val) { m_direction = val; }
-
-    void setUserModified(DirectionV d, bool val);
-
     double minHeight() const;
     void reset() override;
 
@@ -70,8 +63,6 @@ public:
 
     double chordMag() const;
     RectF drag(EditData&) override;
-
-    void layout2();
 
     Chord* chord1() const { return m_chord1; }
     void setChord1(Chord* ch) { m_chord1 = ch; }
@@ -88,17 +79,8 @@ public:
     TDuration durationType() const;
     void setDurationType(TDuration d);
 
-    bool userModified() const;
-    void setUserModified(bool val);
-
     Fraction tremoloLen() const;
-    bool isBuzzRoll() const { return m_tremoloType == TremoloType::BUZZ_ROLL; }
-    bool twoNotes() const { return m_tremoloType >= TremoloType::C8; }    // is it a two note tremolo?
     int lines() const { return m_lines; }
-    bool up() const { return m_up; }
-    void setUp(bool up) { m_up = up; }
-
-    bool placeMidStem() const;
 
     bool crossStaffBeamBetween() const;
 
@@ -108,7 +90,7 @@ public:
 
     TremoloStyle tremoloStyle() const { return m_style; }
     void setTremoloStyle(TremoloStyle v) { m_style = v; }
-    void setBeamDirection(DirectionV v);
+    void setDirection(DirectionV v) override;
     void setBeamFragment(const BeamFragment& bf) { m_beamFragment = bf; }
     const BeamFragment& beamFragment() const { return m_beamFragment; }
     BeamFragment& beamFragment() { return m_beamFragment; }
@@ -122,32 +104,24 @@ public:
     bool setProperty(Pid propertyId, const PropertyValue&) override;
     PropertyValue propertyDefault(Pid propertyId) const override;
 
-    // only need grips for two-note trems
     bool needStartEditingAfterSelecting() const override;
     int gripsCount() const override;
     Grip initialEditModeGrip() const override;
     Grip defaultGrip() const override;
-    std::vector<mu::PointF> gripsPositions(const EditData&) const override;
+    std::vector<PointF> gripsPositions(const EditData&) const override;
     bool isMovable() const override { return true; }
     bool isEditable() const override { return true; }
-    void endEdit(EditData&) override;
     void editDrag(EditData&) override;
 
-    const mu::PointF& startAnchor() const { return m_startAnchor; }
-    mu::PointF& startAnchor() { return m_startAnchor; }
-    void setStartAnchor(const mu::PointF& p) { m_startAnchor = p; }
-    const mu::PointF& endAnchor() const { return m_endAnchor; }
-    mu::PointF& endAnchor() { return m_endAnchor; }
-    void setEndAnchor(const mu::PointF& p) { m_endAnchor = p; }
+    void clearBeamSegments() override;
 
-    const std::vector<BeamSegment*>& beamSegments() const { return m_beamSegments; }
-    std::vector<BeamSegment*>& beamSegments() { return m_beamSegments; }
-    void clearBeamSegments();
+    int maxCRMove() const override;
+    int minCRMove() const override;
 
     //! NOTE for palettes
-    mu::draw::PainterPath basePath(double stretch = 0) const;
-    const mu::draw::PainterPath& path() const { return m_path; }
-    void setPath(const mu::draw::PainterPath& p) { m_path = p; }
+    muse::draw::PainterPath basePath(double stretch = 0) const;
+    const muse::draw::PainterPath& path() const { return m_path; }
+    void setPath(const muse::draw::PainterPath& p) { m_path = p; }
     void computeShape();
     //! -----------------
 
@@ -159,18 +133,11 @@ private:
 
     void setBeamPos(const PairF& bp);
 
-    TremoloType m_tremoloType = TremoloType::R8;
+    TremoloType m_tremoloType = TremoloType::INVALID_TREMOLO;
     Chord* m_chord1 = nullptr;
     Chord* m_chord2 = nullptr;
     TDuration m_durationType;
-    bool m_up = true;
-    bool m_userModified[2]{ false };                // 0: auto/down  1: up
-    DirectionV m_direction = DirectionV::AUTO;
-    std::vector<BeamSegment*> m_beamSegments;
     bool m_playTremolo = true;
-
-    mu::PointF m_startAnchor;
-    mu::PointF m_endAnchor;
 
     int m_lines = 0;         // derived from _subtype
     TremoloStyle m_style = TremoloStyle::DEFAULT;

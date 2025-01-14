@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -22,15 +22,17 @@
 import QtQuick 2.15
 import QtQuick.Layouts 1.15
 
-import MuseScore.Ui 1.0
-import MuseScore.UiComponents 1.0
+import Muse.Ui 1.0
+import Muse.UiComponents 1.0
 import MuseScore.InstrumentsScene 1.0
 
 FocusableControl {
     id: root
 
+    required property var originalParent
+
     property var item: null
-    property var treeView: undefined
+    property TreeView treeView: undefined
     property var index: styleData.index
     property string filterKey
 
@@ -70,30 +72,6 @@ FocusableControl {
             } else {
                 root.dropped()
             }
-        }
-
-        property var openedPopup: null
-        property bool isPopupOpened: Boolean(openedPopup) && openedPopup.isOpened
-
-        function openPopup(popup, item) {
-            if (Boolean(popup)) {
-                openedPopup = popup
-                popup.load(item)
-                root.popupOpened(popup.x, popup.y, popup.height)
-                popup.open()
-            }
-        }
-
-        function closeOpenedPopup() {
-            if (isPopupOpened) {
-                openedPopup.close()
-                resetOpenedPopup()
-            }
-        }
-
-        function resetOpenedPopup() {
-            root.popupClosed()
-            openedPopup = null
         }
     }
 
@@ -154,11 +132,36 @@ FocusableControl {
     Loader {
         id: popupLoader
 
-        function createPopup(comp, btn) {
+        readonly property StyledPopupView openedPopup: popupLoader.item as StyledPopupView
+        readonly property bool isPopupOpened: Boolean(openedPopup) && openedPopup.isOpened
+
+        function openPopup(comp: Component, btn: Item, item) {
             popupLoader.sourceComponent = comp
-            popupLoader.item.parent = btn
-            popupLoader.item.needActiveFirstItem = btn.navigation.highlight
-            return popupLoader.item
+            if (!openedPopup) {
+                return
+            }
+
+            openedPopup.parent = btn
+            openedPopup.needActiveFirstItem = btn.navigation.highlight
+
+            openedPopup.load(item)
+
+            openedPopup.opened.connect(function() {
+                root.popupOpened(openedPopup.x, openedPopup.y, openedPopup.height)
+            })
+
+            openedPopup.closed.connect(function() {
+                root.popupClosed()
+                sourceComponent = null
+            })
+
+            openedPopup.open()
+        }
+
+        function closeOpenedPopup() {
+            if (isPopupOpened) {
+                openedPopup.close()
+            }
         }
     }
 
@@ -168,9 +171,20 @@ FocusableControl {
         InstrumentSettingsPopup {
             anchorItem: popupAnchorItem
 
-            onClosed: {
-                prv.resetOpenedPopup()
-                popupLoader.sourceComponent = null
+            onReplaceInstrumentRequested: {
+                // The popup would close when the dialog to select the new
+                // instrument is shown; when it closes, it is unloaded, i.e.
+                // deleted, which means that it is deleted while a signal
+                // handler inside it is being executed. This causes a crash.
+                // To prevent that, let the popup close itself, and perform the
+                // actual operation "later", i.e. not (directly or indirectly)
+                // inside the signal handler in the popup.
+                Qt.callLater(model.itemRole.replaceInstrument)
+            }
+
+            onResetAllFormattingRequested: {
+                // Same as above
+                Qt.callLater(model.itemRole.resetAllFormatting)
             }
         }
     }
@@ -180,11 +194,6 @@ FocusableControl {
 
         StaffSettingsPopup {
             anchorItem: popupAnchorItem
-
-            onClosed: {
-                prv.resetOpenedPopup()
-                popupLoader.sourceComponent = null
-            }
         }
     }
 
@@ -294,29 +303,26 @@ FocusableControl {
             icon: IconCode.SETTINGS_COG
 
             onClicked: {
-                if (prv.isPopupOpened) {
-                    prv.closeOpenedPopup()
+                if (popupLoader.isPopupOpened) {
+                    popupLoader.closeOpenedPopup()
                     return
                 }
 
-                var popup = null
-                var item = {}
+                let comp = null
+                let item = {}
 
                 if (root.type === InstrumentsTreeItemType.PART) {
-
-                    popup = popupLoader.createPopup(instrumentSettingsComp, this)
+                    comp = instrumentSettingsComp
 
                     item["partId"] = model.itemRole.id
                     item["instrumentId"] = model.itemRole.instrumentId()
-
                 } else if (root.type === InstrumentsTreeItemType.STAFF) {
-
-                    popup = popupLoader.createPopup(staffSettingsComp, this)
+                    comp = staffSettingsComp
 
                     item["id"] = model.itemRole.id
                 }
 
-                prv.openPopup(popup, item)
+                popupLoader.openPopup(comp, this, item)
             }
 
             Behavior on opacity {
@@ -450,6 +456,19 @@ FocusableControl {
                     horizontalCenter: undefined
                 }
             }
+        },
+
+        //! NOTE: Workaround for a bug in Qt 6.2.4 - see PR #24106 comment
+        // https://bugreports.qt.io/browse/QTBUG-99436
+        State {
+            when: !prv.dragged
+            name: "DROPPED"
+
+            ParentChange {
+                target: root
+                parent: root.originalParent
+            }
         }
+
     ]
 }

@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -22,12 +22,11 @@
 #include "mscloader.h"
 
 #include <memory>
-#include <map>
 
 #include "global/io/buffer.h"
 #include "global/types/retval.h"
 
-#include "types/types.h"
+#include "../types/types.h"
 
 #include "../dom/masterscore.h"
 #include "../dom/audio.h"
@@ -44,7 +43,8 @@
 #include "log.h"
 
 using namespace mu;
-using namespace mu::io;
+using namespace muse;
+using namespace muse::io;
 using namespace mu::engraving;
 using namespace mu::engraving::rw;
 
@@ -71,8 +71,8 @@ static RetVal<IReaderPtr> makeReader(int version, bool ignoreVersionError)
     return RetVal<IReaderPtr>::make_ok(RWRegister::reader(version));
 }
 
-mu::Ret MscLoader::loadMscz(MasterScore* masterScore, const MscReader& mscReader, SettingsCompat& settingsCompat,
-                            bool ignoreVersionError)
+Ret MscLoader::loadMscz(MasterScore* masterScore, const MscReader& mscReader, SettingsCompat& settingsCompat,
+                        bool ignoreVersionError, rw::ReadInOutData* inOut)
 {
     TRACEFUNC;
 
@@ -91,16 +91,35 @@ mu::Ret MscLoader::loadMscz(MasterScore* masterScore, const MscReader& mscReader
             Buffer buf(&styleData);
             buf.open(IODevice::ReadOnly);
             masterScore->style().read(&buf);
+            if (inOut) {
+                inOut->originalSpatium = masterScore->style().spatium();
+            }
         }
     }
 
     // Read ChordList
     {
+        bool chordListOk = false;
         ByteArray chordListData = mscReader.readChordListFile();
         if (!chordListData.empty()) {
             Buffer buf(&chordListData);
             buf.open(IODevice::ReadOnly);
-            masterScore->chordList()->read(&buf);
+
+            chordListOk = masterScore->chordList()->read(&buf);
+        }
+
+        masterScore->chordList()->setCustomChordList(chordListOk);
+
+        if (!chordListOk) {
+            // See also ReadChordListHook::validate()
+            MStyle& style = masterScore->style();
+            ChordList* chordList = masterScore->chordList();
+
+            bool custom = style.styleSt(Sid::chordStyle) == "custom";
+            chordList->setCustomChordList(custom);
+
+            // Ensure that `checkChordList` loads the default chord list
+            chordList->unload();
         }
     }
 
@@ -115,8 +134,11 @@ mu::Ret MscLoader::loadMscz(MasterScore* masterScore, const MscReader& mscReader
     }
 
     ReadInOutData masterReadOutData;
+    if (!inOut) {
+        inOut = &masterReadOutData;
+    }
 
-    Ret ret = make_ok();
+    Ret ret = muse::make_ok();
 
     // Read score
     {
@@ -128,7 +150,7 @@ mu::Ret MscLoader::loadMscz(MasterScore* masterScore, const MscReader& mscReader
         XmlReader xml(scoreData);
         xml.setDocName(docName);
 
-        ret = readMasterScore(masterScore, xml, ignoreVersionError, &masterReadOutData, &styleHook);
+        ret = readMasterScore(masterScore, xml, ignoreVersionError, inOut, &styleHook);
     }
 
     // Read excerpts
@@ -154,7 +176,7 @@ mu::Ret MscLoader::loadMscz(MasterScore* masterScore, const MscReader& mscReader
             xml.setDocName(excerptFileName);
 
             ReadInOutData partReadInData;
-            partReadInData.links = masterReadOutData.links;
+            partReadInData.links = inOut->links;
 
             RetVal<IReaderPtr> reader = makeReader(masterScore->mscVersion(), ignoreVersionError);
             if (!reader.ret) {
@@ -198,18 +220,18 @@ mu::Ret MscLoader::loadMscz(MasterScore* masterScore, const MscReader& mscReader
         }
     }
 
-    settingsCompat = std::move(masterReadOutData.settingsCompat);
+    settingsCompat = std::move(inOut->settingsCompat);
 
     return ret;
 }
 
-mu::Ret MscLoader::readMasterScore(MasterScore* score, XmlReader& e, bool ignoreVersionError, ReadInOutData* out,
-                                   compat::ReadStyleHook* styleHook)
+Ret MscLoader::readMasterScore(MasterScore* score, XmlReader& e, bool ignoreVersionError, ReadInOutData* out,
+                               compat::ReadStyleHook* styleHook)
 {
     while (e.readNextStartElement()) {
         if (e.name() == "museScore") {
-            const String& version = e.attribute("version");
-            StringList sl = version.split('.');
+            const String version = e.attribute("version");
+            const StringList sl = version.split(u'.');
             score->setMscVersion(sl[0].toInt() * 100 + sl[1].toInt());
 
             RetVal<IReaderPtr> reader = makeReader(score->mscVersion(), ignoreVersionError);

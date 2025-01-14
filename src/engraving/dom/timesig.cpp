@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -22,8 +22,9 @@
 
 #include "timesig.h"
 
+#include <functional>
+
 #include "style/style.h"
-#include "translation.h"
 
 #include "score.h"
 #include "segment.h"
@@ -277,6 +278,16 @@ PropertyValue TimeSig::propertyDefault(Pid id) const
     }
 }
 
+PointF TimeSig::staffOffset() const
+{
+    const Segment* seg = segment();
+    const Measure* meas = seg ? seg->measure() : nullptr;
+    const Fraction tsTick = meas ? meas->tick() : tick();
+    const StaffType* st = staff()->constStaffType(tsTick);
+    const double yOffset = st ? st->yoffset().val() * spatium() : 0.0;
+    return PointF(0.0, yOffset);
+}
+
 //---------------------------------------------------------
 //   nextSegmentElement
 //---------------------------------------------------------
@@ -296,29 +307,45 @@ EngravingItem* TimeSig::prevSegmentElement()
 }
 
 //---------------------------------------------------------
+//   subtype
+//---------------------------------------------------------
+
+int TimeSig::subtype() const
+{
+    size_t h1 = std::hash<int> {}(numerator());
+    size_t h2 = std::hash<int> {}(denominator());
+    size_t h3 = std::hash<TimeSigType> {}(timeSigType());
+
+    return static_cast<int>(h1 ^ (h2 << 1) ^ (h3 << 2));
+}
+
+//---------------------------------------------------------
+//   subtypeUserName
+//---------------------------------------------------------
+
+muse::TranslatableString TimeSig::subtypeUserName() const
+{
+    switch (timeSigType()) {
+    case TimeSigType::FOUR_FOUR:
+        return TranslatableString("engraving/timesig", "Common time");
+    case TimeSigType::ALLA_BREVE:
+        return TranslatableString("engraving/timesig", "Cut time");
+    case TimeSigType::CUT_BACH:
+        return TranslatableString("engraving/timesig", "Cut time (Bach)");
+    case TimeSigType::CUT_TRIPLE:
+        return TranslatableString("engraving/timesig", "Cut triple time (9/8)");
+    default:
+        return TranslatableString("engraving/timesig", "%1/%2 time").arg(numerator(), denominator());
+    }
+}
+
+//---------------------------------------------------------
 //   accessibleInfo
 //---------------------------------------------------------
 
 String TimeSig::accessibleInfo() const
 {
-    String timeSigString;
-    switch (timeSigType()) {
-    case TimeSigType::FOUR_FOUR:
-        timeSigString = mtrc("engraving/timesig", "Common time");
-        break;
-    case TimeSigType::ALLA_BREVE:
-        timeSigString = mtrc("engraving/timesig", "Cut time");
-        break;
-    case TimeSigType::CUT_BACH:
-        timeSigString = mtrc("engraving/timesig", "Cut time (Bach)");
-        break;
-    case TimeSigType::CUT_TRIPLE:
-        timeSigString = mtrc("engraving/timesig", "Cut triple time (9/8)");
-        break;
-    default:
-        timeSigString = mtrc("engraving/timesig", "%1/%2 time").arg(numerator(), denominator());
-    }
-    return String(u"%1: %2").arg(EngravingItem::accessibleInfo(), timeSigString);
+    return String(u"%1: %2").arg(EngravingItem::accessibleInfo(), translatedSubtypeUserName());
 }
 
 //---------------------------------------------------------

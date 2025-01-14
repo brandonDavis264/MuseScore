@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -28,19 +28,19 @@
 #include "async/asyncable.h"
 
 #include "modularity/ioc.h"
-#include "iplaybackconfiguration.h"
 #include "iinteractive.h"
+#include "context/iglobalcontext.h"
+#include "iplaybackconfiguration.h"
+
+#include "ui/view/navigationpanel.h"
 
 #include "audio/audiotypes.h"
-#include "ui/view/navigationpanel.h"
-#include "project/iprojectaudiosettings.h"
-
 #include "inputresourceitem.h"
 #include "outputresourceitem.h"
 #include "auxsenditem.h"
 
 namespace mu::playback {
-class MixerChannelItem : public QObject, public async::Asyncable
+class MixerChannelItem : public QObject, public muse::async::Asyncable
 {
     Q_OBJECT
 
@@ -58,14 +58,14 @@ class MixerChannelItem : public QObject, public async::Asyncable
 
     Q_PROPERTY(float volumeLevel READ volumeLevel WRITE setVolumeLevel NOTIFY volumeLevelChanged)
     Q_PROPERTY(int balance READ balance WRITE setBalance NOTIFY balanceChanged)
-
-    Q_PROPERTY(bool muted READ muted NOTIFY mutedChanged)
-    Q_PROPERTY(bool mutedManually READ mutedManually WRITE setMutedManually NOTIFY mutedChanged)
     Q_PROPERTY(bool solo READ solo WRITE setSolo NOTIFY soloChanged)
+    Q_PROPERTY(bool muted READ muted WRITE setMuted NOTIFY mutedChanged)
+    Q_PROPERTY(bool forceMute READ forceMute NOTIFY forceMuteChanged)
 
-    Q_PROPERTY(mu::ui::NavigationPanel * panel READ panel NOTIFY panelChanged)
+    Q_PROPERTY(muse::ui::NavigationPanel * panel READ panel NOTIFY panelChanged)
 
-    INJECT(framework::IInteractive, interactive)
+    INJECT(muse::IInteractive, interactive)
+    INJECT(context::IGlobalContext, context)
     INJECT(IPlaybackConfiguration, configuration)
 
 public:
@@ -73,19 +73,20 @@ public:
         Unknown,
         PrimaryInstrument,
         SecondaryInstrument,
+        Metronome,
         Aux,
         Master,
     };
     Q_ENUM(Type)
 
     MixerChannelItem() = default;
-    MixerChannelItem(QObject* parent, Type type, bool outputOnly = false, audio::TrackId trackId = -1);
+    MixerChannelItem(QObject* parent, Type type, bool outputOnly = false, muse::audio::TrackId trackId = -1);
 
     ~MixerChannelItem() override;
 
     Type type() const;
 
-    audio::TrackId trackId() const;
+    muse::audio::TrackId trackId() const;
 
     const engraving::InstrumentTrackId& instrumentTrackId() const;
     void setInstrumentTrackId(const engraving::InstrumentTrackId& instrumentTrackId);
@@ -97,33 +98,32 @@ public:
 
     float volumeLevel() const;
     int balance() const;
-
-    bool muted() const;
-    bool mutedManually() const;
     bool solo() const;
+    bool muted() const;
+    bool forceMute() const;
 
-    ui::NavigationPanel* panel() const;
+    muse::ui::NavigationPanel* panel() const;
     void setPanelOrder(int panelOrder);
-    void setPanelSection(ui::INavigationSection* section);
+    void setPanelSection(muse::ui::INavigationSection* section);
 
     void setOutputResourceItemCount(size_t count);
 
-    void loadInputParams(audio::AudioInputParams&& newParams);
-    void loadOutputParams(audio::AudioOutputParams&& newParams);
-    void loadSoloMuteState(notation::INotationSoloMuteState::SoloMuteState&& newState);
+    void loadInputParams(const muse::audio::AudioInputParams& newParams);
+    void loadOutputParams(const muse::audio::AudioOutputParams& newParams);
+    void loadSoloMuteState(const notation::INotationSoloMuteState::SoloMuteState& newState);
 
-    void subscribeOnAudioSignalChanges(audio::AudioSignalChanges&& audioSignalChanges);
+    void subscribeOnAudioSignalChanges(muse::audio::AudioSignalChanges&& audioSignalChanges);
 
     bool outputOnly() const;
 
-    const audio::AudioInputParams& inputParams() const;
-    const audio::AudioOutputParams& outputParams() const;
+    const muse::audio::AudioInputParams& inputParams() const;
+    const muse::audio::AudioOutputParams& outputParams() const;
 
     InputResourceItem* inputResourceItem() const;
     QList<OutputResourceItem*> outputResourceItemList() const;
     QList<AuxSendItem*> auxSendItemList() const;
 
-    const QMap<audio::aux_channel_idx_t, AuxSendItem*>& auxSendItems() const;
+    const QMap<muse::audio::aux_channel_idx_t, AuxSendItem*>& auxSendItems() const;
 
 public slots:
     void setTitle(QString title);
@@ -133,9 +133,8 @@ public slots:
 
     void setVolumeLevel(float volumeLevel);
     void setBalance(int balance);
-
-    void setMutedManually(bool isMuted);
     void setSolo(bool solo);
+    void setMuted(bool mute);
 
 signals:
     void titleChanged(QString title);
@@ -145,14 +144,14 @@ signals:
 
     void volumeLevelChanged(float volumeLevel);
     void balanceChanged(int balance);
-
-    void mutedChanged();
     void soloChanged();
+    void mutedChanged();
+    void forceMuteChanged();
 
-    void panelChanged(ui::NavigationPanel* panel);
+    void panelChanged(muse::ui::NavigationPanel* panel);
 
-    void inputParamsChanged(const audio::AudioInputParams& params);
-    void outputParamsChanged(const audio::AudioOutputParams& params);
+    void inputParamsChanged(const muse::audio::AudioInputParams& params);
+    void outputParamsChanged(const muse::audio::AudioOutputParams& params);
     void soloMuteStateChanged(const notation::INotationSoloMuteState::SoloMuteState& state);
 
     void inputResourceItemChanged();
@@ -160,40 +159,43 @@ signals:
     void auxSendItemListChanged();
 
 protected:
-    void setAudioChannelVolumePressure(const audio::audioch_t chNum, const float newValue);
+    notation::INotationPlaybackPtr notationPlayback() const;
+
+    void setAudioChannelVolumePressure(const muse::audio::audioch_t chNum, const float newValue);
     void resetAudioChannelsVolumePressure();
 
     void applyMuteToOutputParams(const bool isMuted);
 
-    void loadOutputResourceItems(const audio::AudioFxChain& fxChain);
-    void loadAuxSendItems(const audio::AuxSendsParams& auxSends);
+    void loadOutputResourceItems(const muse::audio::AudioFxChain& fxChain);
+    void loadAuxSendItems(const muse::audio::AuxSendsParams& auxSends);
 
     InputResourceItem* buildInputResourceItem();
-    OutputResourceItem* buildOutputResourceItem(const audio::AudioFxParams& fxParams);
-    AuxSendItem* buildAuxSendItem(audio::aux_channel_idx_t index, const audio::AuxSendParams& params);
+    OutputResourceItem* buildOutputResourceItem(const muse::audio::AudioFxParams& fxParams);
+    AuxSendItem* buildAuxSendItem(muse::audio::aux_channel_idx_t index, const muse::audio::AuxSendParams& params);
 
     void addBlankSlots(size_t count);
     void removeBlankSlotsFromEnd(size_t count);
 
-    audio::AudioFxChainOrder resolveNewBlankOutputResourceItemOrder() const;
+    muse::audio::AudioFxChainOrder resolveNewBlankOutputResourceItemOrder() const;
 
-    void openEditor(AbstractAudioResourceItem* item, const UriQuery& editorUri);
+    void openEditor(AbstractAudioResourceItem* item, const muse::UriQuery& editorUri);
     void closeEditor(AbstractAudioResourceItem* item);
+
+    bool askAboutChangingSound();
 
     Type m_type = Type::Unknown;
 
-    audio::TrackId m_trackId = -1;
+    muse::audio::TrackId m_trackId = -1;
     engraving::InstrumentTrackId m_instrumentTrackId;
 
-    audio::AudioInputParams m_inputParams;
-    audio::AudioOutputParams m_outParams;
-    notation::INotationSoloMuteState::SoloMuteState m_soloMuteState;
+    muse::audio::AudioInputParams m_inputParams;
+    muse::audio::AudioOutputParams m_outParams;
 
     InputResourceItem* m_inputResourceItem = nullptr;
-    QMap<audio::AudioFxChainOrder, OutputResourceItem*> m_outputResourceItems;
-    QMap<audio::aux_channel_idx_t, AuxSendItem*> m_auxSendItems;
+    QMap<muse::audio::AudioFxChainOrder, OutputResourceItem*> m_outputResourceItems;
+    QMap<muse::audio::aux_channel_idx_t, AuxSendItem*> m_auxSendItems;
 
-    audio::AudioSignalChanges m_audioSignalChanges;
+    muse::audio::AudioSignalChanges m_audioSignalChanges;
 
     QString m_title;
     bool m_outputOnly = false;
@@ -201,7 +203,7 @@ protected:
     float m_leftChannelPressure = 0.0;
     float m_rightChannelPressure = 0.0;
 
-    ui::NavigationPanel* m_panel = nullptr;
+    muse::ui::NavigationPanel* m_panel = nullptr;
 
     bool m_outputResourceItemsLoading = false;
 };

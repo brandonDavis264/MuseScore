@@ -19,35 +19,41 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef MU_AUDIO_MIXER_H
-#define MU_AUDIO_MIXER_H
+#ifndef MUSE_AUDIO_MIXER_H
+#define MUSE_AUDIO_MIXER_H
 
 #include <memory>
 #include <map>
 
-#include "modularity/ioc.h"
-#include "async/asyncable.h"
-#include "types/retval.h"
+#include "global/modularity/ioc.h"
+#include "global/async/asyncable.h"
+#include "global/types/retval.h"
+
+#include "../../ifxresolver.h"
+#include "../../iaudioconfiguration.h"
+#include "../dsp/limiter.h"
 
 #include "abstractaudiosource.h"
 #include "mixerchannel.h"
-#include "internal/dsp/limiter.h"
-#include "ifxresolver.h"
-#include "iaudioconfiguration.h"
 #include "iclock.h"
 
-namespace mu::audio {
-class Mixer : public AbstractAudioSource, public std::enable_shared_from_this<Mixer>, public async::Asyncable
+namespace muse {
+class TaskScheduler;
+}
+
+namespace muse::audio {
+class Mixer : public AbstractAudioSource, public Injectable, public async::Asyncable, public std::enable_shared_from_this<Mixer>
 {
-    INJECT(fx::IFxResolver, fxResolver)
-    INJECT(IAudioConfiguration, configuration)
+    Inject<fx::IFxResolver> fxResolver = { this };
+    Inject<IAudioConfiguration> configuration = { this };
+
 public:
-    Mixer();
+    Mixer(const modularity::ContextPtr& iocCtx);
     ~Mixer();
 
     IAudioSourcePtr mixedSource();
 
-    RetVal<MixerChannelPtr> addChannel(const TrackId trackId, IAudioSourcePtr source);
+    RetVal<MixerChannelPtr> addChannel(const TrackId trackId, ITrackAudioInputPtr source);
     RetVal<MixerChannelPtr> addAuxChannel(const TrackId trackId);
     Ret removeChannel(const TrackId trackId);
 
@@ -61,7 +67,7 @@ public:
     void clearMasterOutputParams();
     async::Channel<AudioOutputParams> masterOutputParamsChanged() const;
 
-    async::Channel<audioch_t, AudioSignalVal> masterAudioSignalChanges() const;
+    AudioSignalChanges masterAudioSignalChanges() const;
 
     void setIsIdle(bool idle);
     void setTracksToProcessWhenIdle(std::unordered_set<TrackId>&& trackIds);
@@ -85,11 +91,13 @@ private:
     bool useMultithreading() const;
 
     void notifyNoAudioSignal();
-    void notifyAboutAudioSignalChanges(const audioch_t audioChannelNumber, const float linearRms) const;
+
+    msecs_t currentTime() const;
+
+    std::unique_ptr<TaskScheduler> m_taskScheduler;
 
     size_t m_minTrackCountForMultithreading = 0;
-
-    std::vector<float> m_writeCacheBuff;
+    size_t m_nonMutedTrackCount = 0;
 
     AudioOutputParams m_masterParams;
     async::Channel<AudioOutputParams> m_masterOutputParamsChanged;
@@ -120,4 +128,4 @@ private:
 using MixerPtr = std::shared_ptr<Mixer>;
 }
 
-#endif // MU_AUDIO_MIXER_H
+#endif // MUSE_AUDIO_MIXER_H

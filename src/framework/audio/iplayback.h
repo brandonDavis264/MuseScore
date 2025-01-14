@@ -19,16 +19,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef MU_AUDIO_ISEQUENCER_H
-#define MU_AUDIO_ISEQUENCER_H
+#ifndef MUSE_AUDIO_ISEQUENCER_H
+#define MUSE_AUDIO_ISEQUENCER_H
 
 #include "modularity/imoduleinterface.h"
-#include "async/channel.h"
-#include "async/promise.h"
+#include "global/async/channel.h"
+#include "global/async/promise.h"
 
 #include "audiotypes.h"
 
-namespace mu::audio {
+namespace muse::audio {
 class ITracks;
 class IPlayer;
 class IAudioOutput;
@@ -58,7 +58,7 @@ public:
     virtual std::shared_ptr<ITracks> tracks() const = 0;
 
     // 3. Play Sequence
-    virtual std::shared_ptr<IPlayer> player() const = 0;
+    virtual std::shared_ptr<IPlayer> player(const TrackSequenceId id) const = 0;
 
     // 4. Adjust a Sequence output
     virtual std::shared_ptr<IAudioOutput> audioOutput() const = 0;
@@ -66,4 +66,4 @@ public:
 
 using IPlaybackPtr = std::shared_ptr<IPlayback>;
 }
-#endif // MU_AUDIO_ISEQUENCER_H
+#endif // MUSE_AUDIO_ISEQUENCER_H

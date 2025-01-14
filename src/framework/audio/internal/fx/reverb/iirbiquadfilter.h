@@ -20,13 +20,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_AUDIO_IIRBIQUADFILTER_H
-#define MU_AUDIO_IIRBIQUADFILTER_H
+#ifndef MUSE_AUDIO_IIRBIQUADFILTER_H
+#define MUSE_AUDIO_IIRBIQUADFILTER_H
 
 #include <array>
 #include <cassert>
 #include <cmath>
-#include <complex>
 
 #include "smoothlinearvalue.h"
 
@@ -35,7 +34,7 @@
  * and not containing any allocation/deallocation
  */
 
-namespace mu::audio::fx {
+namespace muse::audio::fx {
 namespace IirBiquadFilter {
 namespace { // private methods
 template<typename T>
@@ -474,6 +473,6 @@ inline void create3BandToneControl4P(T xoverFreqLM, T xoverFreqMH, T gainFactL, 
     cf2.b2 *= gain_l;
 }
 } // namespace iirbiquadfilter
-} // namespace mu::audio::fx
+} // namespace muse::audio::fx
 
-#endif // MU_AUDIO_IIRBIQUADFILTER_H
+#endif // MUSE_AUDIO_IIRBIQUADFILTER_H

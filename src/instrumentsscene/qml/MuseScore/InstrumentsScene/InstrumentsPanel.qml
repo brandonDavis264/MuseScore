@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -21,13 +21,11 @@
  */
 import QtQuick 2.15
 import QtQuick.Controls 2.15
-import QtQuick.Controls 1.4
-import QtQuick.Controls.Styles 1.4
 import QtQuick.Layouts 1.15
 import QtQml.Models 2.15
 
-import MuseScore.Ui 1.0
-import MuseScore.UiComponents 1.0
+import Muse.Ui 1.0
+import Muse.UiComponents 1.0
 import MuseScore.InstrumentsScene 1.0
 
 import "internal"
@@ -36,7 +34,8 @@ Item {
     id: root
 
     property NavigationSection navigationSection: null
-    property NavigationPanel navigationPanel: controlPanel.navigation // first panel
+    property int navigationOrderStart: 1
+
     property alias contextMenuModel: contextMenuModel
 
     onVisibleChanged: {
@@ -94,7 +93,7 @@ Item {
             Layout.rightMargin: contentColumn.sideMargin
 
             navigation.section: root.navigationSection
-            navigation.order: 2
+            navigation.order: root.navigationOrderStart
 
             isMovingUpAvailable: instrumentsTreeModel.isMovingUpAvailable
             isMovingDownAvailable: instrumentsTreeModel.isMovingDownAvailable
@@ -150,6 +149,8 @@ Item {
             TreeView {
                 id: instrumentsTreeView
 
+                readonly property real delegateHeight: 38
+
                 anchors.top: parent.top
                 anchors.left: parent.left
                 anchors.right: parent.right
@@ -183,6 +184,17 @@ Item {
                         }
                     }
                     flickable.returnToBounds();
+                }
+
+                function scrollToFocusedItem(focusedIndex) {
+                    let targetScrollPosition = focusedIndex * instrumentsTreeView.delegateHeight
+                    let visibleAreaEnd = flickable.contentY + flickable.height
+
+                    if (targetScrollPosition + instrumentsTreeView.delegateHeight > visibleAreaEnd) {
+                        flickable.contentY = Math.min(targetScrollPosition + instrumentsTreeView.delegateHeight - flickable.height, flickable.contentHeight - flickable.height)
+                    } else if (targetScrollPosition < flickable.contentY) {
+                        flickable.contentY = Math.max(targetScrollPosition, 0)
+                    }
                 }
 
                 property NavigationPanel navigationTreePanel : NavigationPanel {
@@ -221,7 +233,7 @@ Item {
                     backgroundColor: "transparent"
 
                     rowDelegate: Item {
-                        height: 38
+                        height: instrumentsTreeView.delegateHeight
                         width: parent.width
                     }
                 }
@@ -229,13 +241,10 @@ Item {
                 itemDelegate: DropArea {
                     id: dropArea
 
-
                     Loader {
                         id: treeItemDelegateLoader
 
-                        property var item: model ? model.itemRole : null
                         property int delegateType: model ? model.itemRole.type : InstrumentsTreeItemType.UNDEFINED
-                        property bool isSelected: model ? model.itemRole.isSelected : false
 
                         height: parent.height
                         width: parent.width
@@ -248,8 +257,8 @@ Item {
 
                             InstrumentsTreeItemDelegate {
                                 treeView: instrumentsTreeView
-
-                                item: treeItemDelegateLoader.item
+                                item: model ? model.itemRole : null
+                                originalParent: treeItemDelegateLoader
 
                                 sideMargin: contentColumn.sideMargin
                                 popupAnchorItem: root
@@ -260,6 +269,7 @@ Item {
                                 navigation.onActiveChanged: {
                                     if (navigation.active) {
                                         prv.currentItemNavigationName = navigation.name
+                                        instrumentsTreeView.scrollToFocusedItem(model.index)
                                     }
                                 }
 
@@ -319,7 +329,7 @@ Item {
                             id: controlItemDelegateComponent
 
                             InstrumentsTreeItemControl {
-                                isSelected: treeItemDelegateLoader.isSelected
+                                isSelected: model ? model.itemRole.isSelected : false
 
                                 navigation.panel: instrumentsTreeView.navigationTreePanel
                                 navigation.row: model ? model.index : 0

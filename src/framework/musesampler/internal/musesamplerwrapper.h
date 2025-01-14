@@ -20,8 +20,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_MUSESAMPLER_MUSESAMPLERWRAPPER_H
-#define MU_MUSESAMPLER_MUSESAMPLERWRAPPER_H
+#ifndef MUSE_MUSESAMPLER_MUSESAMPLERWRAPPER_H
+#define MUSE_MUSESAMPLER_MUSESAMPLERWRAPPER_H
 
 #include <memory>
 
@@ -31,47 +31,65 @@
 #include "libhandler.h"
 #include "musesamplersequencer.h"
 
-namespace mu::musesampler {
-class MuseSamplerWrapper : public audio::synth::AbstractSynthesizer
+#include "imusesamplertracks.h"
+
+namespace muse::musesampler {
+class MuseSamplerWrapper : public muse::audio::synth::AbstractSynthesizer, public IMuseSamplerTracks,
+    public std::enable_shared_from_this<MuseSamplerWrapper>
 {
 public:
-    MuseSamplerWrapper(MuseSamplerLibHandlerPtr samplerLib, const audio::AudioSourceParams& params);
+    MuseSamplerWrapper(MuseSamplerLibHandlerPtr samplerLib, const InstrumentInfo& instrument, const muse::audio::AudioSourceParams& params,
+                       const modularity::ContextPtr& iocCtx);
     ~MuseSamplerWrapper() override;
 
     void setSampleRate(unsigned int sampleRate) override;
     unsigned int audioChannelsCount() const override;
     async::Channel<unsigned int> audioChannelsCountChanged() const override;
-    audio::samples_t process(float* buffer, audio::samples_t samplesPerChannel) override;
+    muse::audio::samples_t process(float* buffer, muse::audio::samples_t samplesPerChannel) override;
 
     std::string name() const override;
-    audio::AudioSourceType type() const override;
+    muse::audio::AudioSourceType type() const override;
     void flushSound() override;
     bool isValid() const override;
 
     void revokePlayingNotes() override;
 
-protected:
+private:
     void setupSound(const mpe::PlaybackSetupData& setupData) override;
     void setupEvents(const mpe::PlaybackData& playbackData) override;
-    void updateRenderingMode(const audio::RenderMode mode) override;
+    const mpe::PlaybackData& playbackData() const override;
 
-    audio::msecs_t playbackPosition() const override;
-    void setPlaybackPosition(const audio::msecs_t newPosition) override;
+    void updateRenderingMode(const muse::audio::RenderMode mode) override;
+
+    // IMuseSamplerTracks
+    const TrackList& allTracks() const override;
+    ms_Track addTrack() override;
+
+    muse::audio::msecs_t playbackPosition() const override;
+    void setPlaybackPosition(const muse::audio::msecs_t newPosition) override;
     bool isActive() const override;
     void setIsActive(bool arg) override;
 
+    bool initSampler(const muse::audio::sample_rate_t sampleRate, const muse::audio::samples_t blockSize);
+
+    InstrumentInfo resolveInstrument(const mpe::PlaybackSetupData& setupData) const;
+    std::string resolveDefaultPresetCode(const InstrumentInfo& instrument) const;
+
+    void prepareOutputBuffer(const muse::audio::samples_t samples);
     void handleAuditionEvents(const MuseSamplerSequencer::EventType& event);
-    void setCurrentPosition(const audio::samples_t samples);
-    void extractOutputSamples(audio::samples_t samples, float* output);
+    void setCurrentPosition(const muse::audio::samples_t samples);
+    void extractOutputSamples(muse::audio::samples_t samples, float* output);
 
     async::Channel<unsigned int> m_audioChannelsCountChanged;
 
     MuseSamplerLibHandlerPtr m_samplerLib = nullptr;
     ms_MuseSampler m_sampler = nullptr;
-    ms_Track m_track = nullptr;
+    InstrumentInfo m_instrument;
+    TrackList m_tracks;
     ms_OutputBuffer m_bus;
 
-    audio::samples_t m_currentPosition = 0;
+    muse::audio::samples_t m_currentPosition = 0;
+    muse::audio::sample_rate_t m_samplerSampleRate = 0;
 
     std::vector<float> m_leftChannel;
     std::vector<float> m_rightChannel;
@@ -79,6 +97,7 @@ protected:
     std::array<float*, 2> m_internalBuffer;
 
     bool m_offlineModeStarted = false;
+    bool m_allNotesOffRequested = false;
 
     MuseSamplerSequencer m_sequencer;
 };
@@ -86,4 +105,4 @@ protected:
 using MuseSamplerWrapperPtr = std::shared_ptr<MuseSamplerWrapper>;
 }
 
-#endif // MU_MUSESAMPLER_MUSESAMPLERWRAPPER_H
+#endif // MUSE_MUSESAMPLER_MUSESAMPLERWRAPPER_H

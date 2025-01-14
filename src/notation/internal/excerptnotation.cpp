@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -30,8 +30,8 @@
 
 using namespace mu::notation;
 
-ExcerptNotation::ExcerptNotation(mu::engraving::Excerpt* excerpt)
-    : Notation(), m_excerpt(excerpt)
+ExcerptNotation::ExcerptNotation(mu::engraving::Excerpt* excerpt, const muse::modularity::ContextPtr& iocCtx)
+    : Notation(iocCtx), m_excerpt(excerpt)
 {
 }
 
@@ -141,7 +141,8 @@ void ExcerptNotation::undoSetName(const QString& name)
         return;
     }
 
-    undoStack()->prepareChanges();
+    //: Means: "edit the name of a part score"
+    undoStack()->prepareChanges(muse::TranslatableString("undoableAction", "Rename part"));
 
     score()->undo(new engraving::ChangeExcerptTitle(m_excerpt, name));
 
@@ -149,12 +150,17 @@ void ExcerptNotation::undoSetName(const QString& name)
     notifyAboutNotationChanged();
 }
 
-mu::async::Notification ExcerptNotation::nameChanged() const
+muse::async::Notification ExcerptNotation::nameChanged() const
 {
     return m_excerpt->nameChanged();
 }
 
-const mu::String& ExcerptNotation::fileName() const
+bool ExcerptNotation::hasFileName() const
+{
+    return m_excerpt->hasFileName();
+}
+
+const muse::String& ExcerptNotation::fileName() const
 {
     return m_excerpt->fileName();
 }
@@ -169,5 +175,5 @@ IExcerptNotationPtr ExcerptNotation::clone() const
     mu::engraving::Excerpt* copy = new mu::engraving::Excerpt(*m_excerpt);
     copy->markAsCustom();
 
-    return std::make_shared<ExcerptNotation>(copy);
+    return std::make_shared<ExcerptNotation>(copy, iocContext());
 }

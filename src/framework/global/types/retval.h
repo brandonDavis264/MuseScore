@@ -19,14 +19,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef MU_FRAMEWORK_RETVAL_H
-#define MU_FRAMEWORK_RETVAL_H
+#ifndef MUSE_GLOBAL_RETVAL_H
+#define MUSE_GLOBAL_RETVAL_H
 
-#include "types/ret.h"
-#include "async/channel.h"
-#include "async/notification.h"
+#include "ret.h"
+#include "../async/channel.h"
+#include "../async/notification.h"
 
-namespace mu {
+namespace muse {
 template<typename T>
 struct RetVal {
     Ret ret;
@@ -85,4 +85,4 @@ struct ValNt {
 };
 }
 
-#endif // MU_FRAMEWORK_RETVAL_H
+#endif // MUSE_GLOBAL_RETVAL_H

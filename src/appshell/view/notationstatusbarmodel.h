@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -38,16 +38,12 @@
 
 #include "notation/notationtypes.h"
 
+#include "global/iglobalconfiguration.h"
+
 namespace mu::appshell {
-class NotationStatusBarModel : public QObject, public async::Asyncable, public actions::Actionable
+class NotationStatusBarModel : public QObject, public muse::Injectable, public muse::async::Asyncable, public muse::actions::Actionable
 {
     Q_OBJECT
-
-    INJECT(context::IGlobalContext, context)
-    INJECT(actions::IActionsDispatcher, dispatcher)
-    INJECT(ui::IUiActionsRegister, actionsRegister)
-    INJECT(workspace::IWorkspaceConfiguration, workspaceConfiguration)
-    INJECT(notation::INotationConfiguration, notationConfiguration)
 
     Q_PROPERTY(QString accessibilityInfo READ accessibilityInfo NOTIFY accessibilityInfoChanged)
     Q_PROPERTY(QVariant currentWorkspaceItem READ currentWorkspaceItem NOTIFY currentWorkspaceActionChanged)
@@ -58,6 +54,13 @@ class NotationStatusBarModel : public QObject, public async::Asyncable, public a
     Q_PROPERTY(QVariantList availableZoomList READ availableZoomList_property NOTIFY availableZoomListChanged)
     Q_PROPERTY(int currentZoomPercentage READ currentZoomPercentage WRITE setCurrentZoomPercentage NOTIFY currentZoomPercentageChanged)
 
+    muse::Inject<context::IGlobalContext> context = { this };
+    muse::Inject<muse::actions::IActionsDispatcher> dispatcher = { this };
+    muse::Inject<muse::ui::IUiActionsRegister> actionsRegister = { this };
+    muse::Inject<muse::workspace::IWorkspaceConfiguration> workspaceConfiguration = { this };
+    muse::Inject<notation::INotationConfiguration> notationConfiguration = { this };
+    muse::Inject<muse::IGlobalConfiguration> globalConfiguration = { this };
+
 public:
     explicit NotationStatusBarModel(QObject* parent = nullptr);
 
@@ -67,8 +70,8 @@ public:
     QVariant currentViewMode();
     bool zoomEnabled() const;
     int currentZoomPercentage() const;
-    uicomponents::MenuItemList makeAvailableViewModeList();
-    uicomponents::MenuItemList makeAvailableZoomList();
+    muse::uicomponents::MenuItemList makeAvailableViewModeList();
+    muse::uicomponents::MenuItemList makeAvailableZoomList();
 
     Q_INVOKABLE void load();
 
@@ -101,9 +104,9 @@ private:
     notation::INotationPtr notation() const;
     notation::INotationAccessibilityPtr accessibility() const;
 
-    uicomponents::MenuItem* makeMenuItem(const actions::ActionCode& actionCode);
+    muse::uicomponents::MenuItem* makeMenuItem(const muse::actions::ActionCode& actionCode);
 
-    void dispatch(const actions::ActionCode& code, const actions::ActionData& args = actions::ActionData());
+    void dispatch(const muse::actions::ActionCode& code, const muse::actions::ActionData& args = muse::actions::ActionData());
 
     void onCurrentNotationChanged();
 
@@ -116,7 +119,7 @@ private:
     QVariantList availableViewModeList_property();
     QVariantList availableZoomList_property();
 
-    QVariantList menuItemListToVariantList(const uicomponents::MenuItemList& list) const;
+    QVariantList menuItemListToVariantList(const muse::uicomponents::MenuItemList& list) const;
 };
 }
 

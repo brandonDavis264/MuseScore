@@ -19,26 +19,27 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef MU_SHORTCUTS_EDITSHORTCUTMODEL_H
-#define MU_SHORTCUTS_EDITSHORTCUTMODEL_H
+#ifndef MUSE_SHORTCUTS_EDITSHORTCUTMODEL_H
+#define MUSE_SHORTCUTS_EDITSHORTCUTMODEL_H
 
 #include <QObject>
+#include <QKeySequence>
 
 #include "modularity/ioc.h"
 #include "iinteractive.h"
 
 class QKeySequence;
 
-namespace mu::shortcuts {
-class EditShortcutModel : public QObject
+namespace muse::shortcuts {
+class EditShortcutModel : public QObject, public Injectable
 {
     Q_OBJECT
-
-    INJECT(framework::IInteractive, interactive)
 
     Q_PROPERTY(QString originSequence READ originSequenceInNativeFormat NOTIFY originSequenceChanged)
     Q_PROPERTY(QString newSequence READ newSequenceInNativeFormat NOTIFY newSequenceChanged)
     Q_PROPERTY(QString conflictWarning READ conflictWarning NOTIFY newSequenceChanged)
+
+    Inject<IInteractive> interactive = { this };
 
 public:
     explicit EditShortcutModel(QObject* parent = nullptr);
@@ -46,9 +47,10 @@ public:
     QString originSequenceInNativeFormat() const;
     QString newSequenceInNativeFormat() const;
     QString conflictWarning() const;
+    bool isShiftAllowed(Qt::Key key);
 
     Q_INVOKABLE void load(const QVariant& shortcut, const QVariantList& allShortcuts);
-    Q_INVOKABLE void inputKey(int key, Qt::KeyboardModifiers modifiers);
+    Q_INVOKABLE void inputKey(Qt::Key key, Qt::KeyboardModifiers modifiers);
     Q_INVOKABLE void applyNewSequence();
 
 signals:
@@ -75,4 +77,4 @@ private:
 };
 }
 
-#endif // MU_SHORTCUTS_EDITSHORTCUTMODEL_H
+#endif // MUSE_SHORTCUTS_EDITSHORTCUTMODEL_H

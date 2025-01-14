@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -101,7 +101,7 @@ Staff* Part::staff(staff_idx_t idx) const
 String Part::familyId() const
 {
     if (m_instruments.empty()) {
-        return String(u"");
+        return String();
     }
 
     InstrumentIndex ii = searchTemplateIndexForId(instrumentId());
@@ -241,7 +241,7 @@ void Part::insertStaff(Staff* staff, staff_idx_t idx)
 
 void Part::removeStaff(Staff* staff)
 {
-    if (!mu::remove(m_staves, staff)) {
+    if (!muse::remove(m_staves, staff)) {
         LOGD("Part::removeStaff: not found %p", staff);
         return;
     }
@@ -402,10 +402,10 @@ const Instrument* Part::instrument(Fraction tick) const
     return m_instruments.instrument(tick.ticks());
 }
 
-const Instrument* Part::instrumentById(const std::string& id) const
+const Instrument* Part::instrumentById(const String& id) const
 {
     for (const auto& pair: m_instruments) {
-        if (pair.second->id().toStdString() == id) {
+        if (pair.second->id() == id) {
             return pair.second;
         }
     }
@@ -435,7 +435,7 @@ const StringData* Part::stringData(const Fraction& tick, staff_idx_t staffIdx) c
 
     bool reflectTranspositionInLinkedTab = true;
 
-    const Staff* staff = staffIdx != mu::nidx ? score()->staff(staffIdx) : nullptr;
+    const Staff* staff = staffIdx != muse::nidx ? score()->staff(staffIdx) : nullptr;
     if (staff && staff->isTabStaff(tick)) {
         if (const Staff* primaryStaff = staff->primaryStaff()) {
             reflectTranspositionInLinkedTab = primaryStaff->reflectTranspositionInLinkedTab();
@@ -445,7 +445,7 @@ const StringData* Part::stringData(const Fraction& tick, staff_idx_t staffIdx) c
     StringTunings* stringTunings = nullptr;
 
     if (reflectTranspositionInLinkedTab) {
-        auto it = findLessOrEqual(m_stringTunings, tick.ticks());
+        auto it = muse::findLessOrEqual(m_stringTunings, tick.ticks());
         if (it != m_stringTunings.end()) {
             stringTunings = it->second;
         }
@@ -638,7 +638,7 @@ bool Part::setProperty(Pid id, const PropertyValue& property)
 track_idx_t Part::startTrack() const
 {
     IF_ASSERT_FAILED(!m_staves.empty()) {
-        return mu::nidx;
+        return muse::nidx;
     }
 
     return m_staves.front()->idx() * VOICES;
@@ -651,7 +651,7 @@ track_idx_t Part::startTrack() const
 track_idx_t Part::endTrack() const
 {
     IF_ASSERT_FAILED(!m_staves.empty()) {
-        return mu::nidx;
+        return muse::nidx;
     }
 
     return m_staves.back()->idx() * VOICES + VOICES;
@@ -660,10 +660,10 @@ track_idx_t Part::endTrack() const
 InstrumentTrackIdList Part::instrumentTrackIdList() const
 {
     InstrumentTrackIdList result;
-    std::set<std::string> seen;
+    std::set<String> seen;
 
     for (const auto& pair : m_instruments) {
-        std::string instrId = pair.second->id().toStdString();
+        String instrId = pair.second->id();
         if (seen.insert(instrId).second) {
             result.push_back({ m_id, instrId });
         }
@@ -677,7 +677,7 @@ InstrumentTrackIdSet Part::instrumentTrackIdSet() const
     InstrumentTrackIdSet result;
 
     for (const auto& pair : m_instruments) {
-        result.insert({ m_id, pair.second->id().toStdString() });
+        result.insert({ m_id, pair.second->id() });
     }
 
     return result;

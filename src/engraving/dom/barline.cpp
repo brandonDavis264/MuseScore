@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -44,7 +44,8 @@
 #include "log.h"
 
 using namespace mu;
-using namespace mu::draw;
+using namespace muse;
+using namespace muse::draw;
 using namespace mu::engraving;
 using namespace mu::engraving::read400;
 
@@ -309,7 +310,7 @@ String BarLine::translatedUserTypeName(BarLineType t)
 {
     for (const auto& i : barLineTable) {
         if (i.type == t) {
-            return mtrc("engraving/sym", i.userName);
+            return i.userName.translated();
         }
     }
     return String();
@@ -340,7 +341,7 @@ BarLine::BarLine(const BarLine& bl)
 
 BarLine::~BarLine()
 {
-    DeleteAll(m_el);
+    muse::DeleteAll(m_el);
 }
 
 void BarLine::setParent(Segment* parent)
@@ -515,13 +516,7 @@ void BarLine::calcY()
     double y2;
 
     if (staffIdx2 != staffIdx1) {
-        BarLine* barline2 = toBarLine(segment()->element(staffIdx2 * VOICES));
-        double from2 = barline2 ? barline2->m_spanFrom : m_spanFrom;
-        const Staff* staff2 = score()->staff(staffIdx2);
-        const StaffType* staffType2 = staff2 ? staff2->staffType(tick) : staff1->staffType(tick);
-        double spatium2 = staffType2->spatium(style());
-        double lineDistance2 = staffType2->lineDistance().val() * spatium2;
-        y2 = measure->staffLines(staffIdx2)->y1() - startStaffY + from2 * lineDistance2 * .5;
+        y2 = measure->staffLines(staffIdx2)->y1() - startStaffY - to * lineDistance * 0.5;
     } else {
         y2 = offset + (staffType1->lines() * 2 - 2 + to) * lineDistance * .5 + lineWidth;
     }
@@ -615,7 +610,7 @@ void BarLine::drawEditMode(Painter* p, EditData& ed, double currentViewScaling)
     ldata->y2 += bed->yoff2;
     PointF pos(canvasPos());
     p->translate(pos);
-    EngravingItem::renderer()->drawItem(this, p);
+    renderer()->drawItem(this, p);
     p->translate(-pos);
     ldata->y1 -= bed->yoff1;
     ldata->y2 -= bed->yoff2;
@@ -836,7 +831,7 @@ void BarLine::editDrag(EditData& ed)
         // max is the bottom of the system
         const System* system = segment() ? segment()->system() : nullptr;
         const staff_idx_t st = staffIdx();
-        const double max = (system && st != mu::nidx)
+        const double max = (system && st != muse::nidx)
                            ? (system->height() - ldata()->y2 - system->staff(st)->y())
                            : std::numeric_limits<double>::max();
         // update yoff2 and bring it within limit
@@ -944,7 +939,7 @@ void BarLine::endEditDrag(EditData& ed)
 void BarLine::scanElements(void* data, void (* func)(void*, EngravingItem*), bool all)
 {
     // if no width (staff has bar lines turned off) and not all requested, do nothing
-    if (width() == 0.0 && !all) {
+    if (RealIsNull(width()) && !all) {
         return;
     }
 
@@ -1137,6 +1132,20 @@ EngravingItem* BarLine::prevSegmentElement()
 }
 
 //---------------------------------------------------------
+//   subtypeUserName
+//---------------------------------------------------------
+
+muse::TranslatableString BarLine::subtypeUserName() const
+{
+    for (const auto& i : barLineTable) {
+        if (i.type == barLineType()) {
+            return i.userName;
+        }
+    }
+    return TranslatableString();
+}
+
+//---------------------------------------------------------
 //   accessibleInfo
 //---------------------------------------------------------
 
@@ -1214,10 +1223,10 @@ String BarLine::accessibleExtraInfo() const
         }
         if (s->type() == ElementType::VOLTA) {
             if (s->tick() == tick) {
-                rez += u"; " + mtrc("engraving", "Start of %1").arg(s->screenReaderInfo());
+                rez += u"; " + muse::mtrc("engraving", "Start of %1").arg(s->screenReaderInfo());
             }
             if (s->tick2() == tick) {
-                rez += u"; " + mtrc("engraving", "End of %1").arg(s->screenReaderInfo());
+                rez += u"; " + muse::mtrc("engraving", "End of %1").arg(s->screenReaderInfo());
             }
         }
     }

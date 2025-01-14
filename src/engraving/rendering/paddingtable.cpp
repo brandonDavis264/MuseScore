@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2023 MuseScore BVBA and others
+ * Copyright (C) 2023 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -73,7 +73,7 @@ void PaddingTable::createTable(const MStyle& style)
     table[ElementType::LEDGER_LINE][ElementType::TIMESIG]
         = std::max(table[ElementType::NOTE][ElementType::TIMESIG] - ledgerLength / 2, ledgerPad);
 
-    table[ElementType::HOOK][ElementType::NOTE] = 0.5 * spatium;
+    table[ElementType::HOOK][ElementType::NOTE] = 0.35 * spatium;
     table[ElementType::HOOK][ElementType::LEDGER_LINE]
         = std::max(table[ElementType::HOOK][ElementType::NOTE] - ledgerLength, ledgerPad);
     table[ElementType::HOOK][ElementType::ACCIDENTAL] = 0.35 * spatium;
@@ -88,7 +88,7 @@ void PaddingTable::createTable(const MStyle& style)
                                                                   Sid::dotDotDistance));
     table[ElementType::NOTEDOT][ElementType::LEDGER_LINE]
         = std::max(table[ElementType::NOTEDOT][ElementType::NOTE] - ledgerLength, ledgerPad);
-    table[ElementType::NOTEDOT][ElementType::ACCIDENTAL] = table[ElementType::NOTEDOT][ElementType::NOTE];
+    table[ElementType::NOTEDOT][ElementType::ACCIDENTAL] = 0.35 * spatium;
     table[ElementType::NOTEDOT][ElementType::REST] = table[ElementType::NOTEDOT][ElementType::NOTE];
     table[ElementType::NOTEDOT][ElementType::CLEF] = 1.0 * spatium;
     table[ElementType::NOTEDOT][ElementType::ARPEGGIO] = 0.5 * spatium;
@@ -168,18 +168,15 @@ void PaddingTable::createTable(const MStyle& style)
         elem[ElementType::AMBITUS] = style.styleMM(Sid::ambitusMargin);
     }
 
-    table[ElementType::ARPEGGIO][ElementType::NOTE] = style.styleMM(Sid::ArpeggioNoteDistance);
+    table[ElementType::ARPEGGIO][ElementType::NOTE] = style.styleMM(Sid::arpeggioNoteDistance);
     table[ElementType::ARPEGGIO][ElementType::LEDGER_LINE] = 0.3 * spatium;
-    table[ElementType::ARPEGGIO][ElementType::ACCIDENTAL] = style.styleMM(Sid::ArpeggioAccidentalDistance);
+    table[ElementType::ARPEGGIO][ElementType::ACCIDENTAL] = style.styleMM(Sid::arpeggioAccidentalDistance);
 
     // Breath
     table[ElementType::BREATH].fill(1.0 * spatium);
     for (auto& elem: table) {
         elem[ElementType::BREATH] = 1.0 * spatium;
     }
-
-    // Temporary hack, because some padding is already constructed inside the lyrics themselves.
-    table[ElementType::BAR_LINE][ElementType::LYRICS] = 0.0 * spatium;
 
     // Harmony
     table[ElementType::BAR_LINE][ElementType::HARMONY] = 0.5 * style.styleMM(Sid::minHarmonyDistance);
@@ -199,7 +196,9 @@ void PaddingTable::createTable(const MStyle& style)
     }
 
     // This is needed for beamlets, not beams themselves
-    table[ElementType::BEAM][ElementType::BEAM] = 0.4 * spatium;
+    table[ElementType::BEAM].fill(0.35 * spatium);
+
+    table[ElementType::TREMOLO_SINGLECHORD] = table[ElementType::BEAM];
 
     // Symbols (semi-hack: the only symbol for which
     // this is relevant is noteHead parenthesis)
@@ -209,4 +208,32 @@ void PaddingTable::createTable(const MStyle& style)
         elem[ElementType::SYMBOL] = elem[ElementType::ACCIDENTAL];
     }
     table[ElementType::NOTEDOT][ElementType::SYMBOL] = 0.2 * spatium;
+
+    double lyricsSpacing = style.styleMM(Sid::lyricsMinDistance);
+    table[ElementType::LYRICS].fill(lyricsSpacing);
+    for (auto& elem : table) {
+        elem[ElementType::LYRICS] = lyricsSpacing;
+    }
+    table[ElementType::NOTE][ElementType::LYRICS] = style.styleMM(Sid::lyricsMelismaPad);
+
+    // Accidental -> padding (used by accidental placement algorithm)
+    table[ElementType::ACCIDENTAL][ElementType::NOTE] = style.styleMM(Sid::accidentalNoteDistance);
+    table[ElementType::ACCIDENTAL][ElementType::LEDGER_LINE] = 0.18 * spatium;
+    table[ElementType::ACCIDENTAL][ElementType::STEM] = table[ElementType::ACCIDENTAL][ElementType::NOTE];
+
+    table[ElementType::ARTICULATION][ElementType::NOTE] = 0.25 * spatium;
+    table[ElementType::ARTICULATION][ElementType::REST] = 0.25 * spatium;
+    table[ElementType::ARTICULATION][ElementType::ACCIDENTAL] = 0.25 * spatium;
+
+    table[ElementType::LAISSEZ_VIB_SEGMENT][ElementType::NOTE] = 0.5 * spatium;
+    table[ElementType::LAISSEZ_VIB_SEGMENT][ElementType::REST] = 0.5 * spatium;
+    table[ElementType::LAISSEZ_VIB_SEGMENT][ElementType::ACCIDENTAL] = 0.35 * spatium;
+    table[ElementType::LAISSEZ_VIB_SEGMENT][ElementType::BAR_LINE] = 0.35 * spatium;
+    table[ElementType::LAISSEZ_VIB_SEGMENT][ElementType::STEM] = 0.35 * spatium;
+
+    // Measure repeat set same values as note
+    table[ElementType::MEASURE_REPEAT] = table[ElementType::NOTE];
+    for (auto& elem : table) {
+        elem[ElementType::MEASURE_REPEAT] = elem[ElementType::NOTE];
+    }
 }

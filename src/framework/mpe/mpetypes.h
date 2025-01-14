@@ -20,8 +20,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_MPE_MPETYPES_H
-#define MU_MPE_MPETYPES_H
+#ifndef MUSE_MPE_MPETYPES_H
+#define MUSE_MPE_MPETYPES_H
 
 #include <stdint.h>
 #include <math.h>
@@ -42,7 +42,7 @@
 #undef C
 #endif
 
-namespace mu::mpe {
+namespace muse::mpe {
 // common
 using usecs_t = int64_t; // microseconds
 using percentage_t = int_fast16_t;
@@ -66,6 +66,15 @@ using timestamp_t = usecs_t;
 using duration_t = usecs_t;
 using duration_percentage_t = percentage_t;
 using voice_layer_idx_t = uint_fast8_t;
+using staff_layer_idx_t = uint_fast16_t;
+using layer_idx_t = size_t;
+
+static constexpr voice_layer_idx_t MAX_VOICES = 4;
+
+constexpr inline layer_idx_t makeLayerIdx(const staff_layer_idx_t staffIdx, const voice_layer_idx_t voiceIdx)
+{
+    return staffIdx * MAX_VOICES + voiceIdx;
+}
 
 constexpr inline duration_percentage_t occupiedPercentage(const timestamp_t timestamp,
                                                           const duration_t overallDuration)
@@ -118,61 +127,6 @@ struct ValuesCurve : public SharedMap<duration_percentage_t, T>
         float factor = log10f(amplitude / static_cast<float>(duration));
 
         return (factor + 1.f) / 2.f;
-    }
-
-    void amplifyVelocity(const float requiredVelocityFraction)
-    {
-        if (RealIsEqual(requiredVelocityFraction, 0.f)) {
-            return;
-        }
-
-        ValuesCurve result;
-
-        if (RealIsEqualOrMore(requiredVelocityFraction, 0.5f)) {
-            accelerate(requiredVelocityFraction, result);
-        } else {
-            decelerate(requiredVelocityFraction, result);
-        }
-
-        *this = result;
-    }
-
-private:
-    void accelerate(const float requiredVelocityFraction, ValuesCurve& result)
-    {
-        float positionAmplifyFactor = std::pow(10.f, (requiredVelocityFraction * 2.f) - 1.f);
-
-        for (const auto& pair : *this) {
-            if (pair.first == 0 || pair.first == HUNDRED_PERCENT) {
-                result.insert({ pair.first, pair.second });
-                continue;
-            }
-
-            float newPointPositionCoef = (pair.second / static_cast<float>(pair.first)) * positionAmplifyFactor;
-            duration_percentage_t newPointPosition = static_cast<duration_percentage_t>(RealRound(pair.second / newPointPositionCoef, 0));
-
-            result.insert({ newPointPosition, pair.second });
-        }
-    }
-
-    void decelerate(const float requiredVelocityFraction, ValuesCurve& result)
-    {
-        float amplifyFactor = std::pow(10.f, (requiredVelocityFraction * 2.f) - 1.f);
-
-        auto amplitudePoint = amplitudeValuePoint();
-        T oldAmplitudeLevel = amplitudePoint.second;
-        T newAmplitudeLevel = amplitudePoint.first * amplifyFactor;
-
-        float ratio = newAmplitudeLevel / static_cast<float>(oldAmplitudeLevel);
-
-        for (const auto& pair : *this) {
-            if (pair.first == amplitudePoint.first) {
-                result.insert({ pair.first, newAmplitudeLevel });
-                continue;
-            }
-
-            result.insert({ pair.first, pair.second * ratio });
-        }
     }
 };
 
@@ -263,9 +217,23 @@ enum class ArticulationType {
 
     GhostNote,
     CrossNote,
+    CrossLargeNote,
+    CrossOrnateNote,
     CircleNote,
-    TriangleNote,
+    CircleCrossNote,
+    CircleDotNote,
+    TriangleLeftNote,
+    TriangleRightNote,
+    TriangleUpNote,
+    TriangleDownNote,
+    TriangleRoundDownNote,
     DiamondNote,
+    MoonNote,
+    PlusNote,
+    SlashNote,
+    SquareNote,
+    SlashedBackwardsNote,
+    SlashedForwardsNote,
 
     Fall,
     QuickFall,
@@ -273,25 +241,11 @@ enum class ArticulationType {
     Plop,
     Scoop,
     BrassBend,
-    Multibend,
     SlideOutDown,
     SlideOutUp,
     SlideInAbove,
     SlideInBelow,
     VolumeSwell,
-
-    // multi-note articulations
-    Crescendo,
-    Decrescendo,
-    DiscreteGlissando,
-    ContinuousGlissando,
-    Legato,
-    Pedal,
-    Arpeggio,
-    ArpeggioUp,
-    ArpeggioDown,
-    ArpeggioStraightUp,
-    ArpeggioStraightDown,
 
     Vibrato,
     WideVibrato,
@@ -302,8 +256,8 @@ enum class ArticulationType {
     Tremolo16th,
     Tremolo32nd,
     Tremolo64th,
+    TremoloBuzz,
 
-    Trill,
     TrillBaroque,
     UpperMordent,
     LowerMordent,
@@ -332,36 +286,50 @@ enum class ArticulationType {
     Slap,
     Pop,
 
+    ContinuousGlissando,
+
+    // multi-note articulations
+    Trill,
+    Crescendo,
+    Decrescendo,
+    DiscreteGlissando,
+    Legato,
+    Pedal,
+    Multibend,
+    Arpeggio,
+    ArpeggioUp,
+    ArpeggioDown,
+    ArpeggioStraightUp,
+    ArpeggioStraightDown,
+
     Last
 };
 
 using ArticulationTypeSet = std::unordered_set<ArticulationType>;
 
-inline bool isSingleNoteArticulation(const ArticulationType type)
-{
-    static const ArticulationTypeSet SINGLE_NOTE_TYPES = {
-        ArticulationType::Standard, ArticulationType::Staccato, ArticulationType::Staccatissimo,
-        ArticulationType::Tenuto, ArticulationType::Marcato, ArticulationType::Accent,
-        ArticulationType::SoftAccent, ArticulationType::LaissezVibrer,
-        ArticulationType::Subito, ArticulationType::FadeIn, ArticulationType::FadeOut,
-        ArticulationType::Harmonic, ArticulationType::PalmMute, ArticulationType::Mute, ArticulationType::Open,
-        ArticulationType::Pizzicato, ArticulationType::SnapPizzicato, ArticulationType::RandomPizzicato,
-        ArticulationType::UpBow, ArticulationType::DownBow, ArticulationType::Detache,
-        ArticulationType::Martele, ArticulationType::Jete, ArticulationType::GhostNote,
-        ArticulationType::CrossNote, ArticulationType::CircleNote, ArticulationType::TriangleNote,
-        ArticulationType::DiamondNote, ArticulationType::Fall, ArticulationType::QuickFall,
-        ArticulationType::Doit, ArticulationType::Plop, ArticulationType::Scoop,
-        ArticulationType::BrassBend, ArticulationType::SlideOutDown, ArticulationType::SlideOutUp,
-        ArticulationType::SlideInAbove, ArticulationType::SlideInBelow, ArticulationType::VolumeSwell,
-        ArticulationType::Vibrato,
-    };
-
-    return SINGLE_NOTE_TYPES.find(type) != SINGLE_NOTE_TYPES.cend();
-}
-
 inline bool isMultiNoteArticulation(const ArticulationType type)
 {
-    return !isSingleNoteArticulation(type);
+    static const ArticulationTypeSet MULTI_TYPES = {
+        ArticulationType::Trill,
+        ArticulationType::Crescendo,
+        ArticulationType::Decrescendo,
+        ArticulationType::DiscreteGlissando,
+        ArticulationType::Legato,
+        ArticulationType::Pedal,
+        ArticulationType::Multibend,
+        ArticulationType::Arpeggio,
+        ArticulationType::ArpeggioUp,
+        ArticulationType::ArpeggioDown,
+        ArticulationType::ArpeggioStraightUp,
+        ArticulationType::ArpeggioStraightDown,
+    };
+
+    return muse::contains(MULTI_TYPES, type);
+}
+
+inline bool isSingleNoteArticulation(const ArticulationType type)
+{
+    return !isMultiNoteArticulation(type);
 }
 
 inline bool isRangedArticulation(const ArticulationType type)
@@ -374,6 +342,8 @@ inline bool isRangedArticulation(const ArticulationType type)
            || type == ArticulationType::Pedal
            || type == ArticulationType::Multibend;
 }
+
+static const String ORDINARY_PLAYING_TECHNIQUE_CODE(u"ordinary_technique");
 
 using dynamic_level_t = percentage_t;
 constexpr dynamic_level_t MAX_DYNAMIC_LEVEL = HUNDRED_PERCENT;
@@ -405,8 +375,6 @@ enum class DynamicType {
     fffffffff = MAX_DYNAMIC_LEVEL,
     Last
 };
-
-using DynamicLevelMap = std::map<timestamp_t, dynamic_level_t>;
 
 inline DynamicType approximateDynamicType(const dynamic_level_t dynamicLevel)
 {
@@ -920,4 +888,4 @@ private:
 };
 }
 
-#endif // MU_MPE_MPETYPES_H
+#endif // MUSE_MPE_MPETYPES_H

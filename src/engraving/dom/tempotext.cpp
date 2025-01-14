@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -169,25 +169,26 @@ TDuration TempoText::duration() const
 }
 
 static const TempoPattern tpSym[] = {
-    TempoPattern("<sym>metNoteQuarterUp</sym>\\s*<sym>metAugmentationDot</sym>\\s*<sym>metAugmentationDot</sym>",
+    TempoPattern("<sym>metNoteQuarterUp</sym><sym>space</sym><sym>metAugmentationDot</sym><sym>metAugmentationDot</sym>",
                  1.75 / 60.0, DurationType::V_QUARTER, 2),                                                                                                                          // double dotted 1/4
-    TempoPattern("<sym>metNoteQuarterUp</sym>\\s*<sym>metAugmentationDot</sym>",          1.5 / 60.0,  DurationType::V_QUARTER,
+    TempoPattern("<sym>metNoteQuarterUp</sym><sym>space</sym><sym>metAugmentationDot</sym>",          1.5 / 60.0,  DurationType::V_QUARTER,
                  1),                                                                                                                           // dotted 1/4
     TempoPattern("<sym>metNoteQuarterUp</sym>",                                           1.0 / 60.0,  DurationType::V_QUARTER),  // 1/4
-    TempoPattern("<sym>metNoteHalfUp</sym>\\s*<sym>metAugmentationDot</sym>\\s*<sym>metAugmentationDot</sym>",
+    TempoPattern("<sym>metNoteHalfUp</sym><sym>space</sym><sym>metAugmentationDot</sym><sym>metAugmentationDot</sym>",
                  1.75 / 30.0, DurationType::V_HALF, 2),                                                                                                                       // double dotted 1/2
-    TempoPattern("<sym>metNoteHalfUp</sym>\\s*<sym>metAugmentationDot</sym>",             1.5 / 30.0,  DurationType::V_HALF, 1),    // dotted 1/2
+    TempoPattern("<sym>metNoteHalfUp</sym><sym>space</sym><sym>metAugmentationDot</sym>",             1.5 / 30.0,  DurationType::V_HALF, 1),    // dotted 1/2
     TempoPattern("<sym>metNoteHalfUp</sym>",                                              1.0 / 30.0,  DurationType::V_HALF),     // 1/2
-    TempoPattern("<sym>metNote8thUp</sym>\\s*<sym>metAugmentationDot</sym>\\s*<sym>metAugmentationDot</sym>",         1.75 / 120.0,
+    TempoPattern("<sym>metNote8thUp</sym><sym>space</sym><sym>metAugmentationDot</sym><sym>metAugmentationDot</sym>",         1.75 / 120.0,
                  DurationType::V_EIGHTH, 2),                                                                                                                    // double dotted 1/8
-    TempoPattern("<sym>metNote8thUp</sym>\\s*<sym>metAugmentationDot</sym>",              1.5 / 120.0, DurationType::V_EIGHTH,
+    TempoPattern("<sym>metNote8thUp</sym><sym>space</sym><sym>metAugmentationDot</sym>",              1.5 / 120.0, DurationType::V_EIGHTH,
                  1),                                                                                                                           // dotted 1/8
     TempoPattern("<sym>metNote8thUp</sym>",                                               1.0 / 120.0, DurationType::V_EIGHTH),   // 1/8
-    TempoPattern("<sym>metNoteWhole</sym>\\s*<sym>metAugmentationDot</sym>",              1.5 / 15.0,  DurationType::V_WHOLE, 1),    // dotted whole
+    TempoPattern("<sym>metNoteWhole</sym><sym>space</sym><sym>metAugmentationDot</sym>",              1.5 / 15.0,  DurationType::V_WHOLE,
+                 1),                                                                                                                             // dotted whole
     TempoPattern("<sym>metNoteWhole</sym>",                                               1.0 / 15.0,  DurationType::V_WHOLE),    // whole
-    TempoPattern("<sym>metNote16thUp</sym>\\s*<sym>metAugmentationDot</sym>",             1.5 / 240.0, DurationType::V_16TH, 1),  // dotted 1/16
+    TempoPattern("<sym>metNote16thUp</sym><sym>space</sym><sym>metAugmentationDot</sym>",             1.5 / 240.0, DurationType::V_16TH, 1),  // dotted 1/16
     TempoPattern("<sym>metNote16thUp</sym>",                                              1.0 / 240.0, DurationType::V_16TH),     // 1/16
-    TempoPattern("<sym>metNote32ndUp</sym>\\s*<sym>metAugmentationDot</sym>",             1.5 / 480.0, DurationType::V_32ND, 1),  // dotted 1/32
+    TempoPattern("<sym>metNote32ndUp</sym><sym>space</sym><sym>metAugmentationDot</sym>",             1.5 / 480.0, DurationType::V_32ND, 1),  // dotted 1/32
     TempoPattern("<sym>metNote32ndUp</sym>",                                              1.0 / 480.0, DurationType::V_32ND),     // 1/32
     TempoPattern("<sym>metNoteDoubleWholeSquare</sym>",                                   1.0 / 7.5,   DurationType::V_BREVE),    // longa
     TempoPattern("<sym>metNoteDoubleWhole</sym>",                                         1.0 / 7.5,   DurationType::V_BREVE),    // double whole
@@ -208,7 +209,6 @@ String TempoText::duration2tempoTextString(const TDuration dur)
     for (const TempoPattern& pa : tpSym) {
         if (pa.d == dur) {
             String res = String::fromUtf8(pa.pattern);
-            res.replace(u"\\s*", u" ");
             return res;
         }
     }
@@ -267,16 +267,17 @@ void TempoText::updateTempo()
     s.replace(u"≈", u"=");
     s.replace(u"~", u"=");
     s.replace(u"ca.", u"");
+    s.replace(u"c.", u"");
     s.replace(u"approx.", u"");
     std::string su8 = s.toStdString();
     for (const TempoPattern& pa : tp) {
         String pattern = String::fromUtf8(pa.pattern);
         std::regex re;
-        if (!mu::contains(regexps, String::fromUtf8(pa.pattern))) {
+        if (!muse::contains(regexps, String::fromUtf8(pa.pattern))) {
             re = std::regex(String(u"%1\\s*=\\s*(\\d+[.]{0,1}\\d*)\\s*").arg(pattern).toStdString());
             regexps[pattern] = re;
         }
-        re = mu::value(regexps, pattern);
+        re = muse::value(regexps, pattern);
         std::smatch match;
         std::regex_search(su8, match, re);
         if (!match.empty()) {
@@ -295,11 +296,11 @@ void TempoText::updateTempo()
                 String pattern2 = String::fromUtf8(pa2.pattern);
                 String key = String(u"%1_%2").arg(pattern, pattern2);
                 std::regex re2;
-                if (!mu::contains(regexps2, key)) {
+                if (!muse::contains(regexps2, key)) {
                     re2 = std::regex(String(u"%1\\s*=\\s*%2\\s*").arg(pattern, pattern2).toStdString());
                     regexps2[key] = re2;
                 }
-                re2 = mu::value(regexps2, key);
+                re2 = muse::value(regexps2, key);
                 std::smatch match2;
                 std::regex_search(su8, match2, re2);
                 if (!match2.empty()) {
@@ -329,30 +330,14 @@ void TempoText::setTempo(BeatsPerSecond v)
 }
 
 //---------------------------------------------------------
-//   undoSetTempo
-//---------------------------------------------------------
-
-void TempoText::undoSetTempo(double v)
-{
-    undoChangeProperty(Pid::TEMPO, v, propertyFlags(Pid::TEMPO));
-}
-
-//---------------------------------------------------------
-//   undoSetFollowText
-//---------------------------------------------------------
-
-void TempoText::undoSetFollowText(bool v)
-{
-    undoChangeProperty(Pid::TEMPO_FOLLOW_TEXT, v, propertyFlags(Pid::TEMPO));
-}
-
-//---------------------------------------------------------
 //   getProperty
 //---------------------------------------------------------
 
 PropertyValue TempoText::getProperty(Pid propertyId) const
 {
     switch (propertyId) {
+    case Pid::PLAY:
+        return m_playTempoText;
     case Pid::TEMPO:
         return m_tempo;
     case Pid::TEMPO_FOLLOW_TEXT:
@@ -369,12 +354,16 @@ PropertyValue TempoText::getProperty(Pid propertyId) const
 bool TempoText::setProperty(Pid propertyId, const PropertyValue& v)
 {
     switch (propertyId) {
+    case Pid::PLAY:
+        setPlayTempoText(v.toBool());
+        score()->setUpTempoMapLater();
+        break;
     case Pid::TEMPO:
         setTempo(v.value<BeatsPerSecond>());
         score()->setUpTempoMapLater();
         break;
     case Pid::TEMPO_FOLLOW_TEXT:
-        m_followText = v.toBool();
+        setFollowText(v.toBool());
         break;
     default:
         if (!TextBase::setProperty(propertyId, v)) {
@@ -393,6 +382,8 @@ bool TempoText::setProperty(Pid propertyId, const PropertyValue& v)
 PropertyValue TempoText::propertyDefault(Pid id) const
 {
     switch (id) {
+    case Pid::PLAY:
+        return true;
     case Pid::TEXT_STYLE:
         return TextStyleType::TEMPO;
     case Pid::TEMPO:
@@ -412,13 +403,13 @@ String TempoText::duration2userName(const TDuration t)
 {
     String dots;
     switch (t.dots()) {
-    case 1: dots = mtrc("engraving", "Dotted %1").arg(TConv::translatedUserName(t.type()));
+    case 1: dots = muse::mtrc("engraving", "Dotted %1").arg(TConv::translatedUserName(t.type()));
         break;
-    case 2: dots = mtrc("engraving", "Double dotted %1").arg(TConv::translatedUserName(t.type()));
+    case 2: dots = muse::mtrc("engraving", "Double dotted %1").arg(TConv::translatedUserName(t.type()));
         break;
-    case 3: dots = mtrc("engraving", "Triple dotted %1").arg(TConv::translatedUserName(t.type()));
+    case 3: dots = muse::mtrc("engraving", "Triple dotted %1").arg(TConv::translatedUserName(t.type()));
         break;
-    case 4: dots = mtrc("engraving", "Quadruple dotted %1").arg(TConv::translatedUserName(t.type()));
+    case 4: dots = muse::mtrc("engraving", "Quadruple dotted %1").arg(TConv::translatedUserName(t.type()));
         break;
     default:
         dots = TConv::translatedUserName(t.type());
@@ -456,13 +447,13 @@ String TempoText::accessibleInfo() const
             //: the durations as separate strings are not suitable to be used as adjectives
             //: here, translate "%1 note" with "%1" and "%2 note" with "%2", so that just the
             //: duration will be shown.
-            info = mtrc("engraving", "%1 note = %2 note").arg(dots1, dots2);
+            info = muse::mtrc("engraving", "%1 note = %2 note").arg(dots1, dots2);
         } else {
             //: %1 is a note duration. If your language does not have different terms for
             //: "quarter note" and "quarter" (for example), or if the translations for the
             //: durations as separate strings are not suitable to be used as adjectives here,
             //: translate "%1 note" with "%1", so that just the duration will be shown.
-            info = mtrc("engraving", "%1 note = %2").arg(dots1, secondPart);
+            info = muse::mtrc("engraving", "%1 note = %2").arg(dots1, secondPart);
         }
 
         return String(u"%1: %2").arg(EngravingItem::accessibleInfo(), info);

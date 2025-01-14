@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -40,7 +40,7 @@ public:
     static PalettePtr newRepeatsPalette(bool defaultPalette = false);
     static PalettePtr newBeamPalette();
     static PalettePtr newDynamicsPalette(bool defaultPalette = false);
-    static PalettePtr newLayoutPalette();
+    static PalettePtr newLayoutPalette(bool defaultPalette = false);
     static PalettePtr newFingeringPalette(bool defaultPalette = false);
     static PalettePtr newTremoloPalette();
     static PalettePtr newNoteHeadsPalette();
@@ -62,7 +62,6 @@ public:
     static PalettePtr newKeyboardPalette();
     static PalettePtr newPitchPalette(bool defaultPalette = false);
     static PalettePtr newHarpPalette();
-    static PalettePtr newPlaybackPalette();
 
     static PaletteTreePtr newMasterPaletteTree();
     static PaletteTreePtr newDefaultPaletteTree();

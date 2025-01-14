@@ -4,7 +4,8 @@ using namespace mu::notation;
 
 RestsPageModel::RestsPageModel(QObject* parent)
     : AbstractStyleDialogModel(parent, {
-    StyleId::multiVoiceRestTwoSpaceOffset
+    StyleId::multiVoiceRestTwoSpaceOffset,
+    StyleId::mergeMatchingRests
 })
 {
 }
@@ -12,4 +13,9 @@ RestsPageModel::RestsPageModel(QObject* parent)
 StyleItem* RestsPageModel::multiVoiceRestTwoSpaceOffset() const
 {
     return styleItem(StyleId::multiVoiceRestTwoSpaceOffset);
+}
+
+StyleItem* RestsPageModel::mergeMatchingRests() const
+{
+    return styleItem(StyleId::mergeMatchingRests);
 }

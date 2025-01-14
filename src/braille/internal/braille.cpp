@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -1017,8 +1017,8 @@ int Braille::computeInterval(Note* note1, Note* note2, bool ignoreOctave)
     }
 
     int interval = notes.indexOf(note2PitchName) + 1;
-    if (!ignoreOctave && abs(note1->epitch() - note2->epitch()) >= 12) {
-        interval += (abs(note1->epitch() - note2->epitch()) / 12) * 8 - 1;
+    if (!ignoreOctave && std::abs(note1->epitch() - note2->epitch()) >= 12) {
+        interval += (std::abs(note1->epitch() - note2->epitch()) / 12) * 8 - 1;
     }
 
     return interval;
@@ -1408,7 +1408,9 @@ void Braille::brailleMeasureItems(BrailleEngravingItemList* beiz, Measure* measu
 
     //Render the barline
     BarLine* bl = lastBarline(measure, staffCount * VOICES);
-    beiz->addEngravingItem(bl, brailleBarline(bl));
+    if (bl) {
+        beiz->addEngravingItem(bl, brailleBarline(bl));
+    }
 
     //Render repeats and jumps that are on the right
     for (EngravingItem* el : measure->el()) {
@@ -1892,7 +1894,7 @@ QString Braille::brailleChordInterval(Note* rootNote, const std::vector<Note*>& 
     if (interval == 1 && rootNote->octave() == note->octave()) {
         noteOctaveBraille = brailleOctave(note->octave());
     }
-    size_t noteIdx = mu::indexOf(notes, note);
+    size_t noteIdx = muse::indexOf(notes, note);
     int intervalWithPreviousNoteInChord = computeInterval(notes.at(noteIdx - 1), note, false);
     // (b) it is the first or only interval and is more than an octave from the written note,
     if (noteIdx == 1 && intervalWithPreviousNoteInChord > 8) {

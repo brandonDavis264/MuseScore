@@ -20,10 +20,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "samplerateconvertor.h"
-#include "log.h"
+
 #include <cmath>
 
-using namespace mu::audio;
+#include "log.h"
+
+using namespace muse::audio;
 
 SampleRateConvertor::SampleRateConvertor(const std::vector<float>& data,
                                          unsigned int channelsCount,

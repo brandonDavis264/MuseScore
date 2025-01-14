@@ -24,16 +24,12 @@
 #include "settings.h"
 #include "io/path.h"
 
+#include "global/configreader.h"
+
 #include "log.h"
 
-using namespace mu::shortcuts;
-using namespace mu::framework;
-
-#if defined(Q_OS_MACOS)
-static const mu::io::path_t SHORTCUTS_DEFAULT_FILE_PATH(":/data/shortcuts-Mac.xml");
-#else
-static const mu::io::path_t SHORTCUTS_DEFAULT_FILE_PATH(":/data/shortcuts.xml");
-#endif
+using namespace muse;
+using namespace muse::shortcuts;
 
 static const std::string MIDIMAPPINGS_FILE_NAME("/midi_mappings.xml");
 
@@ -41,6 +37,8 @@ static const Settings::Key ADVANCE_TO_NEXT_NOTE_ON_KEY_RELEASE("shortcuts", "io/
 
 void ShortcutsConfiguration::init()
 {
+    m_config = ConfigReader::read(":/configs/shortcuts.cfg");
+
     settings()->setDefaultValue(ADVANCE_TO_NEXT_NOTE_ON_KEY_RELEASE, Val(true));
 }
 
@@ -57,17 +55,21 @@ void ShortcutsConfiguration::setCurrentKeyboardLayout(const QString& layout)
     return;
 }
 
-mu::io::path_t ShortcutsConfiguration::shortcutsUserAppDataPath() const
+io::path_t ShortcutsConfiguration::shortcutsUserAppDataPath() const
 {
     return globalConfiguration()->userAppDataPath() + "/shortcuts.xml";
 }
 
-mu::io::path_t ShortcutsConfiguration::shortcutsAppDataPath() const
+io::path_t ShortcutsConfiguration::shortcutsAppDataPath() const
 {
-    return SHORTCUTS_DEFAULT_FILE_PATH;
+#if defined(Q_OS_MACOS)
+    return m_config.value("shortcuts_mac").toPath();
+#endif
+
+    return m_config.value("shortcuts").toPath();
 }
 
-mu::io::path_t ShortcutsConfiguration::midiMappingUserAppDataPath() const
+io::path_t ShortcutsConfiguration::midiMappingUserAppDataPath() const
 {
     return globalConfiguration()->userAppDataPath() + MIDIMAPPINGS_FILE_NAME;
 }

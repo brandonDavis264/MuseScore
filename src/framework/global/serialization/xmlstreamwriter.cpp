@@ -21,12 +21,12 @@
  */
 #include "xmlstreamwriter.h"
 
-#include "containers.h"
+#include "global/containers.h"
 #include "textstream.h"
 
 #include "log.h"
 
-using namespace mu;
+using namespace muse;
 
 struct XmlStreamWriter::Impl {
     std::list<std::string> stack;
@@ -159,7 +159,7 @@ void XmlStreamWriter::startElementRaw(const String& name)
 void XmlStreamWriter::endElement()
 {
     m_impl->putLevel();
-    m_impl->stream << "</" << mu::takeLast(m_impl->stack) << '>' << '\n';
+    m_impl->stream << "</" << muse::takeLast(m_impl->stack) << '>' << '\n';
     flush();
 }
 

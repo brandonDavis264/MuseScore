@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2022 MuseScore BVBA and others
+ * Copyright (C) 2022 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -138,6 +138,7 @@ QT_TRANSLATE_NOOP("engraving/instruments/family", "Ophicleides"),
 QT_TRANSLATE_NOOP("engraving/instruments/family", "Cornetts"),
 QT_TRANSLATE_NOOP("engraving/instruments/family", "Serpents"),
 QT_TRANSLATE_NOOP("engraving/instruments/family", "Trombones"),
+QT_TRANSLATE_NOOP("engraving/instruments/family", "Cimbassos"),
 QT_TRANSLATE_NOOP("engraving/instruments/family", "Sackbuts"),
 QT_TRANSLATE_NOOP("engraving/instruments/family", "Euphoniums"),
 QT_TRANSLATE_NOOP("engraving/instruments/family", "Tubas"),
@@ -3116,19 +3117,6 @@ QT_TRANSLATE_NOOP3("engraving/instruments", "open", "trombone-treble channel"),
 //: channel for Trombone (treble clef); Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
 QT_TRANSLATE_NOOP3("engraving/instruments", "mute", "trombone-treble channel"),
 
-//: description for Contrabass Trombone; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Contrabass Trombone (usually pitched in F).", "contrabass-trombone description"),
-//: trackName for Contrabass Trombone; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Contrabass Trombone", "contrabass-trombone trackName"),
-//: longName for Contrabass Trombone; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Contrabass Trombone", "contrabass-trombone longName"),
-//: shortName for Contrabass Trombone; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Cb. Tbn.", "contrabass-trombone shortName"),
-//: channel for Contrabass Trombone; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "open", "contrabass-trombone channel"),
-//: channel for Contrabass Trombone; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "mute", "contrabass-trombone channel"),
-
 //: description for Bass Trombone; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
 QT_TRANSLATE_NOOP3("engraving/instruments", "Bass trombone (pitched in B♭).", "bass-trombone description"),
 //: trackName for Bass Trombone; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
@@ -3141,6 +3129,19 @@ QT_TRANSLATE_NOOP3("engraving/instruments", "B. Tbn.", "bass-trombone shortName"
 QT_TRANSLATE_NOOP3("engraving/instruments", "open", "bass-trombone channel"),
 //: channel for Bass Trombone; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
 QT_TRANSLATE_NOOP3("engraving/instruments", "mute", "bass-trombone channel"),
+
+//: description for Contrabass Trombone; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "Contrabass Trombone (usually pitched in F).", "contrabass-trombone description"),
+//: trackName for Contrabass Trombone; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "Contrabass Trombone", "contrabass-trombone trackName"),
+//: longName for Contrabass Trombone; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "Contrabass Trombone", "contrabass-trombone longName"),
+//: shortName for Contrabass Trombone; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "Cb. Tbn.", "contrabass-trombone shortName"),
+//: channel for Contrabass Trombone; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "open", "contrabass-trombone channel"),
+//: channel for Contrabass Trombone; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "mute", "contrabass-trombone channel"),
 
 //: description for Cimbasso; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
 QT_TRANSLATE_NOOP3("engraving/instruments", "Instrument with a similar range to the contrabass trombone, most commonly encountered in 19th-century Italian opera scores.", "cimbasso description"),
@@ -3336,7 +3337,7 @@ QT_TRANSLATE_NOOP3("engraving/instruments", "Helicon", "helicon trackName"),
 //: longName for Helicon; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
 QT_TRANSLATE_NOOP3("engraving/instruments", "Helicon", "helicon longName"),
 //: shortName for Helicon; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Helicon", "helicon shortName"),
+QT_TRANSLATE_NOOP3("engraving/instruments", "Hel.", "helicon shortName"),
 
 //: description for Conch; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
 QT_TRANSLATE_NOOP3("engraving/instruments", "Conch shell, sometimes fitted with a mouthpiece.", "conch description"),
@@ -3870,14 +3871,32 @@ QT_TRANSLATE_NOOP3("engraving/instruments", "Cuica", "cuica longName"),
 //: shortName for Cuica; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
 QT_TRANSLATE_NOOP3("engraving/instruments", "Cu.", "cuica shortName"),
 
-//: description for Drumset; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Drumset.", "drumset description"),
-//: trackName for Drumset; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Drumset", "drumset trackName"),
-//: longName for Drumset; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Drumset", "drumset longName"),
-//: shortName for Drumset; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "D. Set", "drumset shortName"),
+//: description for Large Drum Kit; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "Drum Kit.", "drumset description"),
+//: trackName for Large Drum Kit; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "Large Drum Kit", "drumset trackName"),
+//: longName for Large Drum Kit; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "Drum Kit", "drumset longName"),
+//: shortName for Large Drum Kit; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "D. Kit", "drumset shortName"),
+
+//: description for 4-Piece Drum Kit; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "4 piece drum kit.", "drum-kit-4 description"),
+//: trackName for 4-Piece Drum Kit; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "4-Piece Drum Kit", "drum-kit-4 trackName"),
+//: longName for 4-Piece Drum Kit; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "Drum Kit", "drum-kit-4 longName"),
+//: shortName for 4-Piece Drum Kit; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "D. Kit", "drum-kit-4 shortName"),
+
+//: description for 5-Piece Drum Kit; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "5 piece drum kit.", "drum-kit-5 description"),
+//: trackName for 5-Piece Drum Kit; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "5-Piece Drum Kit", "drum-kit-5 trackName"),
+//: longName for 5-Piece Drum Kit; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "Drum Kit", "drum-kit-5 longName"),
+//: shortName for 5-Piece Drum Kit; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "D. Kit", "drum-kit-5 shortName"),
 
 //: description for Field Drum; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
 QT_TRANSLATE_NOOP3("engraving/instruments", "Military field drum.", "military-drum description"),
@@ -3933,6 +3952,15 @@ QT_TRANSLATE_NOOP3("engraving/instruments", "Timbales", "timbales longName"),
 //: shortName for Timbales; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
 QT_TRANSLATE_NOOP3("engraving/instruments", "Timb.", "timbales shortName"),
 
+//: description for Taiko; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "Taiko.", "taiko description"),
+//: trackName for Taiko; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "Taiko", "taiko trackName"),
+//: longName for Taiko; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "Taiko", "taiko longName"),
+//: shortName for Taiko; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "Taiko", "taiko shortName"),
+
 //: description for Anvil; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
 QT_TRANSLATE_NOOP3("engraving/instruments", "Anvil.", "anvil description"),
 //: trackName for Anvil; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
@@ -3960,15 +3988,6 @@ QT_TRANSLATE_NOOP3("engraving/instruments", "Bell Tree", "bell-tree longName"),
 //: shortName for Bell Tree; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
 QT_TRANSLATE_NOOP3("engraving/instruments", "Be. Tr.", "bell-tree shortName"),
 
-//: description for Bells; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Bells.", "bells description"),
-//: trackName for Bells; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Bells", "bells trackName"),
-//: longName for Bells; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Bells", "bells longName"),
-//: shortName for Bells; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Be.", "bells shortName"),
-
 //: description for Bowl Gongs; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
 QT_TRANSLATE_NOOP3("engraving/instruments", "Bowl gongs.", "bowl-gongs description"),
 //: trackName for Bowl Gongs; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
@@ -3987,13 +4006,13 @@ QT_TRANSLATE_NOOP3("engraving/instruments", "Chains", "chains longName"),
 //: shortName for Chains; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
 QT_TRANSLATE_NOOP3("engraving/instruments", "Chn.", "chains shortName"),
 
-//: description for Chinese Cymbal; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Chinese cymbal.", "chinese-cymbal description"),
-//: trackName for Chinese Cymbal; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Chinese Cymbal", "chinese-cymbal trackName"),
-//: longName for Chinese Cymbal; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Chinese Cymbal", "chinese-cymbal longName"),
-//: shortName for Chinese Cymbal; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+//: description for China Cymbal; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "China cymbal for drum kit.", "chinese-cymbal description"),
+//: trackName for China Cymbal; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "China Cymbal", "chinese-cymbal trackName"),
+//: longName for China Cymbal; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "China Cymbal", "chinese-cymbal longName"),
+//: shortName for China Cymbal; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
 QT_TRANSLATE_NOOP3("engraving/instruments", "Ch. Cym.", "chinese-cymbal shortName"),
 
 //: description for Cowbell; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
@@ -4014,13 +4033,13 @@ QT_TRANSLATE_NOOP3("engraving/instruments", "Suspended Cymbal", "crash-cymbal lo
 //: shortName for Suspended Cymbal; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
 QT_TRANSLATE_NOOP3("engraving/instruments", "Sus. Cym.", "crash-cymbal shortName"),
 
-//: description for Cymbals; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+//: description for Hand Cymbals; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
 QT_TRANSLATE_NOOP3("engraving/instruments", "Hand Cymbals.", "cymbal description"),
-//: trackName for Cymbals; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Cymbals", "cymbal trackName"),
-//: longName for Cymbals; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+//: trackName for Hand Cymbals; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "Hand Cymbals", "cymbal trackName"),
+//: longName for Hand Cymbals; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
 QT_TRANSLATE_NOOP3("engraving/instruments", "Cymbals", "cymbal longName"),
-//: shortName for Cymbals; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+//: shortName for Hand Cymbals; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
 QT_TRANSLATE_NOOP3("engraving/instruments", "Cym.", "cymbal shortName"),
 
 //: description for Finger Cymbals; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
@@ -6057,7 +6076,7 @@ QT_TRANSLATE_NOOP3("engraving/instruments", "pizzicato", "contrabasses channel")
 QT_TRANSLATE_NOOP3("engraving/instruments", "tremolo", "contrabasses channel"),
 
 //: description for Treble Viol; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Treble viol.", "treble-viol description"),
+QT_TRANSLATE_NOOP3("engraving/instruments", "Treble viola da gamba. Second highest member of the viol family.", "treble-viol description"),
 //: trackName for Treble Viol; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
 QT_TRANSLATE_NOOP3("engraving/instruments", "Treble Viol", "treble-viol trackName"),
 //: longName for Treble Viol; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
@@ -6072,7 +6091,7 @@ QT_TRANSLATE_NOOP3("engraving/instruments", "pizzicato", "treble-viol channel"),
 QT_TRANSLATE_NOOP3("engraving/instruments", "tremolo", "treble-viol channel"),
 
 //: description for Alto Viol; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Alto viol.", "alto-viol description"),
+QT_TRANSLATE_NOOP3("engraving/instruments", "Alto viola da gamba. Third highest member of the viol family.", "alto-viol description"),
 //: trackName for Alto Viol; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
 QT_TRANSLATE_NOOP3("engraving/instruments", "Alto Viol", "alto-viol trackName"),
 //: longName for Alto Viol; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
@@ -6102,7 +6121,7 @@ QT_TRANSLATE_NOOP3("engraving/instruments", "pizzicato", "pardessus-de-viole cha
 QT_TRANSLATE_NOOP3("engraving/instruments", "tremolo", "pardessus-de-viole channel"),
 
 //: description for Tenor Viol; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Tenor viol.", "tenor-viol description"),
+QT_TRANSLATE_NOOP3("engraving/instruments", "Tenor viola da gamba. Middle member of the viol family.", "tenor-viol description"),
 //: trackName for Tenor Viol; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
 QT_TRANSLATE_NOOP3("engraving/instruments", "Tenor Viol", "tenor-viol trackName"),
 //: longName for Tenor Viol; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
@@ -6131,32 +6150,32 @@ QT_TRANSLATE_NOOP3("engraving/instruments", "pizzicato", "baryton channel"),
 //: channel for Baryton; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
 QT_TRANSLATE_NOOP3("engraving/instruments", "tremolo", "baryton channel"),
 
-//: description for Viola da gamba; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Viola da gamba (staff notation).", "viola-da-gamba description"),
-//: trackName for Viola da gamba; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Viola da gamba", "viola-da-gamba trackName"),
-//: longName for Viola da gamba; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Viola da gamba", "viola-da-gamba longName"),
-//: shortName for Viola da gamba; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Vla. d. g.", "viola-da-gamba shortName"),
-//: channel for Viola da gamba; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+//: description for Bass Viol; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "Bass viola da gamba (staff notation). Third lowest member of the viol family.", "viola-da-gamba description"),
+//: trackName for Bass Viol; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "Bass Viol", "viola-da-gamba trackName"),
+//: longName for Bass Viol; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "Bass Viol", "viola-da-gamba longName"),
+//: shortName for Bass Viol; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "B. Vl.", "viola-da-gamba shortName"),
+//: channel for Bass Viol; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
 QT_TRANSLATE_NOOP3("engraving/instruments", "arco", "viola-da-gamba channel"),
-//: channel for Viola da gamba; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+//: channel for Bass Viol; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
 QT_TRANSLATE_NOOP3("engraving/instruments", "pizzicato", "viola-da-gamba channel"),
-//: channel for Viola da gamba; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+//: channel for Bass Viol; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
 QT_TRANSLATE_NOOP3("engraving/instruments", "tremolo", "viola-da-gamba channel"),
 
-//: description for Viola da gamba (tablature); Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Viola da gamba (tablature).", "viola-da-gamba-tablature description"),
-//: trackName for Viola da gamba (tablature); Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Viola da gamba (tablature)", "viola-da-gamba-tablature trackName"),
-//: longName for Viola da gamba (tablature); Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Viola da gamba", "viola-da-gamba-tablature longName"),
-//: shortName for Viola da gamba (tablature); Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Vla. d. g.", "viola-da-gamba-tablature shortName"),
+//: description for Bass Viol (tablature); Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "Bass viola da gamba (tablature). Third lowest member of the viol family.", "viola-da-gamba-tablature description"),
+//: trackName for Bass Viol (tablature); Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "Bass Viol (tablature)", "viola-da-gamba-tablature trackName"),
+//: longName for Bass Viol (tablature); Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "Bass Viol", "viola-da-gamba-tablature longName"),
+//: shortName for Bass Viol (tablature); Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
+QT_TRANSLATE_NOOP3("engraving/instruments", "B. Vl.", "viola-da-gamba-tablature shortName"),
 
 //: description for Violone; tuning: G; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Large viol with the lowest string tuned to G. Sometimes called the G violone or great bass viol.", "violone description"),
+QT_TRANSLATE_NOOP3("engraving/instruments", "Large viol with the lowest string tuned to G. Sometimes called the G violone or great bass viol. Second lowest member of the viol family.", "violone description"),
 //: trackName for Violone; tuning: G; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
 QT_TRANSLATE_NOOP3("engraving/instruments", "Violone", "violone trackName"),
 //: longName for Violone; tuning: G; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
@@ -6173,7 +6192,7 @@ QT_TRANSLATE_NOOP3("engraving/instruments", "pizzicato", "violone channel"),
 QT_TRANSLATE_NOOP3("engraving/instruments", "tremolo", "violone channel"),
 
 //: description for Violone; tuning: D; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
-QT_TRANSLATE_NOOP3("engraving/instruments", "Large viol with the lowest string tuned to D. Sometimes called the D violone.", "d-violone description"),
+QT_TRANSLATE_NOOP3("engraving/instruments", "Large viol with the lowest string tuned to D. Sometimes called the D violone or contrabass viol. Lowest-pitched member of the viol family.", "d-violone description"),
 //: trackName for Violone; tuning: D; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
 QT_TRANSLATE_NOOP3("engraving/instruments", "Violone", "d-violone trackName"),
 //: longName for Violone; tuning: D; Please see https://github.com/musescore/MuseScore/wiki/Translating-instrument-names
@@ -6235,7 +6254,7 @@ QT_TRANSLATE_NOOP3("engraving/instruments", "pizzicato", "nyckelharpa channel"),
 QT_TRANSLATE_NOOP3("engraving/instruments", "tremolo", "nyckelharpa channel"),
 
 // Score orders
-QT_TRANSLATE_NOOP("engraving/scoreorder", "Orchestral"),
+QT_TRANSLATE_NOOP("engraving/scoreorder", "Orchestra"),
 QT_TRANSLATE_NOOP("engraving/scoreorder", "Choir"),
 QT_TRANSLATE_NOOP("engraving/scoreorder", "Marching Band"),
 QT_TRANSLATE_NOOP("engraving/scoreorder", "Big Band"),

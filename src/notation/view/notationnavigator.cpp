@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -21,14 +21,13 @@
  */
 #include "notationnavigator.h"
 
-#include "engraving/dom/system.h"
-
 #include "log.h"
 
+using namespace muse;
 using namespace mu::notation;
 
 NotationNavigatorCursorView::NotationNavigatorCursorView(QQuickItem* parent)
-    : QQuickPaintedItem(parent)
+    : QQuickPaintedItem(parent), muse::Injectable(muse::iocCtxForQmlObject(this))
 {
 }
 
@@ -72,7 +71,7 @@ void NotationNavigator::load()
 
 bool NotationNavigator::isVerticalOrientation() const
 {
-    return configuration()->canvasOrientation().val == framework::Orientation::Vertical;
+    return configuration()->canvasOrientation().val == muse::Orientation::Vertical;
 }
 
 PageList NotationNavigator::pages() const
@@ -230,8 +229,8 @@ INotationPtr NotationNavigator::currentNotation() const
 
 void NotationNavigator::initOrientation()
 {
-    ValCh<framework::Orientation> orientation = configuration()->canvasOrientation();
-    orientation.ch.onReceive(this, [this](framework::Orientation) {
+    ValCh<muse::Orientation> orientation = configuration()->canvasOrientation();
+    orientation.ch.onReceive(this, [this](muse::Orientation) {
         moveCanvasToPosition(PointF(0, 0));
         emit orientationChanged();
     });
@@ -288,7 +287,7 @@ void NotationNavigator::paintPageNumbers(QPainter* painter)
         painter->translate(page->pos().toQPointF());
 
         painter->setFont(font);
-        painter->setPen(engravingConfiguration()->formattingMarksColor().toQColor());
+        painter->setPen(engravingConfiguration()->formattingColor().toQColor());
         painter->drawText(page->ldata()->bbox().toQRectF(), Qt::AlignCenter, QString("%1").arg(page->no() + 1));
 
         painter->translate(-page->pos().toQPointF());

@@ -4,7 +4,9 @@
 #include <QTimer>
 
 #include "stringutils.h"
+#include "ui/view/iconcodes.h"
 
+using namespace muse;
 using namespace mu::playback;
 
 //!Note Some resources like VST plugins are not able to work in a couple of msecs
@@ -81,6 +83,19 @@ QVariantMap AbstractAudioResourceItem::buildSeparator() const
     return result;
 }
 
+QVariantMap AbstractAudioResourceItem::buildExternalLinkMenuItem(const QString& menuId, const QString& title) const
+{
+    QVariantMap result;
+
+    result["id"] = menuId;
+    result["title"] = title;
+
+    const int openLinkIcon = static_cast<int>(ui::IconCode::Code::OPEN_LINK);
+    result["icon"] = openLinkIcon;
+
+    return result;
+}
+
 void AbstractAudioResourceItem::sortResourcesList(audio::AudioResourceMetaList& list)
 {
     std::sort(list.begin(), list.end(), [](const audio::AudioResourceMeta& m1, const audio::AudioResourceMeta& m2) {
@@ -93,7 +108,7 @@ bool AbstractAudioResourceItem::hasNativeEditorSupport() const
     return false;
 }
 
-const mu::UriQuery& AbstractAudioResourceItem::editorUri() const
+const muse::UriQuery& AbstractAudioResourceItem::editorUri() const
 {
     return m_editorUri;
 }

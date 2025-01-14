@@ -19,8 +19,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef MU_UI_INTERACTIVEPROVIDER_H
-#define MU_UI_INTERACTIVEPROVIDER_H
+#ifndef MUSE_UI_INTERACTIVEPROVIDER_H
+#define MUSE_UI_INTERACTIVEPROVIDER_H
 
 #include <QObject>
 #include <QVariant>
@@ -32,9 +32,10 @@
 #include "../iinteractiveprovider.h"
 #include "../iinteractiveuriregister.h"
 #include "../imainwindow.h"
+#include "extensions/iextensionsprovider.h"
 #include "types/retval.h"
 
-namespace mu::ui {
+namespace muse::ui {
 class QmlLaunchData : public QObject
 {
     Q_OBJECT
@@ -49,39 +50,40 @@ private:
     QVariantMap m_data;
 };
 
-class InteractiveProvider : public QObject, public IInteractiveProvider
+class InteractiveProvider : public QObject, public IInteractiveProvider, public Injectable
 {
     Q_OBJECT
 
-    INJECT(IInteractiveUriRegister, uriRegister)
-    INJECT(IMainWindow, mainWindow)
+    Inject<IInteractiveUriRegister> uriRegister = { this };
+    Inject<IMainWindow> mainWindow = { this };
+    Inject<muse::extensions::IExtensionsProvider> extensionsProvider = { this };
 
 public:
-    explicit InteractiveProvider();
+    explicit InteractiveProvider(const modularity::ContextPtr& iocCtx);
 
-    RetVal<Val> question(const std::string& title, const framework::IInteractive::Text& text,
-                         const framework::IInteractive::ButtonDatas& buttons, int defBtn = int(framework::IInteractive::Button::NoButton),
-                         const framework::IInteractive::Options& options = {}) override;
+    RetVal<Val> question(const std::string& title, const IInteractive::Text& text, const IInteractive::ButtonDatas& buttons,
+                         int defBtn = int(IInteractive::Button::NoButton), const IInteractive::Options& options = {}) override;
 
-    RetVal<Val> info(const std::string& title, const framework::IInteractive::Text& text,
-                     const framework::IInteractive::ButtonDatas& buttons, int defBtn = int(framework::IInteractive::Button::NoButton),
-                     const framework::IInteractive::Options& options = {}) override;
+    RetVal<Val> info(const std::string& title, const IInteractive::Text& text, const IInteractive::ButtonDatas& buttons,
+                     int defBtn = int(IInteractive::Button::NoButton), const IInteractive::Options& options = {}) override;
 
-    RetVal<Val> warning(const std::string& title, const framework::IInteractive::Text& text, const std::string& detailedText = {},
-                        const framework::IInteractive::ButtonDatas& buttons = {},
-                        int defBtn = int(framework::IInteractive::Button::NoButton),
-                        const framework::IInteractive::Options& options = {}) override;
+    RetVal<Val> warning(const std::string& title, const IInteractive::Text& text, const std::string& detailedText = {},
+                        const IInteractive::ButtonDatas& buttons = {}, int defBtn = int(IInteractive::Button::NoButton),
+                        const IInteractive::Options& options = {}) override;
 
-    RetVal<Val> error(const std::string& title, const framework::IInteractive::Text& text, const std::string& detailedText = {},
-                      const framework::IInteractive::ButtonDatas& buttons = {}, int defBtn = int(framework::IInteractive::Button::NoButton),
-                      const framework::IInteractive::Options& options = {}) override;
+    RetVal<Val> error(const std::string& title, const IInteractive::Text& text, const std::string& detailedText = {},
+                      const IInteractive::ButtonDatas& buttons = {}, int defBtn = int(IInteractive::Button::NoButton),
+                      const IInteractive::Options& options = {}) override;
 
-    Ret showProgress(const std::string& title, framework::Progress* progress) override;
+    Ret showProgress(const std::string& title, Progress* progress) override;
 
     RetVal<io::path_t> selectOpeningFile(const std::string& title, const io::path_t& dir, const std::vector<std::string>& filter) override;
     RetVal<io::path_t> selectSavingFile(const std::string& title, const io::path_t& path, const std::vector<std::string>& filter,
                                         bool confirmOverwrite) override;
     RetVal<io::path_t> selectDirectory(const std::string& title, const io::path_t& dir) override;
+
+    RetVal<QColor> selectColor(const QColor& color = Qt::white, const QString& title = "") override;
+    bool isSelectColorOpened() const override;
 
     RetVal<Val> open(const UriQuery& uri) override;
     RetVal<bool> isOpened(const Uri& uri) const override;
@@ -107,13 +109,13 @@ public:
     Q_INVOKABLE void onClose(const QString& objectId, const QVariant& rv);
 
 signals:
-    void fireOpen(mu::ui::QmlLaunchData* data);
+    void fireOpen(muse::ui::QmlLaunchData* data);
     void fireClose(QVariant data);
     void fireRaise(QVariant data);
 
-    void fireOpenStandardDialog(mu::ui::QmlLaunchData* data);
-    void fireOpenFileDialog(mu::ui::QmlLaunchData* data);
-    void fireOpenProgressDialog(mu::ui::QmlLaunchData* data);
+    void fireOpenStandardDialog(muse::ui::QmlLaunchData* data);
+    void fireOpenFileDialog(muse::ui::QmlLaunchData* data);
+    void fireOpenProgressDialog(muse::ui::QmlLaunchData* data);
 
 private:
     struct OpenData
@@ -137,24 +139,24 @@ private:
 
     void raiseWindowInStack(QObject* newActiveWindow);
 
+    void fillExtData(QmlLaunchData* data, const UriQuery& q) const;
     void fillData(QmlLaunchData* data, const UriQuery& q) const;
     void fillData(QObject* object, const UriQuery& q) const;
-    void fillStandardDialogData(QmlLaunchData* data, const QString& type, const std::string& title,
-                                const framework::IInteractive::Text& text, const std::string& detailedText,
-                                const framework::IInteractive::ButtonDatas& buttons, int defBtn,
-                                const framework::IInteractive::Options& options) const;
+    void fillStandardDialogData(QmlLaunchData* data, const QString& type, const std::string& title, const IInteractive::Text& text,
+                                const std::string& detailedText, const IInteractive::ButtonDatas& buttons, int defBtn,
+                                const IInteractive::Options& options) const;
     void fillFileDialogData(QmlLaunchData* data, FileDialogType type, const std::string& title, const io::path_t& path,
                             const std::vector<std::string>& filter = {}, bool confirmOverwrite = true) const;
 
     Ret toRet(const QVariant& jsr) const;
     RetVal<Val> toRetVal(const QVariant& jsrv) const;
 
+    RetVal<OpenData> openExtensionDialog(const UriQuery& q);
     RetVal<OpenData> openWidgetDialog(const UriQuery& q);
     RetVal<OpenData> openQml(const UriQuery& q);
-    RetVal<Val> openStandardDialog(const QString& type, const std::string& title, const framework::IInteractive::Text& text,
-                                   const std::string& detailedText = {}, const framework::IInteractive::ButtonDatas& buttons = {},
-                                   int defBtn = int(framework::IInteractive::Button::NoButton),
-                                   const framework::IInteractive::Options& options = {});
+    RetVal<Val> openStandardDialog(const QString& type, const std::string& title, const IInteractive::Text& text,
+                                   const std::string& detailedText = {}, const IInteractive::ButtonDatas& buttons = {},
+                                   int defBtn = int(IInteractive::Button::NoButton), const IInteractive::Options& options = {});
 
     RetVal<io::path_t> openFileDialog(FileDialogType type, const std::string& title, const io::path_t& path,
                                       const std::vector<std::string>& filter = {}, bool confirmOverwrite = true);
@@ -180,7 +182,9 @@ private:
     async::Channel<Uri> m_opened;
 
     QEventLoop m_fileDialogEventLoop;
+
+    bool m_isSelectColorOpened = false;
 };
 }
 
-#endif // MU_UI_INTERACTIVEPROVIDER_H
+#endif // MUSE_UI_INTERACTIVEPROVIDER_H

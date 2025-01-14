@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -83,8 +83,8 @@ TEST_F(Engraving_ReadWriteUndoResetTests, testMMRestLinksRecreateMMRest)
 
     // Regenerate MM rests from scratch:
     // 1) turn MM rests off
-    score->startCmd();
-    score->undo(new ChangeStyleVal(score, Sid::createMultiMeasureRests, false));
+    score->startCmd(TranslatableString::untranslatable("Read/write/undo/reset tests"));
+    score->undoChangeStyleVal(Sid::createMultiMeasureRests, false);
     score->endCmd();
 
     // 2) save/close/reopen the score
@@ -93,8 +93,8 @@ TEST_F(Engraving_ReadWriteUndoResetTests, testMMRestLinksRecreateMMRest)
     score = ScoreRW::readScore(writeFile, true);
 
     // 3) turn MM rests back on
-    score->startCmd();
-    score->undo(new ChangeStyleVal(score, Sid::createMultiMeasureRests, true));
+    score->startCmd(TranslatableString::untranslatable("Read/write/undo/reset tests"));
+    score->undoChangeStyleVal(Sid::createMultiMeasureRests, true);
     score->endCmd();
 
     EXPECT_TRUE(ScoreComp::saveCompareScore(score, writeFile, recreateMMRestRefFile));

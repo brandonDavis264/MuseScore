@@ -22,17 +22,16 @@
 
 #include "sequenceplayer.h"
 
+#include "internal/audiosanitizer.h"
+
 #include "log.h"
 
-#include "internal/audiosanitizer.h"
-#include "audioengine.h"
+using namespace muse;
+using namespace muse::audio;
+using namespace muse::async;
 
-using namespace mu;
-using namespace mu::audio;
-using namespace mu::async;
-
-SequencePlayer::SequencePlayer(IGetTracks* getTracks, IClockPtr clock)
-    : m_getTracks(getTracks), m_clock(clock)
+SequencePlayer::SequencePlayer(IGetTracks* getTracks, IClockPtr clock, const modularity::ContextPtr& iocCtx)
+    : Injectable(iocCtx), m_getTracks(getTracks), m_clock(clock)
 {
     m_clock->seekOccurred().onNotify(this, [this]() {
         seekAllTracks(m_clock->currentTime());
@@ -47,16 +46,16 @@ void SequencePlayer::play()
 {
     ONLY_AUDIO_WORKER_THREAD;
 
-    AudioEngine::instance()->setMode(RenderMode::RealTimeMode);
+    audioEngine()->setMode(RenderMode::RealTimeMode);
     m_clock->start();
     setAllTracksActive(true);
 }
 
-void SequencePlayer::seek(const msecs_t newPositionMsecs)
+void SequencePlayer::seek(const secs_t newPosition)
 {
     ONLY_AUDIO_WORKER_THREAD;
 
-    msecs_t newPos = newPositionMsecs * 1000;
+    msecs_t newPos = secsToMicrosecs(newPosition);
     m_clock->seek(newPos);
     seekAllTracks(newPos);
 }
@@ -65,7 +64,7 @@ void SequencePlayer::stop()
 {
     ONLY_AUDIO_WORKER_THREAD;
 
-    AudioEngine::instance()->setMode(RenderMode::IdleMode);
+    audioEngine()->setMode(RenderMode::IdleMode);
     m_clock->stop();
     setAllTracksActive(false);
 }
@@ -74,7 +73,7 @@ void SequencePlayer::pause()
 {
     ONLY_AUDIO_WORKER_THREAD;
 
-    AudioEngine::instance()->setMode(RenderMode::IdleMode);
+    audioEngine()->setMode(RenderMode::IdleMode);
     m_clock->pause();
     setAllTracksActive(false);
 }
@@ -83,7 +82,7 @@ void SequencePlayer::resume()
 {
     ONLY_AUDIO_WORKER_THREAD;
 
-    AudioEngine::instance()->setMode(RenderMode::RealTimeMode);
+    audioEngine()->setMode(RenderMode::RealTimeMode);
     m_clock->resume();
     setAllTracksActive(true);
 }
@@ -120,11 +119,25 @@ void SequencePlayer::resetLoop()
     m_clock->resetTimeLoop();
 }
 
-Channel<msecs_t> SequencePlayer::playbackPositionMSecs() const
+secs_t SequencePlayer::playbackPosition() const
+{
+    ONLY_AUDIO_WORKER_THREAD;
+
+    return microsecsToSecs(m_clock->currentTime());
+}
+
+Channel<secs_t> SequencePlayer::playbackPositionChanged() const
 {
     ONLY_AUDIO_WORKER_THREAD;
 
     return m_clock->timeChanged();
+}
+
+PlaybackStatus SequencePlayer::playbackStatus() const
+{
+    ONLY_AUDIO_WORKER_THREAD;
+
+    return m_clock->status();
 }
 
 Channel<PlaybackStatus> SequencePlayer::playbackStatusChanged() const

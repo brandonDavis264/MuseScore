@@ -144,7 +144,7 @@
         </note>
       </measure>
     <measure number="3">
-      <direction placement="above">
+      <direction placement="above" system="only-top">
         <direction-type>
           <metronome parentheses="no">
             <beat-unit>quarter</beat-unit>
@@ -612,7 +612,7 @@
         <type>quarter</type>
         <stem>up</stem>
         <notations>
-          <arpeggiate/>
+          <arpeggiate number="1"/>
           </notations>
         </note>
       <note>
@@ -626,7 +626,7 @@
         <type>quarter</type>
         <stem>up</stem>
         <notations>
-          <arpeggiate/>
+          <arpeggiate number="1"/>
           </notations>
         </note>
       <note>
@@ -640,7 +640,7 @@
         <type>quarter</type>
         <stem>up</stem>
         <notations>
-          <arpeggiate/>
+          <arpeggiate number="1"/>
           </notations>
         </note>
       <note>

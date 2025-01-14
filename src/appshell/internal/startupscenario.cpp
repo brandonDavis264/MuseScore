@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -22,17 +22,19 @@
 
 #include "startupscenario.h"
 
+#include <QCoreApplication>
+
 #include "async/async.h"
 #include "translation.h"
 #include "log.h"
 
 using namespace mu::appshell;
-using namespace mu::actions;
-using namespace mu::framework;
+using namespace muse;
+using namespace muse::actions;
 
-static const mu::Uri FIRST_LAUNCH_SETUP_URI("musescore://firstLaunchSetup");
-static const mu::Uri HOME_URI("musescore://home");
-static const mu::Uri NOTATION_URI("musescore://notation");
+static const muse::Uri FIRST_LAUNCH_SETUP_URI("musescore://firstLaunchSetup");
+static const muse::Uri HOME_URI("musescore://home");
+static const muse::Uri NOTATION_URI("musescore://notation");
 
 static StartupModeType modeTypeTromString(const std::string& str)
 {
@@ -83,7 +85,23 @@ void StartupScenario::setStartupScoreFile(const std::optional<project::ProjectFi
     m_startupScoreFile = file ? file.value() : project::ProjectFile();
 }
 
-void StartupScenario::run()
+void StartupScenario::runOnSplashScreen()
+{
+    //! NOTE Registering plugins shows a window (dialog) before the main window is shown.
+    //! After closing it, the application may in a state where there are no open windows,
+    //! which leads to automatic exit from the application.
+    //! (Thanks to the splashscreen, but this is not an obvious detail)
+    qApp->setQuitLockEnabled(false);
+
+    Ret ret = registerAudioPluginsScenario()->registerNewPlugins();
+    if (!ret) {
+        LOGE() << ret.toString();
+    }
+
+    qApp->setQuitLockEnabled(true);
+}
+
+void StartupScenario::runAfterSplashScreen()
 {
     TRACEFUNC;
 
@@ -99,7 +117,7 @@ void StartupScenario::run()
 
     Uri startupUri = startupPageUri(modeType);
 
-    async::Channel<Uri> opened = interactive()->opened();
+    muse::async::Channel<Uri> opened = interactive()->opened();
     opened.onReceive(this, [this, opened, modeType](const Uri&) {
         static bool once = false;
         if (once) {
@@ -110,7 +128,7 @@ void StartupScenario::run()
         onStartupPageOpened(modeType);
 
         async::Async::call(this, [this, opened]() {
-            async::Channel<Uri> mut = opened;
+            muse::async::Channel<Uri> mut = opened;
             mut.resetOnReceive(this);
             m_startupCompleted = true;
         });
@@ -165,7 +183,7 @@ void StartupScenario::onStartupPageOpened(StartupModeType modeType)
     }
 }
 
-mu::Uri StartupScenario::startupPageUri(StartupModeType modeType) const
+muse::Uri StartupScenario::startupPageUri(StartupModeType modeType) const
 {
     switch (modeType) {
     case StartupModeType::StartEmpty:
@@ -187,8 +205,8 @@ void StartupScenario::openScore(const project::ProjectFile& file)
 
 void StartupScenario::restoreLastSession()
 {
-    IInteractive::Result result = interactive()->question(trc("appshell", "The previous session quit unexpectedly."),
-                                                          trc("appshell", "Do you want to restore the session?"),
+    IInteractive::Result result = interactive()->question(muse::trc("appshell", "The previous session quit unexpectedly."),
+                                                          muse::trc("appshell", "Do you want to restore the session?"),
                                                           { IInteractive::Button::No, IInteractive::Button::Yes });
 
     if (result.button() == static_cast<int>(IInteractive::Button::Yes)) {
@@ -201,7 +219,7 @@ void StartupScenario::restoreLastSession()
 
 void StartupScenario::removeProjectsUnsavedChanges(const io::paths_t& projectsPaths)
 {
-    for (const io::path_t& path : projectsPaths) {
+    for (const muse::io::path_t& path : projectsPaths) {
         projectAutoSaver()->removeProjectUnsavedChanges(path);
     }
 }

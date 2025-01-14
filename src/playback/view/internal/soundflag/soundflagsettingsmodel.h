@@ -1,11 +1,11 @@
-/*
+﻿/*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2024 MuseScore BVBA and others
+ * Copyright (C) 2024 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -26,7 +26,10 @@
 #include <QObject>
 
 #include "modularity/ioc.h"
-#include "context/iglobalcontext.h"
+#include "playback/iplaybackcontroller.h"
+#include "playback/iplaybackconfiguration.h"
+
+#include "uicomponents/view/menuitem.h"
 
 #include "notation/view/abstractelementpopupmodel.h"
 
@@ -35,56 +38,89 @@ class SoundFlagSettingsModel : public notation::AbstractElementPopupModel
 {
     Q_OBJECT
 
-    INJECT(context::IGlobalContext, globalContext)
+    Q_PROPERTY(bool inited READ inited NOTIFY initedChanged FINAL)
 
-    enum class SourceType {
-        Undefined,
-        MuseSounds,
-        VST,
-        SoundFonts
-    };
-    Q_ENUM(SourceType)
-
-    Q_PROPERTY(SourceType sourceType READ sourceType NOTIFY sourceTypeChanged FINAL)
     Q_PROPERTY(QString title READ title WRITE setTitle NOTIFY titleChanged FINAL)
-    Q_PROPERTY(bool showText READ showText WRITE setShowText NOTIFY showTextChanged FINAL)
-    Q_PROPERTY(QString text READ text WRITE setText NOTIFY textChanged FINAL)
+
+    Q_PROPERTY(QRect iconRect READ iconRect NOTIFY iconRectChanged FINAL)
+
+    Q_PROPERTY(QVariantList availablePresets READ availablePresets NOTIFY availablePresetsChanged FINAL)
+    Q_PROPERTY(QStringList selectedPresetCodes READ selectedPresetCodes NOTIFY selectedPresetCodesChanged FINAL)
+
+    Q_PROPERTY(QVariantList availablePlayingTechniques READ availablePlayingTechniques NOTIFY availablePlayingTechniquesChanged FINAL)
+    Q_PROPERTY(QString selectedPlayingTechniqueCode READ selectedPlayingTechniqueCode NOTIFY selectedPlayingTechniqueCodeChanged FINAL)
+
+    Q_PROPERTY(QVariantList contextMenuModel READ contextMenuModel NOTIFY contextMenuModelChanged FINAL)
+
+    muse::Inject<IPlaybackController> playbackController = { this };
+    muse::Inject<IPlaybackConfiguration> playbackConfiguration = { this };
 
 public:
     explicit SoundFlagSettingsModel(QObject* parent = nullptr);
 
-    Q_INVOKABLE void init() override;
+    bool inited() const;
 
-    SourceType sourceType() const;
-    void setSourceType(SourceType type);
+    Q_INVOKABLE void init() override;
+    Q_INVOKABLE void togglePreset(const QString& presetCode);
+    Q_INVOKABLE void togglePlayingTechnique(const QString& playingTechniqueCode);
+
+    QVariantList contextMenuModel();
+    Q_INVOKABLE void handleContextMenuItem(const QString& menuId);
 
     QString title() const;
     void setTitle(const QString& title);
 
-    bool showText() const;
-    void setShowText(bool show);
+    QRect iconRect() const;
 
-    QString text() const;
-    void setText(const QString& text);
+    QVariantList availablePresets() const;
+    QStringList selectedPresetCodes() const;
+
+    QVariantList availablePlayingTechniques() const;
+    QString selectedPlayingTechniqueCode() const;
 
 signals:
-    void sourceTypeChanged();
+    void initedChanged();
+
+    void iconRectChanged(const QRect& rect);
+
     void titleChanged();
-    void showTextChanged();
-    void textChanged();
+
+    void availablePresetsChanged();
+    void selectedPresetCodesChanged();
+
+    void availablePlayingTechniquesChanged();
+    void selectedPlayingTechniqueCodeChanged();
+
+    void contextMenuModelChanged();
 
 private:
+    void load();
+
     project::IProjectAudioSettingsPtr audioSettings() const;
+    const muse::audio::AudioInputParams& currentAudioInputParams() const;
 
-    audio::AudioInputParams currentAudioInputParams() const;
-
-    void initSourceType();
     void initTitle();
+    void initAvailablePresets();
+    void initAvailablePlayingTechniques();
 
-    SourceType m_sourceType = SourceType::Undefined;
+    void setAvailableSoundPresets(const muse::audio::SoundPresetList& presets);
+    void loadAvailablePlayingTechniques();
+
+    muse::uicomponents::MenuItem* buildMenuItem(const QString& actionCode, const muse::TranslatableString& title, bool enabled = true);
+
+    QString defaultPresetCode() const;
+    QString defaultPlayingTechniqueCode() const;
+
+    bool updateStaffText();
+
     QString m_title;
-    bool m_showText = false;
-    QString m_customText;
+
+    muse::audio::SoundPresetList m_availablePresets;
+
+    QVariantList m_availablePresetsModel;
+    QVariantList m_availablePlayingTechniquesModel;
+
+    bool m_availablePresetsInited = false;
 };
 }
 

@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -24,15 +24,17 @@
 #include "async/notifylist.h"
 #include "types/translatablestring.h"
 
+#include "context/shortcutcontext.h"
 #include "internal/notationuiactions.h"
 
 #include "log.h"
 
 using namespace mu;
 using namespace mu::notation;
-using namespace mu::actions;
-using namespace mu::ui;
-using namespace mu::uicomponents;
+using namespace muse;
+using namespace muse::actions;
+using namespace muse::ui;
+using namespace muse::uicomponents;
 
 static const QString TOOLBAR_NAME("noteInput");
 
@@ -77,17 +79,6 @@ static ActionCode actionCodeForNoteInputMethod(NoteInputMethod method)
 NoteInputBarModel::NoteInputBarModel(QObject* parent)
     : AbstractMenuModel(parent)
 {
-    uiConfiguration()->toolConfigChanged(TOOLBAR_NAME).onNotify(this, [this]() {
-        load();
-    });
-
-    context()->currentNotationChanged().onNotify(this, [this]() {
-        onNotationChanged();
-    });
-
-    playbackController()->isPlayingChanged().onNotify(this, [this]() {
-        updateState();
-    });
 }
 
 QVariant NoteInputBarModel::data(const QModelIndex& index, int role) const
@@ -120,6 +111,18 @@ QHash<int, QByteArray> NoteInputBarModel::roleNames() const
 
 void NoteInputBarModel::load()
 {
+    uiConfiguration()->toolConfigChanged(TOOLBAR_NAME).onNotify(this, [this]() {
+        load();
+    });
+
+    context()->currentNotationChanged().onNotify(this, [this]() {
+        onNotationChanged();
+    });
+
+    playbackController()->isPlayingChanged().onNotify(this, [this]() {
+        updateState();
+    });
+
     MenuItemList items;
 
     ToolConfig noteInputConfig = uiConfiguration()->toolConfig(TOOLBAR_NAME, NotationUiActions::defaultNoteInputBarConfig());
@@ -233,6 +236,7 @@ void NoteInputBarModel::updateNoteInputState()
     updateNoteDurationState();
     updateNoteAccidentalState();
     updateTieState();
+    updateLvState();
     updateSlurState();
     updateVoicesState();
     updateArticulationsState();
@@ -330,9 +334,32 @@ void NoteInputBarModel::updateTieState()
             checked = false;
             break;
         }
+        if (note->laissezVib()) {
+            checked = false;
+            break;
+        }
     }
 
     updateItemStateChecked(&findItem(codeFromQString("tie")), checked); // todo
+}
+
+void NoteInputBarModel::updateLvState()
+{
+    if (!selection()) {
+        return;
+    }
+
+    std::vector<Note*> tiedNotes = selection()->notes(NoteFilter::WithTie);
+
+    bool checked = !tiedNotes.empty();
+    for (const Note* note: tiedNotes) {
+        if (!note->laissezVib()) {
+            checked = false;
+            break;
+        }
+    }
+
+    updateItemStateChecked(&findItem(codeFromQString("lv")), checked);
 }
 
 void NoteInputBarModel::updateSlurState()
@@ -404,13 +431,19 @@ int NoteInputBarModel::resolveCurrentVoiceIndex() const
         return INVALID_VOICE;
     }
 
-    std::vector<EngravingItem*> selectedElements = selection()->elements();
+    const std::vector<EngravingItem*>& selectedElements = selection()->elements();
     if (selectedElements.empty()) {
         return INVALID_VOICE;
     }
 
     int voice = INVALID_VOICE;
-    for (const EngravingItem* element : selection()->elements()) {
+    for (const EngravingItem* element : selectedElements) {
+        if (element->hasVoiceAssignmentProperties()) {
+            VoiceAssignment voiceAssignment = element->getProperty(Pid::VOICE_ASSIGNMENT).value<VoiceAssignment>();
+            if (voiceAssignment == VoiceAssignment::ALL_VOICE_IN_INSTRUMENT || voiceAssignment == VoiceAssignment::ALL_VOICE_IN_STAFF) {
+                return INVALID_VOICE;
+            }
+        }
         int elementVoice = static_cast<int>(element->voice());
         if (elementVoice != voice && voice != INVALID_VOICE) {
             return INVALID_VOICE;
@@ -512,13 +545,14 @@ DurationType NoteInputBarModel::resolveCurrentDurationType() const
         return INVALID_DURATION_TYPE;
     }
 
-    if (selection()->elements().empty()) {
+    const std::vector<EngravingItem*>& selectedElements = selection()->elements();
+    if (selectedElements.empty()) {
         return INVALID_DURATION_TYPE;
     }
 
     DurationType result = INVALID_DURATION_TYPE;
     bool isFirstElement = true;
-    for (const EngravingItem* element: selection()->elements()) {
+    for (const EngravingItem* element: selectedElements) {
         const ChordRest* chordRest = elementToChordRest(element);
         if (!chordRest) {
             continue;
@@ -549,7 +583,8 @@ UiAction NoteInputBarModel::currentNoteInputModeAction() const
     return action;
 }
 
-MenuItem* NoteInputBarModel::makeActionItem(const UiAction& action, const QString& section, const uicomponents::MenuItemList& subitems)
+MenuItem* NoteInputBarModel::makeActionItem(const UiAction& action, const QString& section,
+                                            const muse::uicomponents::MenuItemList& subitems)
 {
     MenuItem* item = new MenuItem(action, this);
     item->setSection(section);
@@ -582,7 +617,7 @@ MenuItemList NoteInputBarModel::makeSubitems(const ActionCode& actionCode)
 MenuItemList NoteInputBarModel::makeNoteInputMethodItems()
 {
     MenuItemList items;
-    actions::ActionCode currentInputMethod = currentNoteInputModeAction().code;
+    ActionCode currentInputMethod = currentNoteInputModeAction().code;
 
     for (const auto& pair : noteInputModeActions) {
         ActionCode actionCode = pair.first;
@@ -728,6 +763,7 @@ MenuItemList NoteInputBarModel::makeTextItems()
         makeSeparator(),
         makeMenuItem("system-text"),
         makeMenuItem("staff-text"),
+        makeMenuItem("dynamics"),
         makeMenuItem("expression-text"),
         makeMenuItem("rehearsalmark-text"),
         makeMenuItem("instrument-change-text"),

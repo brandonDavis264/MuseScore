@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<museScore version="4.20">
+<museScore version="4.50">
   <Score>
     <name>Flute</name>
     <Division>480</Division>
     <Style>
-      <Spatium>1.74978</Spatium>
+      <spatium>1.74978</spatium>
       </Style>
     <showInvisible>1</showInvisible>
     <showUnprintable>1</showUnprintable>
@@ -65,10 +65,8 @@
             <linked>
               <indexDiff>-3</indexDiff>
               </linked>
-            <placement>above</placement>
             <positionLinkedToMaster>0</positionLinkedToMaster>
             <appearanceLinkedToMaster>0</appearanceLinkedToMaster>
-            <placement>above</placement>
             <dynamicsSize>1.2</dynamicsSize>
             </Dynamic>
           <Chord>

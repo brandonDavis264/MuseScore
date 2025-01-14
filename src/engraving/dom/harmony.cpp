@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -46,6 +46,7 @@
 #include "log.h"
 
 using namespace mu;
+using namespace muse::draw;
 using namespace mu::engraving;
 
 namespace mu::engraving {
@@ -71,7 +72,7 @@ String Harmony::harmonyName() const
         r = m_function;
     }
 
-    if (m_textName != "") {
+    if (!m_textName.empty()) {
         e = m_textName;
         if (m_harmonyType != HarmonyType::ROMAN) {
             e.remove(u'=');
@@ -273,7 +274,7 @@ void Harmony::afterRead()
             // and we will generate a new one if necessary
             getDescription(m_textName);
         }
-    } else if (m_textName == "") {
+    } else if (m_textName.empty()) {
         // unrecognized chords prior to 2.0 were stored as text with markup
         // we need to strip away the markup
         // this removes any user-applied formatting,
@@ -396,7 +397,7 @@ static int convertNote(const String& s, NoteSpellingType noteSpelling, NoteCaseT
         3, 10, 17, 24, 31,      // A
         5, 12, 19, 26, 33,      // B
     };
-    if (s == "") {
+    if (s.empty()) {
         return Tpc::TPC_INVALID;
     }
     noteCase = s.at(0).isLower() ? NoteCaseType::LOWER : NoteCaseType::CAPITAL;
@@ -405,7 +406,7 @@ static int convertNote(const String& s, NoteSpellingType noteSpelling, NoteCaseT
     case NoteSpellingType::SOLFEGGIO:
     case NoteSpellingType::FRENCH:
         useSolfeggio = true;
-        if (s.startsWith(u"sol", mu::CaseInsensitive)) {
+        if (s.startsWith(u"sol", muse::CaseInsensitive)) {
             acci = 3;
         } else {
             acci = 2;
@@ -422,7 +423,7 @@ static int convertNote(const String& s, NoteSpellingType noteSpelling, NoteCaseT
     int alter = 0;
     size_t n = s.size();
     String acc = s.right(n - acci);
-    if (acc != "") {
+    if (!acc.empty()) {
         if (acc.startsWith(u"bb")) {
             alter = -2;
             idx += 2;
@@ -612,7 +613,7 @@ const ChordDescription* Harmony::parseHarmony(const String& ss, int* root, int* 
         *root = r;
         *base = Tpc::TPC_INVALID;
         size_t slash = s.lastIndexOf(u'/');
-        if (slash != mu::nidx) {
+        if (slash != muse::nidx) {
             String bs = s.mid(slash + 1).simplified();
             s = s.mid(idx, slash - idx).simplified();
             size_t idx2;
@@ -664,7 +665,7 @@ const ChordDescription* Harmony::parseHarmony(const String& ss, int* root, int* 
 //   startEdit
 //---------------------------------------------------------
 
-void Harmony::startEdit(EditData& ed)
+void Harmony::startEditTextual(EditData& ed)
 {
     if (!m_textList.empty()) {
         // convert chord symbol to plain text
@@ -680,10 +681,10 @@ void Harmony::startEdit(EditData& ed)
     renderer()->layoutText1(this, true);
     triggerLayout();
 
-    TextBase::startEdit(ed);
+    TextBase::startEditTextual(ed);
 }
 
-bool Harmony::isEditAllowed(EditData& ed) const
+bool Harmony::isTextualEditAllowed(EditData& ed) const
 {
     if (isTextNavigationKey(ed.key, ed.modifiers)) {
         return false;
@@ -702,20 +703,20 @@ bool Harmony::isEditAllowed(EditData& ed) const
         return true;
     }
 
-    return TextBase::isEditAllowed(ed);
+    return TextBase::isTextualEditAllowed(ed);
 }
 
 //---------------------------------------------------------
 //   edit
 //---------------------------------------------------------
 
-bool Harmony::edit(EditData& ed)
+bool Harmony::editTextual(EditData& ed)
 {
     if (!isEditAllowed(ed)) {
         return false;
     }
 
-    bool rv = TextBase::edit(ed);
+    bool rv = TextBase::editTextual(ed);
 
     // layout as text, without position reset
     renderer()->layoutText1(this, true);
@@ -740,7 +741,7 @@ bool Harmony::edit(EditData& ed)
 //   endEdit
 //---------------------------------------------------------
 
-void Harmony::endEdit(EditData& ed)
+void Harmony::endEditTextual(EditData& ed)
 {
     // get plain text
     String s = plainText();
@@ -778,6 +779,8 @@ void Harmony::endEdit(EditData& ed)
     // disable spell check
     m_isMisspelled = false;
 
+    TextBase::endEditTextual(ed);
+
     if (links()) {
         for (EngravingObject* e : *links()) {
             if (e == this) {
@@ -797,8 +800,8 @@ void Harmony::endEdit(EditData& ed)
                     if (!h->style().styleB(Sid::concertPitch)) {
                         interval.flip();
                     }
-                    int rootTpc = transposeTpc(h->rootTpc(), interval, true);
-                    int baseTpc = transposeTpc(h->baseTpc(), interval, true);
+                    int rootTpc = transposeTpc(m_rootTpc, interval, true);
+                    int baseTpc = transposeTpc(m_baseTpc, interval, true);
                     //score()->undoTransposeHarmony(h, rootTpc, baseTpc);
                     h->setRootTpc(rootTpc);
                     h->setBaseTpc(baseTpc);
@@ -809,8 +812,6 @@ void Harmony::endEdit(EditData& ed)
             }
         }
     }
-
-    TextBase::endEdit(ed);
 }
 
 //---------------------------------------------------------
@@ -1160,7 +1161,7 @@ const ChordDescription* Harmony::getDescription()
     const ChordDescription* cd = descr();
     if (cd && !cd->names.empty()) {
         m_textName = cd->names.front();
-    } else if (m_textName != "") {
+    } else if (!m_textName.empty()) {
         cd = generateDescription();
         m_id = cd->id;
     }
@@ -1221,7 +1222,7 @@ const RealizedHarmony& Harmony::getRealizedHarmony() const
         //parse bass
         size_t slash = m_textName.lastIndexOf('/');
         int bassTpc;
-        if (slash == mu::nidx) {
+        if (slash == muse::nidx) {
             bassTpc = Tpc::TPC_INVALID;
         } else {
             bassTpc = function2Tpc(m_textName.mid(slash + 1), key);
@@ -1267,13 +1268,13 @@ const ChordDescription* Harmony::generateDescription()
 //   drawEditMode
 //---------------------------------------------------------
 
-void Harmony::drawEditMode(mu::draw::Painter* p, EditData& ed, double currentViewScaling)
+void Harmony::drawEditMode(Painter* p, EditData& ed, double currentViewScaling)
 {
     TextBase::drawEditMode(p, ed, currentViewScaling);
 
-    mu::draw::Color originalColor = color();
+    Color originalColor = color();
     if (m_isMisspelled) {
-        setColor(engravingConfiguration()->criticalColor());
+        setColor(configuration()->criticalColor());
         setSelected(false);
     }
     PointF pos(canvasPos());
@@ -1292,7 +1293,7 @@ void Harmony::drawEditMode(mu::draw::Painter* p, EditData& ed, double currentVie
 //   TextSegment
 //---------------------------------------------------------
 
-TextSegment::TextSegment(const String& s, const mu::draw::Font& f, double x, double y)
+TextSegment::TextSegment(const String& s, const Font& f, double x, double y)
 {
     set(s, f, x, y, PointF());
     select = false;
@@ -1304,7 +1305,7 @@ TextSegment::TextSegment(const String& s, const mu::draw::Font& f, double x, dou
 
 double TextSegment::width() const
 {
-    return mu::draw::FontMetrics::width(m_font, text);
+    return FontMetrics::width(m_font, text);
 }
 
 //---------------------------------------------------------
@@ -1313,7 +1314,7 @@ double TextSegment::width() const
 
 RectF TextSegment::boundingRect() const
 {
-    return mu::draw::FontMetrics::boundingRect(m_font, text);
+    return FontMetrics::boundingRect(m_font, text);
 }
 
 //---------------------------------------------------------
@@ -1322,14 +1323,14 @@ RectF TextSegment::boundingRect() const
 
 RectF TextSegment::tightBoundingRect() const
 {
-    return mu::draw::FontMetrics::tightBoundingRect(m_font, text);
+    return FontMetrics::tightBoundingRect(m_font, text);
 }
 
 //---------------------------------------------------------
 //   set
 //---------------------------------------------------------
 
-void TextSegment::set(const String& s, const mu::draw::Font& f, double _x, double _y, PointF _offset)
+void TextSegment::set(const String& s, const Font& f, double _x, double _y, PointF _offset)
 {
     m_font   = f;
     x      = _x;
@@ -1346,7 +1347,7 @@ void Harmony::render(const String& s, double& x, double& y)
 {
     int fontIdx = 0;
     if (!s.isEmpty()) {
-        mu::draw::Font f = m_harmonyType != HarmonyType::ROMAN ? m_fontList[fontIdx] : font();
+        Font f = m_harmonyType != HarmonyType::ROMAN ? m_fontList[fontIdx] : font();
         TextSegment* ts = new TextSegment(s, f, x, y);
         m_textList.push_back(ts);
         x += ts->width();
@@ -1434,7 +1435,7 @@ void Harmony::render(const std::list<RenderAction>& renderList, double& x, doubl
             if (tpc == Tpc::TPC_B_B && noteSpelling == NoteSpellingType::GERMAN) {
                 context = u"german_B";
             }
-            if (acc != "") {
+            if (!acc.empty()) {
                 TextSegment* ts = new TextSegment(m_fontList[fontIdx], x, y);
                 String lookup = context + acc;
                 ChordSymbol cs = chordList->symbol(lookup);
@@ -1469,10 +1470,10 @@ void Harmony::render()
 
     m_fontList.clear();
     for (const ChordFont& cf : chordList->fonts) {
-        mu::draw::Font ff(font());
+        Font ff(font());
         ff.setPointSizeF(ff.pointSizeF() * cf.mag);
         if (!(cf.family.isEmpty() || cf.family == "default")) {
-            ff.setFamily(cf.family, draw::Font::Type::Harmony);
+            ff.setFamily(cf.family, Font::Type::Harmony);
         }
         m_fontList.push_back(ff);
     }
@@ -1649,7 +1650,7 @@ StringList Harmony::xmlDegrees() const
 
 HDegree Harmony::degree(int i) const
 {
-    return mu::value(m_degreeList, i);
+    return muse::value(m_degreeList, i);
 }
 
 //---------------------------------------------------------
@@ -1772,10 +1773,10 @@ String Harmony::generateScreenReaderInfo() const
         bool hasUpper = aux.contains(u'I') || aux.contains(u'V');
         bool hasLower = aux.contains(u'i') || aux.contains(u'v');
         if (hasLower && !hasUpper) {
-            rez = String(u"%1 %2").arg(rez, mtrc("engraving", "lower case"));
+            rez = String(u"%1 %2").arg(rez, muse::mtrc("engraving", "lower case"));
         }
         aux = aux.toLower();
-        static std::vector<std::pair<String, String> > rnaReplacements {
+        static const std::vector<std::pair<String, String> > rnaReplacements {
             { u"vii", u"7" },
             { u"vi", u"6" },
             { u"iv", u"4" },
@@ -1784,7 +1785,7 @@ String Harmony::generateScreenReaderInfo() const
             { u"ii", u"2" },
             { u"i", u"1" },
         };
-        static std::vector<std::pair<String, String> > symbolReplacements {
+        static const std::vector<std::pair<String, String> > symbolReplacements {
             { u"bb", u"𝄫" },
             { u"##", u"𝄪" },
             { u"h", u"♮" },
@@ -1828,7 +1829,7 @@ String Harmony::generateScreenReaderInfo() const
         aux = aux.replace(u"#", u"♯").replace(u"<", u"");
         String extension;
 
-        for (String s : aux.split(u'>', mu::SkipEmptyParts)) {
+        for (String s : aux.split(u'>', muse::SkipEmptyParts)) {
             if (!s.contains(u"blues")) {
                 s.replace(u"b", u"♭");
             }

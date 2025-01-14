@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -50,6 +50,7 @@ enum class ArticulationCategory : char {
     ACCENT = 0x8,
     MARCATO = 0x10,
     LUTE_FINGERING = 0x20,
+    LAISSEZ_VIB = 0x40,
 };
 DECLARE_FLAGS(ArticulationCategories, ArticulationCategory)
 DECLARE_OPERATORS_FOR_FLAGS(ArticulationCategories)
@@ -119,16 +120,16 @@ public:
     void setTextType(ArticulationTextType textType);
     ArticulationTextType textType() const { return m_textType; }
     TranslatableString typeUserName() const override;
-    String translatedTypeUserName() const override;
+    TranslatableString subtypeUserName() const override;
     String articulationName() const;    // type-name of articulation; used for midi rendering
     static String symId2ArticulationName(SymId symId);
 
     bool layoutCloseToNote() const;
 
-    const draw::Font& font() const { return m_font; }
+    const muse::draw::Font& font() const { return m_font; }
     bool isHiddenOnTabStaff() const;
 
-    std::vector<mu::LineF> dragAnchorLines() const override;
+    std::vector<LineF> dragAnchorLines() const override;
 
     PropertyValue getProperty(Pid propertyId) const override;
     bool setProperty(Pid propertyId, const PropertyValue&) override;
@@ -164,7 +165,8 @@ public:
     bool isStaccato() const { return m_categories & ArticulationCategory::STACCATO; }
     bool isAccent() const { return m_categories & ArticulationCategory::ACCENT; }
     bool isMarcato() const { return m_categories & ArticulationCategory::MARCATO; }
-    bool isLuteFingering() { return m_categories & ArticulationCategory::LUTE_FINGERING; }
+    bool isLuteFingering() const { return m_categories & ArticulationCategory::LUTE_FINGERING; }
+    bool isLaissezVib() const { return m_categories & ArticulationCategory::LAISSEZ_VIB; }
 
     bool isBasicArticulation() const;
 
@@ -218,7 +220,7 @@ private:
     String m_channelName;
 
     ArticulationTextType m_textType = ArticulationTextType::NO_TEXT;
-    draw::Font m_font; // used for drawing text type articulations
+    muse::draw::Font m_font; // used for drawing text type articulations
 
     ArticulationAnchor m_anchor = ArticulationAnchor::AUTO;
 

@@ -20,29 +20,38 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_AUDIO_AUDIOTYPES_H
-#define MU_AUDIO_AUDIOTYPES_H
+#ifndef MUSE_AUDIO_AUDIOTYPES_H
+#define MUSE_AUDIO_AUDIOTYPES_H
 
 #include <variant>
-#include <memory>
 #include <set>
 #include <string>
 
-#include "types/string.h"
-#include "realfn.h"
-#include "mpe/events.h"
-#include "io/iodevice.h"
-#include "async/channel.h"
-#include "io/path.h"
+#include "global/types/number.h"
+#include "global/types/secs.h"
+#include "global/types/ratio.h"
+#include "global/types/string.h"
+#include "global/realfn.h"
+#include "global/async/channel.h"
+#include "global/io/iodevice.h"
 
-namespace mu::audio {
+#include "mpe/events.h"
+
+namespace muse::audio {
 using msecs_t = int64_t;
-using secs_t = int64_t;
+using secs_t = muse::secs_t;
+
+inline secs_t milisecsToSecs(msecs_t ms) { return secs_t(ms / 1000.0); }
+inline secs_t microsecsToSecs(msecs_t us) { return secs_t(us / 1000000.0); }
+
+inline msecs_t secsToMilisecs(secs_t s) { return msecs_t(s * 1000.0); }
+inline msecs_t secsToMicrosecs(secs_t s) { return msecs_t(s * 1000000.0); }
+
 using samples_t = uint64_t;
 using sample_rate_t = uint64_t;
 using audioch_t = uint8_t;
-using volume_db_t = float;
-using volume_dbfs_t = float;
+using volume_db_t = db_t;
+using volume_dbfs_t = db_t;
 using gain_t = float;
 using balance_t = float;
 
@@ -60,7 +69,13 @@ using PlaybackSetupData = mpe::PlaybackSetupData;
 
 static constexpr TrackId INVALID_TRACK_ID = -1;
 
-static constexpr int MINIMUM_BUFFER_SIZE = 1024;
+#ifdef Q_OS_WIN
+static constexpr size_t MINIMUM_BUFFER_SIZE = 256;
+#else
+static constexpr size_t MINIMUM_BUFFER_SIZE = 128;
+#endif
+
+static constexpr size_t MAXIMUM_BUFFER_SIZE = 4096;
 
 enum class SoundTrackType {
     Undefined = -1,
@@ -73,6 +88,7 @@ enum class SoundTrackType {
 struct SoundTrackFormat {
     SoundTrackType type = SoundTrackType::Undefined;
     sample_rate_t sampleRate = 0;
+    samples_t samplesPerChannel = 0;
     audioch_t audioChannelsNumber = 0;
     int bitRate = 0;
 
@@ -81,6 +97,7 @@ struct SoundTrackFormat {
         return type == other.type
                && sampleRate == other.sampleRate
                && audioChannelsNumber == other.audioChannelsNumber
+               && samplesPerChannel == other.samplesPerChannel
                && bitRate == other.bitRate;
     }
 
@@ -88,6 +105,7 @@ struct SoundTrackFormat {
     {
         return type != SoundTrackType::Undefined
                && sampleRate != 0
+               && samplesPerChannel != 0
                && audioChannelsNumber != 0;
     }
 };
@@ -102,15 +120,12 @@ using AudioUnitConfig = std::map<std::string, std::string>;
 static const String PLAYBACK_SETUP_DATA_ATTRIBUTE("playbackSetupData");
 static const String CATEGORIES_ATTRIBUTE("categories");
 
-static const String KEYSWITCH_PARAM_CODE("keyswitch");
-
 enum class AudioResourceType {
     Undefined = -1,
     FluidSoundfont,
     VstPlugin,
     MusePlugin,
     MuseSamplerSoundPack,
-    SoundTrack,
 };
 
 struct AudioResourceMeta {
@@ -165,20 +180,6 @@ using AudioResourceMetaSet = std::set<AudioResourceMeta>;
 
 static const AudioResourceId MUSE_REVERB_ID("Muse Reverb");
 
-enum class AudioPluginType {
-    Undefined = -1,
-    Instrument,
-    Fx,
-};
-
-struct AudioPluginInfo {
-    AudioPluginType type = AudioPluginType::Undefined;
-    AudioResourceMeta meta;
-    io::path_t path;
-    bool enabled = false;
-    int errorCode = 0;
-};
-
 enum class AudioFxType {
     Undefined = -1,
     VstFx,
@@ -214,7 +215,6 @@ struct AudioFxParams {
         case AudioResourceType::MusePlugin: return AudioFxType::MuseFx;
         case AudioResourceType::FluidSoundfont:
         case AudioResourceType::MuseSamplerSoundPack:
-        case AudioResourceType::SoundTrack:
         case AudioResourceType::Undefined: break;
         }
 
@@ -272,7 +272,9 @@ struct AudioOutputParams {
     volume_db_t volume = 0.f;
     balance_t balance = 0.f;
     AuxSendsParams auxSends;
+    bool solo = false;
     bool muted = false;
+    bool forceMute = false;
 
     bool operator ==(const AudioOutputParams& other) const
     {
@@ -280,7 +282,9 @@ struct AudioOutputParams {
                && RealIsEqual(volume, other.volume)
                && RealIsEqual(balance, other.balance)
                && auxSends == other.auxSends
-               && muted == other.muted;
+               && solo == other.solo
+               && muted == other.muted
+               && forceMute == other.forceMute;
     }
 };
 
@@ -291,19 +295,27 @@ enum class AudioSourceType {
     MuseSampler
 };
 
-struct AudioSourceParams {
-    AudioSourceType type() const
-    {
-        switch (resourceMeta.type) {
-        case AudioResourceType::FluidSoundfont: return AudioSourceType::Fluid;
-        case AudioResourceType::VstPlugin: return AudioSourceType::Vsti;
-        case AudioResourceType::MuseSamplerSoundPack: return AudioSourceType::MuseSampler;
-        default: return AudioSourceType::Undefined;
-        }
+inline AudioSourceType sourceTypeFromResourceType(AudioResourceType type)
+{
+    switch (type) {
+    case AudioResourceType::FluidSoundfont: return AudioSourceType::Fluid;
+    case AudioResourceType::VstPlugin: return AudioSourceType::Vsti;
+    case AudioResourceType::MuseSamplerSoundPack: return AudioSourceType::MuseSampler;
+    case AudioResourceType::MusePlugin:
+    case AudioResourceType::Undefined: break;
     }
 
+    return AudioSourceType::Undefined;
+}
+
+struct AudioSourceParams {
     AudioResourceMeta resourceMeta;
     AudioUnitConfig configuration;
+
+    AudioSourceType type() const
+    {
+        return sourceTypeFromResourceType(resourceMeta.type);
+    }
 
     bool isValid() const
     {
@@ -331,36 +343,47 @@ struct AudioSignalVal {
     volume_dbfs_t pressure = 0.f;
 };
 
-using AudioSignalChanges = async::Channel<audioch_t, AudioSignalVal>;
+using AudioSignalValuesMap = std::map<audioch_t, AudioSignalVal>;
+using AudioSignalChanges = async::Channel<AudioSignalValuesMap>;
 
+static constexpr volume_dbfs_t MINIMUM_OPERABLE_DBFS_LEVEL = volume_dbfs_t::make(-100.f);
 struct AudioSignalsNotifier {
-    void updateSignalValues(const audioch_t audioChNumber, const float newAmplitude, const volume_dbfs_t newPressure)
+    void updateSignalValues(const audioch_t audioChNumber, const float newAmplitude)
     {
+        volume_dbfs_t newPressure = (newAmplitude > 0.f) ? volume_dbfs_t(muse::linear_to_db(newAmplitude)) : MINIMUM_OPERABLE_DBFS_LEVEL;
+        newPressure = std::max(newPressure, MINIMUM_OPERABLE_DBFS_LEVEL);
+
         AudioSignalVal& signalVal = m_signalValuesMap[audioChNumber];
 
-        volume_dbfs_t validatedPressure = std::max(newPressure, MINIMUM_OPERABLE_DBFS_LEVEL);
-
-        if (RealIsEqual(signalVal.pressure, validatedPressure)) {
+        if (muse::is_equal(signalVal.pressure, newPressure)) {
             return;
         }
 
-        if (std::abs(signalVal.pressure - validatedPressure) < PRESSURE_MINIMAL_VALUABLE_DIFF) {
+        if (std::abs(signalVal.pressure - newPressure) < PRESSURE_MINIMAL_VALUABLE_DIFF) {
             return;
         }
 
         signalVal.amplitude = newAmplitude;
-        signalVal.pressure = validatedPressure;
+        signalVal.pressure = newPressure;
 
-        audioSignalChanges.send(audioChNumber, signalVal);
+        m_needNotifyAboutChanges = true;
+    }
+
+    void notifyAboutChanges()
+    {
+        if (m_needNotifyAboutChanges) {
+            audioSignalChanges.send(m_signalValuesMap);
+            m_needNotifyAboutChanges = false;
+        }
     }
 
     AudioSignalChanges audioSignalChanges;
 
 private:
-    static constexpr volume_dbfs_t PRESSURE_MINIMAL_VALUABLE_DIFF = 2.5f;
-    static constexpr volume_dbfs_t MINIMUM_OPERABLE_DBFS_LEVEL = -100.f;
+    static constexpr volume_dbfs_t PRESSURE_MINIMAL_VALUABLE_DIFF = volume_dbfs_t::make(2.5f);
 
-    std::map<audioch_t, AudioSignalVal> m_signalValuesMap;
+    AudioSignalValuesMap m_signalValuesMap;
+    bool m_needNotifyAboutChanges = false;
 };
 
 enum class PlaybackStatus {
@@ -382,14 +405,19 @@ struct AudioDevice {
 
 using AudioDeviceList = std::vector<AudioDevice>;
 
+using SoundPresetAttributes = std::map<String, String>;
+static const String PLAYING_TECHNIQUES_ATTRIBUTE(u"playing_techniques");
+
 struct SoundPreset
 {
-    std::string code;
-    std::string name;
+    String code;
+    String name;
+    bool isDefault = false;
+    SoundPresetAttributes attributes;
 
     bool operator==(const SoundPreset& other) const
     {
-        return code == other.code && name == other.name;
+        return code == other.code && name == other.name && isDefault == other.isDefault && attributes == other.attributes;
     }
 
     bool isValid() const
@@ -408,4 +436,4 @@ enum class RenderMode {
 };
 }
 
-#endif // MU_AUDIO_AUDIOTYPES_H
+#endif // MUSE_AUDIO_AUDIOTYPES_H

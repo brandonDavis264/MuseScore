@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -22,44 +22,56 @@
 #ifndef MU_ENGRAVING_EID_H
 #define MU_ENGRAVING_EID_H
 
+#include <bitset>
 #include <cstdint>
 #include <string>
 #include <string_view>
 
 #include "global/logstream.h"
-#include "types/types.h"
+
+#include "../types/types.h"
 
 namespace mu::engraving {
 class EID
 {
 public:
-    EID(ElementType type = ElementType::INVALID, uint32_t id = 0);
+    bool isValid() const { return m_first != INVALID || m_second != INVALID; }
 
-    bool isValid() const { return m_type != ElementType::INVALID && m_id != 0; }
-
-    ElementType type() const { return m_type; }
-    uint32_t id() const { return m_id; }
-
-    inline bool operator ==(const EID& other) const { return m_type == other.m_type && m_id == other.m_id; }
-    inline bool operator !=(const EID& other) const { return !this->operator ==(other); }
-
-    uint64_t toUint64() const;
-    static EID fromUint64(uint64_t v);
+    inline bool operator ==(const EID& other) const { return m_first == other.m_first && m_second == other.m_second; }
+    inline bool operator !=(const EID& other) const { return m_first != other.m_first || m_second != other.m_second; }
 
     std::string toStdString() const;
     static EID fromStdString(const std::string& v);
     static EID fromStdString(const std::string_view& v);
+    static EID newUnique();
+    static EID invalid() { return EID(INVALID, INVALID); }
 
 private:
+    EID() = delete;
+    EID(uint64_t f, uint64_t s)
+        : m_first(f), m_second(s) {}
 
-    ElementType m_type = ElementType::INVALID;
-    uint32_t m_id = 0;
+    static constexpr uint64_t INVALID = uint64_t(-1);
+
+    uint64_t m_first = INVALID;
+    uint64_t m_second = INVALID;
+
+    friend struct std::hash<EID>;
 };
 }
 
-inline mu::logger::Stream& operator<<(mu::logger::Stream& s, const mu::engraving::EID& v)
+template<>
+struct std::hash<mu::engraving::EID>
 {
-    s << "[" << static_cast<int>(v.type()) << "] " << v.id();
+    size_t operator()(const mu::engraving::EID& eid) const
+    {
+        return std::hash<uint64_t>()(eid.m_first) ^ (std::hash<uint64_t>()(eid.m_second) << 1);
+    }
+};
+
+inline muse::logger::Stream& operator<<(muse::logger::Stream& s, const mu::engraving::EID& v)
+{
+    s << v.toStdString();
     return s;
 }
 

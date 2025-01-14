@@ -19,18 +19,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef MU_AUDIO_IAUDIOCONFIGURATION_H
-#define MU_AUDIO_IAUDIOCONFIGURATION_H
+#ifndef MUSE_AUDIO_IAUDIOCONFIGURATION_H
+#define MUSE_AUDIO_IAUDIOCONFIGURATION_H
 
 #include "modularity/imoduleinterface.h"
-#include "io/path.h"
-#include "types/ret.h"
-#include "async/channel.h"
-#include "async/notification.h"
+
+#include "global/async/channel.h"
+#include "global/async/notification.h"
+#include "global/io/path.h"
 
 #include "audiotypes.h"
 
-namespace mu::audio {
+namespace muse::audio {
 class IAudioConfiguration : MODULE_EXPORT_INTERFACE
 {
     INTERFACE_ID(IAudioConfiguration)
@@ -51,12 +51,18 @@ public:
     virtual unsigned int driverBufferSize() const = 0; // samples
     virtual void setDriverBufferSize(unsigned int size) = 0;
     virtual async::Notification driverBufferSizeChanged() const = 0;
-    virtual samples_t renderStep() const = 0;
+
+    virtual msecs_t audioWorkerInterval(const samples_t bufferSize, const samples_t sampleRate) const = 0;
+    virtual samples_t minSamplesToReserve(RenderMode mode) const = 0;
+
+    virtual samples_t samplesToPreallocate() const = 0;
+    virtual async::Channel<samples_t> samplesToPreallocateChanged() const = 0;
 
     virtual unsigned int sampleRate() const = 0;
     virtual void setSampleRate(unsigned int sampleRate) = 0;
     virtual async::Notification sampleRateChanged() const = 0;
 
+    virtual size_t desiredAudioThreadNumber() const = 0;
     virtual size_t minTrackCountForMultithreading() const = 0;
 
     // synthesizers
@@ -67,8 +73,8 @@ public:
     virtual void setUserSoundFontDirectories(const io::paths_t& paths) = 0;
     virtual async::Channel<io::paths_t> soundFontDirectoriesChanged() const = 0;
 
-    virtual io::path_t knownAudioPluginsFilePath() const = 0;
+    virtual bool shouldMeasureInputLag() const = 0;
 };
 }
 
-#endif // MU_AUDIO_IAUDIOCONFIGURATION_H
+#endif // MUSE_AUDIO_IAUDIOCONFIGURATION_H

@@ -20,19 +20,19 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_AUDIO_ITRACKSHANDLER_H
-#define MU_AUDIO_ITRACKSHANDLER_H
+#ifndef MUSE_AUDIO_ITRACKSHANDLER_H
+#define MUSE_AUDIO_ITRACKSHANDLER_H
 
 #include <memory>
 
-#include "async/promise.h"
-#include "async/channel.h"
+#include "global/async/promise.h"
+#include "global/async/channel.h"
+
 #include "mpe/events.h"
-#include "io/path.h"
 
 #include "audiotypes.h"
 
-namespace mu::audio {
+namespace muse::audio {
 class ITracks
 {
 public:
@@ -56,7 +56,7 @@ public:
     virtual async::Channel<TrackSequenceId, TrackId> trackRemoved() const = 0;
 
     virtual async::Promise<AudioResourceMetaList> availableInputResources() const = 0;
-    virtual async::Promise<SoundPresetList> availableSoundPresets(const TrackSequenceId sequenceId, const TrackId trackId) const = 0;
+    virtual async::Promise<SoundPresetList> availableSoundPresets(const AudioResourceMeta& resourceMeta) const = 0;
 
     virtual async::Promise<AudioInputParams> inputParams(const TrackSequenceId sequenceId, const TrackId trackId) const = 0;
     virtual void setInputParams(const TrackSequenceId sequenceId, const TrackId trackId, const AudioInputParams& params) = 0;
@@ -68,4 +68,4 @@ public:
 using ITracksPtr = std::shared_ptr<ITracks>;
 }
 
-#endif // MU_AUDIO_ITRACKSHANDLER_H
+#endif // MUSE_AUDIO_ITRACKSHANDLER_H

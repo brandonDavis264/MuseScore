@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -32,8 +32,8 @@ VerticalFrameSettingsModel::VerticalFrameSettingsModel(QObject* parent, IElement
     : AbstractInspectorModel(parent, repository)
 {
     setModelType(InspectorModelType::TYPE_VERTICAL_FRAME);
-    setTitle(qtrc("inspector", "Vertical frame"));
-    setIcon(ui::IconCode::Code::VERTICAL_FRAME);
+    setTitle(muse::qtrc("inspector", "Vertical frame"));
+    setIcon(muse::ui::IconCode::Code::VERTICAL_FRAME);
     createProperties();
 }
 
@@ -46,6 +46,7 @@ void VerticalFrameSettingsModel::createProperties()
     m_frameRightMargin = buildPropertyItem(Pid::RIGHT_MARGIN);
     m_frameTopMargin = buildPropertyItem(Pid::TOP_MARGIN);
     m_frameBottomMargin = buildPropertyItem(Pid::BOTTOM_MARGIN);
+    m_isSizeSpatiumDependent = buildPropertyItem(Pid::SIZE_SPATIUM_DEPENDENT);
 }
 
 void VerticalFrameSettingsModel::requestElements()
@@ -63,6 +64,7 @@ void VerticalFrameSettingsModel::loadProperties()
         Pid::RIGHT_MARGIN,
         Pid::TOP_MARGIN,
         Pid::BOTTOM_MARGIN,
+        Pid::SIZE_SPATIUM_DEPENDENT
     };
 
     loadProperties(propertyIdSet);
@@ -77,6 +79,7 @@ void VerticalFrameSettingsModel::resetProperties()
     m_frameRightMargin->resetToDefault();
     m_frameTopMargin->resetToDefault();
     m_frameBottomMargin->resetToDefault();
+    m_isSizeSpatiumDependent->resetToDefault();
 }
 
 void VerticalFrameSettingsModel::onNotationChanged(const PropertyIdSet& changedPropertyIdSet, const StyleIdSet&)
@@ -86,32 +89,36 @@ void VerticalFrameSettingsModel::onNotationChanged(const PropertyIdSet& changedP
 
 void VerticalFrameSettingsModel::loadProperties(const mu::engraving::PropertyIdSet& propertyIdSet)
 {
-    if (mu::contains(propertyIdSet, Pid::BOX_HEIGHT)) {
+    if (muse::contains(propertyIdSet, Pid::BOX_HEIGHT)) {
         loadPropertyItem(m_frameHeight, formatDoubleFunc);
     }
 
-    if (mu::contains(propertyIdSet, Pid::TOP_GAP)) {
+    if (muse::contains(propertyIdSet, Pid::TOP_GAP)) {
         loadPropertyItem(m_gapAbove, formatDoubleFunc);
     }
 
-    if (mu::contains(propertyIdSet, Pid::BOTTOM_GAP)) {
+    if (muse::contains(propertyIdSet, Pid::BOTTOM_GAP)) {
         loadPropertyItem(m_gapBelow, formatDoubleFunc);
     }
 
-    if (mu::contains(propertyIdSet, Pid::LEFT_MARGIN)) {
+    if (muse::contains(propertyIdSet, Pid::LEFT_MARGIN)) {
         loadPropertyItem(m_frameLeftMargin);
     }
 
-    if (mu::contains(propertyIdSet, Pid::RIGHT_MARGIN)) {
+    if (muse::contains(propertyIdSet, Pid::RIGHT_MARGIN)) {
         loadPropertyItem(m_frameRightMargin);
     }
 
-    if (mu::contains(propertyIdSet, Pid::TOP_MARGIN)) {
+    if (muse::contains(propertyIdSet, Pid::TOP_MARGIN)) {
         loadPropertyItem(m_frameTopMargin);
     }
 
-    if (mu::contains(propertyIdSet, Pid::BOTTOM_MARGIN)) {
+    if (muse::contains(propertyIdSet, Pid::BOTTOM_MARGIN)) {
         loadPropertyItem(m_frameBottomMargin);
+    }
+
+    if (muse::contains(propertyIdSet, Pid::SIZE_SPATIUM_DEPENDENT)) {
+        loadPropertyItem(m_isSizeSpatiumDependent);
     }
 }
 
@@ -148,4 +155,9 @@ PropertyItem* VerticalFrameSettingsModel::frameTopMargin() const
 PropertyItem* VerticalFrameSettingsModel::frameBottomMargin() const
 {
     return m_frameBottomMargin;
+}
+
+PropertyItem* VerticalFrameSettingsModel::isSizeSpatiumDependent() const
+{
+    return m_isSizeSpatiumDependent;
 }

@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -19,23 +19,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef MU_ENGRAVING_PROPERTYVALUE_H
-#define MU_ENGRAVING_PROPERTYVALUE_H
+#pragma once
 
-#include <any>
-#include <string>
 #include <memory>
 #include <cassert>
-
-#include "types/string.h"
-#include "types/types.h"
-#include "types/symid.h"
-
-#include "global/logstream.h"
 
 #ifndef NO_QT_SUPPORT
 #include <QVariant>
 #endif
+
+#include "global/types/string.h"
+#include "global/logstream.h"
+
+#include "../types/types.h"
+#include "../types/symid.h"
 
 namespace mu::engraving {
 class Groups;
@@ -67,6 +64,7 @@ enum class P_TYPE {
     ORNAMENT_INTERVAL,
     ORNAMENT_SHOW_ACCIDENTAL,
     GLISS_STYLE,
+    GLISS_TYPE,
 
     // Layout
     ALIGN,
@@ -79,6 +77,7 @@ enum class P_TYPE {
     BEAM_MODE,
     ACCIDENTAL_ROLE,
     TIE_PLACEMENT,
+    TIE_DOTS_PLACEMENT,
 
     // Sound
     FRACTION,
@@ -97,7 +96,6 @@ enum class P_TYPE {
     CLEF_TYPE,
     CLEF_TO_BARLINE_POS,
     DYNAMIC_TYPE,
-    DYNAMIC_RANGE,
     DYNAMIC_SPEED,
     LINE_TYPE,
     HOOK_TYPE,
@@ -106,6 +104,12 @@ enum class P_TYPE {
     PLAYTECH_TYPE,
     TEMPOCHANGE_TYPE,
     SLUR_STYLE_TYPE,
+    NOTELINE_PLACEMENT_TYPE,
+    LYRICS_DASH_SYSTEM_START_TYPE,
+    PARTIAL_SPANNER_DIRECTION,
+
+    VOICE_ASSIGNMENT,
+    AUTO_ON_OFF,
 
     // Other
     GROUPS,
@@ -178,6 +182,9 @@ public:
     PropertyValue(GlissandoStyle v)
         : m_type(P_TYPE::GLISS_STYLE), m_data(make_data<GlissandoStyle>(v)) {}
 
+    PropertyValue(GlissandoType v)
+        : m_type(P_TYPE::GLISS_TYPE), m_data(make_data<GlissandoType>(v)) {}
+
     // Layout
     PropertyValue(Align v)
         : m_type(P_TYPE::ALIGN), m_data(make_data<Align>(v)) {}
@@ -206,6 +213,9 @@ public:
 
     PropertyValue(TiePlacement v)
         : m_type(P_TYPE::TIE_PLACEMENT), m_data(make_data<TiePlacement>(v)) {}
+
+    PropertyValue(TieDotsPlacement v)
+        : m_type(P_TYPE::TIE_DOTS_PLACEMENT), m_data(make_data<TieDotsPlacement>(v)) {}
 
     // Sound
     PropertyValue(const Fraction& v)
@@ -244,8 +254,6 @@ public:
 
     PropertyValue(DynamicType v)
         : m_type(P_TYPE::DYNAMIC_TYPE), m_data(make_data<DynamicType>(v)) {}
-    PropertyValue(DynamicRange v)
-        : m_type(P_TYPE::DYNAMIC_RANGE), m_data(make_data<DynamicRange>(v)) {}
     PropertyValue(DynamicSpeed v)
         : m_type(P_TYPE::DYNAMIC_SPEED), m_data(make_data<DynamicSpeed>(v)) {}
 
@@ -269,6 +277,9 @@ public:
     PropertyValue(SlurStyleType v)
         : m_type(P_TYPE::SLUR_STYLE_TYPE), m_data(make_data<SlurStyleType>(v)) {}
 
+    PropertyValue(const NoteLineEndPlacement& v)
+        : m_type(P_TYPE::NOTELINE_PLACEMENT_TYPE), m_data(make_data<NoteLineEndPlacement>(v)) {}
+
     // Other
     PropertyValue(const GroupNodes& v)
         : m_type(P_TYPE::GROUPS), m_data(make_data<GroupNodes>(v)) {}
@@ -278,6 +289,18 @@ public:
 
     PropertyValue(const OrnamentShowAccidental& v)
         : m_type(P_TYPE::ORNAMENT_SHOW_ACCIDENTAL), m_data(make_data<OrnamentShowAccidental>(v)) {}
+
+    PropertyValue(const LyricsDashSystemStart& v)
+        : m_type(P_TYPE::LYRICS_DASH_SYSTEM_START_TYPE), m_data(make_data<LyricsDashSystemStart>(v)) {}
+
+    PropertyValue(const PartialSpannerDirection& v)
+        : m_type(P_TYPE::PARTIAL_SPANNER_DIRECTION), m_data(make_data<PartialSpannerDirection>(v)) {}
+
+    PropertyValue(const VoiceAssignment& v)
+        : m_type(P_TYPE::VOICE_ASSIGNMENT), m_data(make_data<VoiceAssignment>(v)) {}
+
+    PropertyValue(const AutoOnOff& v)
+        : m_type(P_TYPE::AUTO_ON_OFF), m_data(make_data<AutoOnOff>(v)) {}
 
     bool isValid() const;
 
@@ -466,10 +489,8 @@ private:
 };
 }
 
-inline mu::logger::Stream& operator<<(mu::logger::Stream& s, const mu::engraving::PropertyValue&)
+inline muse::logger::Stream& operator<<(muse::logger::Stream& s, const mu::engraving::PropertyValue&)
 {
     s << "property(not implemented log output)";
     return s;
 }
-
-#endif // MU_ENGRAVING_PROPERTYVALUE_H

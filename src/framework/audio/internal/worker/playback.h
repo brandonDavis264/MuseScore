@@ -19,12 +19,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef MU_AUDIO_SEQUENCER_H
-#define MU_AUDIO_SEQUENCER_H
+#ifndef MUSE_AUDIO_SEQUENCER_H
+#define MUSE_AUDIO_SEQUENCER_H
 
 #include <map>
 
-#include "async/asyncable.h"
+#include "modularity/ioc.h"
+#include "global/async/asyncable.h"
 
 #include "iplayer.h"
 #include "itracks.h"
@@ -32,10 +33,13 @@
 #include "igettracksequence.h"
 #include "iplayback.h"
 
-namespace mu::audio {
-class Playback : public IPlayback, public IGetTrackSequence, public async::Asyncable
+namespace muse::audio {
+class Playback : public IPlayback, public IGetTrackSequence, public Injectable, public async::Asyncable
 {
 public:
+    Playback(const muse::modularity::ContextPtr& iocCtx)
+        : Injectable(iocCtx) {}
+
     void init() override;
     void deinit() override;
     bool isInited() const override;
@@ -48,7 +52,7 @@ public:
     async::Channel<TrackSequenceId> sequenceAdded() const override;
     async::Channel<TrackSequenceId> sequenceRemoved() const override;
 
-    IPlayerPtr player() const override;
+    IPlayerPtr player(const TrackSequenceId id) const override;
     ITracksPtr tracks() const override;
     IAudioOutputPtr audioOutput() const override;
 
@@ -57,7 +61,6 @@ protected:
     ITrackSequencePtr sequence(const TrackSequenceId id) const override;
 
 private:
-    IPlayerPtr m_playerHandlersPtr = nullptr;
     ITracksPtr m_trackHandlersPtr = nullptr;
     IAudioOutputPtr m_audioOutputPtr = nullptr;
 
@@ -68,4 +71,4 @@ private:
 };
 }
 
-#endif // MU_AUDIO_SEQUENCER_H
+#endif // MUSE_AUDIO_SEQUENCER_H

@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -30,8 +30,22 @@
 #include "log.h"
 
 using namespace mu::appshell;
-using namespace mu::ui;
-using namespace mu::uicomponents;
+using namespace muse::ui;
+using namespace muse::uicomponents;
+
+QSet<int> convertToSet(QList<int> keys)
+{
+    return QSet<int>(keys.cbegin(), keys.cend());
+}
+
+QSet<int> convertToSet(QList<QKeyCombination> keys)
+{
+    QSet<int> keyset;
+    for (const auto& key : keys) {
+        keyset << key.toCombined();
+    }
+    return keyset;
+}
 
 QSet<int> possibleKeys(QKeyEvent* keyEvent)
 {
@@ -39,17 +53,16 @@ QSet<int> possibleKeys(QKeyEvent* keyEvent)
     //! NOTE: correct work only with alt modifier
     correctedKeyEvent->setModifiers(Qt::AltModifier);
 
-    QList<int> keys = QKeyMapper::possibleKeys(correctedKeyEvent);
-
-    return QSet<int>(keys.cbegin(), keys.cend());
+    auto keys = QKeyMapper::possibleKeys(correctedKeyEvent);
+    return convertToSet(keys);
 }
 
 QSet<int> possibleKeys(const QChar& keySymbol)
 {
     QKeyEvent fakeKey(QKeyEvent::KeyRelease, Qt::Key_unknown, Qt::AltModifier, keySymbol);
-    QList<int> keys = QKeyMapper::possibleKeys(&fakeKey);
+    auto keys = QKeyMapper::possibleKeys(&fakeKey);
 
-    return QSet<int>(keys.cbegin(), keys.cend());
+    return convertToSet(keys);
 }
 
 NavigableAppMenuModel::NavigableAppMenuModel(QObject* parent)
@@ -82,6 +95,18 @@ void NavigableAppMenuModel::handleMenuItem(const QString& itemId)
     restoreMUNavigationSystemState();
 
     AppMenuModel::handleMenuItem(itemId);
+}
+
+void NavigableAppMenuModel::openPrevMenu()
+{
+    navigate(Qt::Key_Left);
+    activateHighlightedMenu();
+}
+
+void NavigableAppMenuModel::openNextMenu()
+{
+    navigate(Qt::Key_Right);
+    activateHighlightedMenu();
 }
 
 void NavigableAppMenuModel::openMenu(const QString& menuId, bool byHover)
@@ -251,12 +276,11 @@ bool NavigableAppMenuModel::processEventForAppMenu(QEvent* event)
     bool isNavigationWithSymbol = !modifiers
                                   && isSingleSymbol
                                   && isNavigationStarted;
-    bool isNavigationWithAlt = (modifiers & Qt::AltModifier)
-                               && !(modifiers & Qt::ShiftModifier)
+    bool isNavigationWithAlt = (modifiers == Qt::AltModifier)
                                && isSingleSymbol;
 
     bool isAltKey = key == Qt::Key_Alt
-                    && key != Qt::Key_Shift
+                    && !(modifiers & Qt::ControlModifier)
                     && !(modifiers & Qt::ShiftModifier);
 
     switch (event->type()) {
@@ -330,13 +354,12 @@ bool NavigableAppMenuModel::processEventForAppMenu(QEvent* event)
     default:
         break;
     }
-
     return false;
 }
 
 bool NavigableAppMenuModel::isNavigateKey(int key) const
 {
-    static QList<Qt::Key> keys {
+    static const QList<Qt::Key> keys {
         Qt::Key_Left,
         Qt::Key_Right,
         Qt::Key_Down,

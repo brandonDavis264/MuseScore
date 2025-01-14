@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -29,6 +29,7 @@
 #include "engravingitem.h"
 #include "factory.h"
 #include "measure.h"
+#include "note.h"
 #include "rest.h"
 #include "score.h"
 #include "text.h"
@@ -139,6 +140,18 @@ void Tuplet::setVisible(bool f)
     EngravingItem::setVisible(f);
     if (m_number) {
         m_number->setVisible(f);
+    }
+}
+
+//---------------------------------------------------------
+//   setColor
+//---------------------------------------------------------
+
+void Tuplet::setColor(const Color& col)
+{
+    EngravingItem::setColor(col);
+    if (m_number) {
+        m_number->setColor(col);
     }
 }
 
@@ -491,21 +504,22 @@ bool Tuplet::cross() const
 staff_idx_t Tuplet::vStaffIdx() const
 {
     if (elements().empty()) {
-        return mu::nidx;
+        return muse::nidx;
     }
 
     const DurationElement* cr = elements().front();
     if (!cr) {
-        return mu::nidx;
+        return muse::nidx;
     }
 
     while (cr->isTuplet()) {
         const Tuplet* t = toTuplet(cr);
         if (t->elements().empty()) {
-            break;
+            return muse::nidx;
         }
         cr = t->elements().front();
     }
+
     return cr->vStaffIdx();
 }
 
@@ -576,7 +590,7 @@ bool Tuplet::setProperty(Pid propertyId, const PropertyValue& v)
         setBracketType(TupletBracketType(v.toInt()));
         break;
     case Pid::LINE_WIDTH:
-        setBracketWidth(v.value<Millimetre>());
+        setBracketWidth(v.value<Spatium>());
         break;
     case Pid::NORMAL_NOTES:
         m_ratio.setDenominator(v.toInt());
@@ -621,7 +635,7 @@ PropertyValue Tuplet::propertyDefault(Pid id) const
     case Pid::SYSTEM_FLAG:
         return false;
     case Pid::TEXT:
-        return String(u"");
+        return String();
     case Pid::NORMAL_NOTES:
     case Pid::ACTUAL_NOTES:
         return 0;
@@ -676,7 +690,7 @@ void Tuplet::sanitizeTuplet()
 
     Fraction testDuration(0, 1);
     for (DurationElement* de : elements()) {
-        if (de == 0) {
+        if (!de) {
             continue;
         }
         Fraction elementDuration(0, 1);
@@ -753,13 +767,20 @@ void Tuplet::addMissingElements()
     if (voice() == 0) {
         return;         // nothing to do for tuplets in voice 1
     }
+
     Fraction missingElementsDuration = ticks() * ratio() - elementsDuration();
     if (missingElementsDuration.isZero()) {
         return;
     }
+
     // first, fill in any holes in the middle of the tuplet
     Fraction expectedTick = elements().front()->tick();
-    for (DurationElement* de : elements()) {
+
+    const std::vector<DurationElement*> elementsCopy = elements(); // mofified during loop
+    for (const DurationElement* de : elementsCopy) {
+        if (!de) {
+            continue;
+        }
         if (de->tick() != expectedTick) {
             missingElementsDuration -= addMissingElement(expectedTick, de->tick());
             if (missingElementsDuration.isZero()) {
@@ -768,6 +789,7 @@ void Tuplet::addMissingElements()
         }
         expectedTick += de->actualTicks();
     }
+
     // calculate the tick where we would expect a tuplet of this duration to start
     // TODO: check:
     expectedTick = elements().front()->tick() - Fraction::fromTicks(elements().front()->tick().ticks() % ticks().ticks());
@@ -822,5 +844,23 @@ int Tuplet::computeTupletDenominator(int numerator, Fraction totalDuration)
         ratio = (totalDuration / baseLen).reduced();
     }
     return ratio.numerator();
+}
+
+EngravingItem* Tuplet::nextElement()
+{
+    ChordRest* firstElement = toChordRest(elements().front());
+    if (firstElement->type() == ElementType::CHORD) {
+        Chord* chord = toChord(firstElement);
+        return chord->firstGraceOrNote();
+    }
+    return firstElement;
+}
+
+EngravingItem* Tuplet::prevElement()
+{
+    ChordRest* firstElement = toChordRest(elements().front());
+    staff_idx_t staffId = firstElement->staffIdx();
+    EngravingItem* prevItem = firstElement->segment()->prevElement(staffId);
+    return prevItem;
 }
 } // namespace mu::engraving

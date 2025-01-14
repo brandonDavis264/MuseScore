@@ -19,11 +19,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef MU_GLOBAL_XMLSTREAMREADER_H
-#define MU_GLOBAL_XMLSTREAMREADER_H
+#ifndef MUSE_GLOBAL_XMLSTREAMREADER_H
+#define MUSE_GLOBAL_XMLSTREAMREADER_H
 
 #include <vector>
-#include <list>
 #include <map>
 
 #include "io/iodevice.h"
@@ -34,7 +33,7 @@
 #include <QByteArray>
 #endif
 
-namespace mu {
+namespace muse {
 class XmlStreamReader
 {
 public:
@@ -133,4 +132,4 @@ private:
 };
 }
 
-#endif // MU_GLOBAL_XMLSTREAMREADER_H
+#endif // MUSE_GLOBAL_XMLSTREAMREADER_H

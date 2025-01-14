@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -35,12 +35,12 @@
 
 using namespace mu::instrumentsscene;
 using namespace mu::notation;
-using namespace mu::uicomponents;
-using namespace mu::framework;
+using namespace muse;
+using namespace muse::uicomponents;
 
 using ItemType = InstrumentsTreeItemType::ItemType;
 
-static const mu::actions::ActionCode ADD_INSTRUMENTS_ACTIONCODE("instruments");
+static const muse::actions::ActionCode ADD_INSTRUMENTS_ACTIONCODE("instruments");
 
 namespace mu::instrumentsscene {
 static QString notationToKey(const INotationPtr notation)
@@ -55,7 +55,7 @@ static QString notationToKey(const INotationPtr notation)
 InstrumentsPanelTreeModel::InstrumentsPanelTreeModel(QObject* parent)
     : QAbstractItemModel(parent)
 {
-    m_partsNotifyReceiver = std::make_shared<async::Asyncable>();
+    m_partsNotifyReceiver = std::make_shared<muse::async::Asyncable>();
 
     m_selectionModel = new ItemMultiSelectionModel(this);
     m_selectionModel->setAllowedModifiers(Qt::ShiftModifier);
@@ -176,7 +176,7 @@ void InstrumentsPanelTreeModel::onBeforeChangeNotation()
         return;
     }
 
-    QList<ID> partIdList;
+    QList<muse::ID> partIdList;
 
     for (const AbstractInstrumentsPanelTreeItem* item : m_rootItem->childItems()) {
         partIdList << item->id();
@@ -202,7 +202,7 @@ void InstrumentsPanelTreeModel::setupPartsConnections()
         load();
     });
 
-    auto updateMasterPartItem = [this](const ID& partId) {
+    auto updateMasterPartItem = [this](const muse::ID& partId) {
         auto partItem = dynamic_cast<PartTreeItem*>(m_rootItem->childAtId(partId));
         if (!partItem) {
             return;
@@ -221,7 +221,7 @@ void InstrumentsPanelTreeModel::setupPartsConnections()
     });
 }
 
-void InstrumentsPanelTreeModel::setupStavesConnections(const ID& stavesPartId)
+void InstrumentsPanelTreeModel::setupStavesConnections(const muse::ID& stavesPartId)
 {
     async::NotifyList<const Staff*> notationStaves = m_notation->parts()->staffList(stavesPartId);
 
@@ -271,21 +271,21 @@ void InstrumentsPanelTreeModel::updateSelectedRows()
 
     m_selectionModel->clear();
 
-    std::vector<EngravingItem*> selectedElements = m_notation->interaction()->selection()->elements();
+    const std::vector<EngravingItem*>& selectedElements = m_notation->interaction()->selection()->elements();
     if (selectedElements.empty()) {
         return;
     }
 
-    QSet<ID> selectedPartIdSet;
+    std::vector<muse::ID> selectedPartIds;
     for (const EngravingItem* element : selectedElements) {
         if (!element->part()) {
             continue;
         }
 
-        selectedPartIdSet << element->part()->id();
+        selectedPartIds.push_back(element->part()->id());
     }
 
-    for (const ID& selectedPartId : selectedPartIdSet) {
+    for (const muse::ID& selectedPartId : selectedPartIds) {
         AbstractInstrumentsPanelTreeItem* item = m_rootItem->childAtId(selectedPartId);
 
         if (item) {
@@ -324,7 +324,7 @@ void InstrumentsPanelTreeModel::load()
     beginResetModel();
     deleteItems();
 
-    m_rootItem = new RootTreeItem(m_masterNotation, m_notation);
+    m_rootItem = new RootTreeItem(m_masterNotation, m_notation, this);
 
     async::NotifyList<const Part*> masterParts = m_masterNotation->parts()->partList();
     sortParts(masterParts);
@@ -350,7 +350,7 @@ void InstrumentsPanelTreeModel::sortParts(notation::PartList& parts)
         return;
     }
 
-    const QList<ID>& sortedPartIdList = m_sortedPartIdList[key];
+    const QList<muse::ID>& sortedPartIdList = m_sortedPartIdList[key];
 
     std::sort(parts.begin(), parts.end(), [&sortedPartIdList](const Part* part1, const Part* part2) {
         int index1 = sortedPartIdList.indexOf(part1->id());
@@ -659,13 +659,13 @@ bool InstrumentsPanelTreeModel::isInstrumentSelected() const
 
 QString InstrumentsPanelTreeModel::addInstrumentsKeyboardShortcut() const
 {
-    const shortcuts::Shortcut& shortcut = shortcutsRegister()->shortcut(ADD_INSTRUMENTS_ACTIONCODE);
+    const muse::shortcuts::Shortcut& shortcut = shortcutsRegister()->shortcut(ADD_INSTRUMENTS_ACTIONCODE);
 
     if (shortcut.sequences.empty()) {
         return {};
     }
 
-    return shortcuts::sequencesToNativeText({ shortcut.sequences[0] });
+    return muse::shortcuts::sequencesToNativeText({ shortcut.sequences[0] });
 }
 
 void InstrumentsPanelTreeModel::setIsRemovingAvailable(bool isRemovingAvailable)
@@ -823,12 +823,12 @@ bool InstrumentsPanelTreeModel::warnAboutRemovingInstrumentsIfNecessary(int coun
         //: Please omit `%n` in the translation in this case; it's only there so that you
         //: have the possibility to provide translations with the correct numerus form,
         //: i.e. to show "instrument" or "instruments" as appropriate.
-        trc("instruments", "Are you sure you want to delete the selected %n instrument(s)?", nullptr, count),
+        muse::trc("instruments", "Are you sure you want to delete the selected %n instrument(s)?", nullptr, count),
 
         //: Please omit `%n` in the translation in this case; it's only there so that you
         //: have the possibility to provide translations with the correct numerus form,
         //: i.e. to show "instrument" or "instruments" as appropriate.
-        trc("instruments", "This will remove the %n instrument(s) from the full score and all part scores.", nullptr, count),
+        muse::trc("instruments", "This will remove the %n instrument(s) from the full score and all part scores.", nullptr, count),
 
         { IInteractive::Button::No, IInteractive::Button::Yes })
            .standardButton() == IInteractive::Button::Yes;
@@ -869,7 +869,7 @@ AbstractInstrumentsPanelTreeItem* InstrumentsPanelTreeModel::buildMasterStaffIte
     return result;
 }
 
-AbstractInstrumentsPanelTreeItem* InstrumentsPanelTreeModel::buildAddStaffControlItem(const ID& partId, QObject* parent)
+AbstractInstrumentsPanelTreeItem* InstrumentsPanelTreeModel::buildAddStaffControlItem(const muse::ID& partId, QObject* parent)
 {
     auto result = new StaffControlTreeItem(m_masterNotation, m_notation, parent);
     result->init(partId);

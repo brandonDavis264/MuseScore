@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -19,8 +19,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef MU_ENGRAVING_TWRITE_H
-#define MU_ENGRAVING_TWRITE_H
+#pragma once
 
 #include "../xmlwriter.h"
 #include "writecontext.h"
@@ -173,8 +172,6 @@ class WhammyBar;
 namespace mu::engraving::write {
 class TWrite
 {
-    INJECT_STATIC(IEngravingConfiguration, engravingConfiguration)
-
 public:
     TWrite() = default;
 
@@ -234,6 +231,7 @@ public:
 
     static void write(const KeySig* item, XmlWriter& xml, WriteContext& ctx);
 
+    static void write(const LaissezVib* item, XmlWriter& xml, WriteContext& ctx);
     static void write(const LayoutBreak* item, XmlWriter& xml, WriteContext& ctx);
     static void write(const LedgerLine* item, XmlWriter& xml, WriteContext& ctx);
     static void write(const LetRing* item, XmlWriter& xml, WriteContext& ctx);
@@ -259,6 +257,7 @@ public:
     static void write(const Page* item, XmlWriter& xml, WriteContext& ctx);
     static void write(const PalmMute* item, XmlWriter& xml, WriteContext& ctx);
     static void write(const Part* item, XmlWriter& xml, WriteContext& ctx);
+    static void write(const PartialTie* item, XmlWriter& xml, WriteContext& ctx);
     static void write(const Pedal* item, XmlWriter& xml, WriteContext& ctx);
     static void write(const PickScrape* item, XmlWriter& xml, WriteContext& ctx);
     static void write(const PlayTechAnnotation* item, XmlWriter& xml, WriteContext& ctx);
@@ -309,6 +308,10 @@ public:
 
     static void writeProperty(const EngravingItem* item, XmlWriter& xml, Pid pid, bool force = false);
 
+    static void writeSystemLocks(const Score* score, XmlWriter& xml);
+
+    static void writeItemEid(const EngravingObject* item, XmlWriter& xml, WriteContext& ctx);
+
 private:
 
     static void writeStyledProperties(const EngravingItem* item, XmlWriter& xml);
@@ -325,6 +328,7 @@ private:
     static void writeProperties(const Rest* item, XmlWriter& xml, WriteContext& ctx);
 
     static void write(const StaffTextBase* item, XmlWriter& xml, WriteContext& ctx);
+    static void writeProperties(const StaffTextBase* item, XmlWriter& xml, WriteContext& ctx);
     static void writeProperties(const SlurTie* item, XmlWriter& xml, WriteContext& ctx);
     static void writeSlur(const SlurTieSegment* seg, XmlWriter& xml, WriteContext& ctx, int no);
     static void writeProperties(const SLine* item, XmlWriter& xml, WriteContext& ctx);
@@ -342,7 +346,7 @@ private:
 
     static void writeTupletStart(DurationElement* item, XmlWriter& xml, WriteContext& ctx);
     static void writeTupletEnd(DurationElement* item, XmlWriter& xml, WriteContext& ctx);
+
+    static void writeSystemLock(const SystemLock* systemLock, XmlWriter& xml);
 };
 }
-
-#endif // MU_ENGRAVING_TWRITE_H

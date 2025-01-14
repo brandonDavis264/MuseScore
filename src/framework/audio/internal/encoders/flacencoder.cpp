@@ -24,13 +24,12 @@
 
 #include "FLAC++/encoder.h"
 
-#include "log.h"
-#include "realfn.h"
-
 #include "internal/dsp/audiomathutils.h"
 
-using namespace mu::audio;
-using namespace mu::audio::encode;
+#include "log.h"
+
+using namespace muse::audio;
+using namespace muse::audio::encode;
 
 struct FlacHandler : public FLAC::Encoder::File
 {

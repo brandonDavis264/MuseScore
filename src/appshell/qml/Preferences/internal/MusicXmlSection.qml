@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -21,7 +21,7 @@
  */
 import QtQuick 2.15
 
-import MuseScore.UiComponents 1.0
+import Muse.UiComponents 1.0
 
 BaseSection {
     id: root
@@ -31,10 +31,12 @@ BaseSection {
     property alias importLayout: importLayoutBox.checked
     property alias importBreaks: importBreaksBox.checked
     property alias needUseDefaultFont: needUseDefaultFontBox.checked
+    property alias inferTextType: inferTextTypeBox.checked
 
     signal importLayoutChangeRequested(bool importLayout)
     signal importBreaksChangeRequested(bool importBreaks)
     signal useDefaultFontChangeRequested(bool use)
+    signal inferTextTypeChangeRequested(bool inferText)
 
     CheckBox {
         id: importLayoutBox
@@ -78,6 +80,21 @@ BaseSection {
 
         onClicked: {
             root.useDefaultFontChangeRequested(!checked)
+        }
+    }
+
+    CheckBox {
+        id: inferTextTypeBox
+        width: parent.width
+
+        text: qsTrc("appshell/preferences", "Infer text type based on content where possible")
+
+        navigation.name: "InferTextTypeBox"
+        navigation.panel: root.navigation
+        navigation.row: 3
+
+        onClicked: {
+            root.inferTextTypeChangeRequested(!checked)
         }
     }
 }

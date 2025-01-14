@@ -19,21 +19,23 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef MU_FRAMEWORK_URI_H
-#define MU_FRAMEWORK_URI_H
+#ifndef MUSE_GLOBAL_URI_H
+#define MUSE_GLOBAL_URI_H
 
 #include <string>
 #include <vector>
 #include <map>
 
-#include "types/val.h"
+#include "val.h"
+#include "global/logstream.h"
 
-namespace mu {
+namespace muse {
 class Uri
 {
 public:
     Uri() = default;
     explicit Uri(const std::string& str);
+    explicit Uri(const muse::String& str);
 
     using Scheme = std::string;
     static const Scheme MuseScore;
@@ -43,10 +45,19 @@ public:
     bool isValid() const;
 
     Scheme scheme() const;
+    void setScheme(const Scheme& scheme);
+
     std::string path() const;
 
     inline bool operator==(const Uri& uri) const { return m_path == uri.m_path && m_scheme == uri.m_scheme; }
     inline bool operator!=(const Uri& uri) const { return !(*this == uri); }
+    inline bool operator <(const Uri& uri) const
+    {
+        if (m_scheme != uri.m_scheme) {
+            return m_scheme < uri.m_scheme;
+        }
+        return m_path < uri.m_path;
+    }
 
     std::string toString() const;
 
@@ -64,10 +75,12 @@ public:
 
     UriQuery() = default;
     explicit UriQuery(const std::string& str);
+    explicit UriQuery(const String& str);
     explicit UriQuery(const Uri& uri);
 
-    const Uri& uri() const;
     bool isValid() const;
+    const Uri& uri() const;
+    void setScheme(const Uri::Scheme& scheme);
 
     const Params& params() const;
     Val param(const std::string& key, const Val& def = Val()) const;
@@ -82,7 +95,7 @@ public:
 
 private:
 
-    void parceParams(const std::string& str, Params& out) const;
+    void parseParams(const std::string& str, Params& out) const;
     void extractQuotedStrings(const std::string& str, std::vector<std::string>& out) const;
 
     Uri m_uri;
@@ -90,4 +103,16 @@ private:
 };
 }
 
-#endif // MU_FRAMEWORK_URI_H
+inline muse::logger::Stream& operator<<(muse::logger::Stream& s, const muse::Uri& uri)
+{
+    s << uri.toString();
+    return s;
+}
+
+inline muse::logger::Stream& operator<<(muse::logger::Stream& s, const muse::UriQuery& q)
+{
+    s << q.toString();
+    return s;
+}
+
+#endif // MUSE_GLOBAL_URI_H

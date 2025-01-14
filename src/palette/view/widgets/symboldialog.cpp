@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -82,10 +82,13 @@ SymbolDialog::SymbolDialog(const QString& s, QWidget* parent)
     range = s;          // smufl symbol range
     int idx = 0;
     int currentIndex = 0;
+    Score* score = globalContext()->currentNotation()->elements()->msScore();
+    std::string styleFont = score ? score->style().styleSt(Sid::musicalSymbolFont).toStdString() : "";
     for (const IEngravingFontPtr& f : engravingFonts()->fonts()) {
         fontList->addItem(QString::fromStdString(f->name()));
-        if (f->name() == "Leland" || f->name() == "Bravura") {
+        if (!styleFont.empty() && f->name() == styleFont) {
             currentIndex = idx;
+            styleFont = "";
         }
         ++idx;
     }
@@ -105,7 +108,7 @@ SymbolDialog::SymbolDialog(const QString& s, QWidget* parent)
     m_symbolsWidget->setSelectable(true);
 
     connect(systemFlag, &QCheckBox::stateChanged, this, &SymbolDialog::systemFlagChanged);
-    connect(fontList, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &SymbolDialog::systemFontChanged);
+    connect(fontList, &QComboBox::currentIndexChanged, this, &SymbolDialog::systemFontChanged);
 
     symbolsArea->setWidget(m_symbolsWidget);
 

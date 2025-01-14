@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2023 MuseScore BVBA and others
+ * Copyright (C) 2023 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -29,15 +29,15 @@
 #include "braille/ibrailleconfiguration.h"
 
 namespace mu::appshell {
-class BraillePreferencesModel : public QObject
+class BraillePreferencesModel : public QObject, public muse::Injectable
 {
     Q_OBJECT
-
-    INJECT(braille::IBrailleConfiguration, brailleConfiguration)
 
     Q_PROPERTY(bool braillePanelEnabled READ braillePanelEnabled WRITE setBraillePanelEnabled NOTIFY braillePanelEnabledChanged)
     Q_PROPERTY(QString brailleTable READ brailleTable WRITE setBrailleTable NOTIFY brailleTableChanged)
     Q_PROPERTY(int intervalDirection READ intervalDirection WRITE setIntervalDirection NOTIFY intervalDirectionChanged)
+
+    muse::Inject<braille::IBrailleConfiguration> brailleConfiguration = { this };
 
 public:
     explicit BraillePreferencesModel(QObject* parent = nullptr);

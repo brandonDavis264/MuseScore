@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<museScore version="4.20">
+<museScore version="4.50">
   <Score>
     <Division>480</Division>
     <Style>
-      <Spatium>1.74978</Spatium>
+      <spatium>1.74978</spatium>
       </Style>
     <showInvisible>1</showInvisible>
     <showUnprintable>1</showUnprintable>
@@ -33,6 +33,7 @@
         <trackName></trackName>
         <instrumentId>voice.vocals</instrumentId>
         <Channel>
+          <program value="52"/>
           </Channel>
         </Instrument>
       </Part>
@@ -113,7 +114,7 @@
             <durationType>eighth</durationType>
             <Lyrics>
               <ticks>960</ticks>
-              <ticks_f>1/2</ticks_f>
+              <ticks_f>4/8</ticks_f>
               <text>due</text>
               </Lyrics>
             <Note>
@@ -168,7 +169,7 @@
             <durationType>quarter</durationType>
             <Lyrics>
               <ticks>2400</ticks>
-              <ticks_f>5/4</ticks_f>
+              <ticks_f>20/16</ticks_f>
               <text>ter</text>
               </Lyrics>
             <Note>

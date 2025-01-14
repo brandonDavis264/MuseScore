@@ -22,16 +22,13 @@
 
 #include "synthresolver.h"
 
-#include "log.h"
-#include "async/async.h"
-
-#include "audioerrors.h"
-#include "internal/audiothread.h"
 #include "internal/audiosanitizer.h"
 
-using namespace mu::async;
-using namespace mu::audio;
-using namespace mu::audio::synth;
+#include "log.h"
+
+using namespace muse::async;
+using namespace muse::audio;
+using namespace muse::audio::synth;
 
 void SynthResolver::init(const AudioInputParams& defaultInputParams)
 {
@@ -104,7 +101,7 @@ AudioResourceMetaList SynthResolver::resolveAvailableResources() const
     return result;
 }
 
-SoundPresetList SynthResolver::resolveAvailableSoundPresets(const AudioInputParams& params) const
+SoundPresetList SynthResolver::resolveAvailableSoundPresets(const AudioResourceMeta& resourceMeta) const
 {
     ONLY_AUDIO_WORKER_THREAD;
 
@@ -112,12 +109,12 @@ SoundPresetList SynthResolver::resolveAvailableSoundPresets(const AudioInputPara
 
     std::lock_guard lock(m_mutex);
 
-    auto search = m_resolvers.find(params.type());
+    auto search = m_resolvers.find(audio::sourceTypeFromResourceType(resourceMeta.type));
     if (search == m_resolvers.end()) {
         return SoundPresetList();
     }
 
-    return search->second->resolveSoundPresets(params);
+    return search->second->resolveSoundPresets(resourceMeta);
 }
 
 void SynthResolver::registerResolver(const AudioSourceType type, IResolverPtr resolver)

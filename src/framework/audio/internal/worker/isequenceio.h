@@ -20,16 +20,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_AUDIO_ISEQUENCEIO_H
-#define MU_AUDIO_ISEQUENCEIO_H
+#ifndef MUSE_AUDIO_ISEQUENCEIO_H
+#define MUSE_AUDIO_ISEQUENCEIO_H
 
 #include <memory>
 
-#include "types/retval.h"
+#include "global/types/retval.h"
 
 #include "audiotypes.h"
 
-namespace mu::audio {
+namespace muse::audio {
 class ISequenceIO
 {
 public:
@@ -46,10 +46,10 @@ public:
     virtual async::Channel<TrackId, AudioInputParams> inputParamsChanged() const = 0;
     virtual async::Channel<TrackId, AudioOutputParams> outputParamsChanged() const = 0;
 
-    virtual async::Channel<audioch_t, AudioSignalVal> audioSignalChanges(const TrackId id) const = 0;
+    virtual AudioSignalChanges audioSignalChanges(const TrackId id) const = 0;
 };
 
 using ISequenceIOPtr = std::shared_ptr<ISequenceIO>;
 }
 
-#endif // MU_AUDIO_ISEQUENCEIO_H
+#endif // MUSE_AUDIO_ISEQUENCEIO_H

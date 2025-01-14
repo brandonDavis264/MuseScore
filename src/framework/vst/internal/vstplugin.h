@@ -20,14 +20,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_VST_VSTPLUGIN_H
-#define MU_VST_VSTPLUGIN_H
+#ifndef MUSE_VST_VSTPLUGIN_H
+#define MUSE_VST_VSTPLUGIN_H
 
 #include <mutex>
 #include <atomic>
 
 #include "modularity/ioc.h"
-#include "io/path.h"
 #include "async/asyncable.h"
 #include "async/notification.h"
 #include "async/channel.h"
@@ -37,20 +36,19 @@
 #include "ivstmodulesrepository.h"
 #include "vsttypes.h"
 #include "vstcomponenthandler.h"
-#include "vsterrors.h"
 
-namespace mu::vst {
+namespace muse::vst {
 class VstPluginProvider;
 class VstPlugin : public async::Asyncable
 {
-    INJECT_STATIC(audio::IAudioThreadSecurer, threadSecurer)
+    INJECT_STATIC(muse::audio::IAudioThreadSecurer, threadSecurer)
     INJECT_STATIC(IVstModulesRepository, modulesRepo)
 
 public:
-    VstPlugin(const audio::AudioResourceId& resourceId);
+    VstPlugin(const muse::audio::AudioResourceId& resourceId);
     ~VstPlugin() override;
 
-    const audio::AudioResourceId& resourceId() const;
+    const muse::audio::AudioResourceId& resourceId() const;
     const std::string& name() const;
 
     PluginViewPtr createView() const;
@@ -61,7 +59,7 @@ public:
 
     bool isAbleForInput() const;
 
-    void updatePluginConfig(const audio::AudioUnitConfig& config);
+    void updatePluginConfig(const muse::audio::AudioUnitConfig& config);
     void refreshConfig();
 
     void load();
@@ -71,13 +69,13 @@ public:
 
     async::Notification loadingCompleted() const;
 
-    async::Channel<audio::AudioUnitConfig> pluginSettingsChanged() const;
+    async::Channel<muse::audio::AudioUnitConfig> pluginSettingsChanged() const;
 
 private:
     void rescanParams();
     void stateBufferFromString(VstMemoryStream& buffer, char* strData, const size_t strSize) const;
 
-    audio::AudioResourceId m_resourceId;
+    muse::audio::AudioResourceId m_resourceId;
 
     PluginModulePtr m_module = nullptr;
     std::unique_ptr<VstPluginProvider> m_pluginProvider;
@@ -87,7 +85,7 @@ private:
 
     VstMemoryStream m_componentStateBuffer;
     VstMemoryStream m_controllerStateBuffer;
-    mutable async::Channel<audio::AudioUnitConfig> m_pluginSettingsChanges;
+    mutable async::Channel<muse::audio::AudioUnitConfig> m_pluginSettingsChanges;
 
     std::atomic_bool m_isLoaded = false;
     async::Notification m_loadingCompleted;
@@ -96,4 +94,4 @@ private:
 };
 }
 
-#endif // MU_VST_VSTPLUGIN_H
+#endif // MUSE_VST_VSTPLUGIN_H

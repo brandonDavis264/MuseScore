@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2023 MuseScore BVBA and others
+ * Copyright (C) 2023 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -59,6 +59,7 @@
 #include "dom/keysig.h"
 #include "dom/letring.h"
 #include "dom/line.h"
+#include "dom/lyrics.h"
 #include "dom/marker.h"
 #include "dom/measurenumber.h"
 #include "dom/measurerepeat.h"
@@ -70,37 +71,38 @@
 #include "dom/playtechannotation.h"
 #include "dom/rehearsalmark.h"
 #include "dom/slur.h"
+#include "dom/soundflag.h"
 #include "dom/stafftext.h"
 #include "dom/stafftypechange.h"
+#include "dom/sticking.h"
 #include "dom/stringtunings.h"
 #include "dom/symbol.h"
 #include "dom/systemtext.h"
-#include "dom/soundflag.h"
 #include "dom/tempotext.h"
 #include "dom/text.h"
 #include "dom/textline.h"
 #include "dom/textlinebase.h"
 #include "dom/timesig.h"
+#include "dom/tremolobar.h"
 #include "dom/tremolosinglechord.h"
 #include "dom/tremolotwochord.h"
-#include "dom/tremolobar.h"
 #include "dom/trill.h"
 #include "dom/vibrato.h"
 #include "dom/volta.h"
 
 #include "dom/utils.h"
 
-#include "rendering/dev/tlayout.h"
-#include "rendering/dev/tremololayout.h"
-#include "rendering/dev/arpeggiolayout.h"
-#include "rendering/dev/chordlayout.h"
-#include "rendering/dev/slurtielayout.h"
+#include "rendering/score/tlayout.h"
+#include "rendering/score/tremololayout.h"
+#include "rendering/score/chordlayout.h"
+#include "rendering/score/slurtielayout.h"
 
 #include "log.h"
 
-using namespace mu::draw;
+using namespace muse;
+using namespace muse::draw;
 using namespace mu::engraving;
-using namespace mu::engraving::rendering::dev;
+using namespace mu::engraving::rendering::score;
 using namespace mu::engraving::rendering::single;
 
 void SingleLayout::layoutItem(EngravingItem* item)
@@ -168,6 +170,8 @@ void SingleLayout::layoutItem(EngravingItem* item)
         break;
     case ElementType::LET_RING:     layout(toLetRing(item), ctx);
         break;
+    case ElementType::LYRICS:       layout(toLyrics(item), ctx);
+        break;
     case ElementType::MARKER:       layout(toMarker(item), ctx);
         break;
     case ElementType::MEASURE_NUMBER: layout(toMeasureNumber(item), ctx);
@@ -195,6 +199,8 @@ void SingleLayout::layoutItem(EngravingItem* item)
     case ElementType::STAFF_TEXT:   layout(toStaffText(item), ctx);
         break;
     case ElementType::STAFFTYPE_CHANGE: layout(toStaffTypeChange(item), ctx);
+        break;
+    case ElementType::STICKING:     layout(toSticking(item), ctx);
         break;
     case ElementType::STRING_TUNINGS: layout(toStringTunings(item), ctx);
         break;
@@ -226,6 +232,8 @@ void SingleLayout::layoutItem(EngravingItem* item)
         break;
     // drumset
     case ElementType::CHORD:        layout(toChord(item), ctx);
+        break;
+    case ElementType::STEM:         layout(toStem(item), ctx);
         break;
     default:
         LOGE() << "Not handled: " << item->typeName();
@@ -329,7 +337,7 @@ void SingleLayout::layout(Ambitus* item, const Context& ctx)
     layout(item->topAccidental(), ctx);
     layout(item->bottomAccidental(), ctx);
 
-    double accNoteDist = item->point(ctx.style().styleS(Sid::accidentalNoteDistance));
+    double accNoteDist = item->absoluteFromSpatium(ctx.style().styleS(Sid::accidentalNoteDistance));
     double xAccidOffTop = item->topAccidental()->width(LD_ACCESS::BAD) + accNoteDist;
     double xAccidOffBottom = item->bottomAccidental()->width(LD_ACCESS::BAD) + accNoteDist;
 
@@ -366,7 +374,7 @@ void SingleLayout::layout(Ambitus* item, const Context& ctx)
                    ldata->bottomPos.y());
     // shorten line on each side by offsets
     double yDelta = ldata->bottomPos.y() - ldata->topPos.y();
-    if (yDelta != 0.0) {
+    if (!RealIsNull(yDelta)) {
         double off = spatium * Ambitus::LINEOFFSET_DEFAULT;
         PointF p1 = fullLine.pointAt(off / yDelta);
         PointF p2 = fullLine.pointAt(1 - (off / yDelta));
@@ -447,7 +455,7 @@ void SingleLayout::layout(Arpeggio* item, const Context& ctx)
     } break;
 
     case ArpeggioType::BRACKET: {
-        double w  = ctx.style().styleS(Sid::ArpeggioHookLen).val() * item->spatium();
+        double w  = ctx.style().styleS(Sid::arpeggioHookLen).val() * item->spatium();
         ldata->setBbox(RectF(0.0, ldata->top, w, ldata->bottom));
     } break;
     }
@@ -458,9 +466,9 @@ void SingleLayout::layout(Articulation* item, const Context&)
     RectF bbox;
 
     if (item->textType() != ArticulationTextType::NO_TEXT) {
-        mu::draw::Font scaledFont(item->font());
+        Font scaledFont(item->font());
         scaledFont.setPointSizeF(item->font().pointSizeF() * item->magS());
-        mu::draw::FontMetrics fm(scaledFont);
+        FontMetrics fm(scaledFont);
         bbox = fm.boundingRect(scaledFont, TConv::text(item->textType()));
     } else {
         bbox = item->symBbox(item->symId());
@@ -519,7 +527,7 @@ void SingleLayout::layout(BagpipeEmbellishment* item, const Context& ctx)
 
         // flag
         if (ldata->isDrawFlag) {
-            noteData.flagXY = mu::PointF(x - ldata->stemLineW * .5 + xcorr, y1 + ycorr);
+            noteData.flagXY = PointF(x - ldata->stemLineW * .5 + xcorr, y1 + ycorr);
             ldata->addBbox(flagBBox.translated(noteData.flagXY));
         }
 
@@ -545,7 +553,7 @@ void SingleLayout::layout(BarLine* item, const Context& ctx)
 
     double spatium = item->spatium();
     ldata->y1 = (spatium * .5 * item->spanFrom());
-    if (RealIsEqual(ldata->y2, 0.0)) {
+    if (muse::RealIsEqual(ldata->y2, 0.0)) {
         ldata->y2 = (spatium * .5 * (8.0 + item->spanTo()));
     }
 
@@ -602,14 +610,14 @@ void SingleLayout::layout(Bend* item, const Context&)
 {
     Bend::LayoutData* ldata = item->mutldata();
     double spatium = item->spatium();
-    double lw = item->lineWidth();
+    double lw = item->absoluteFromSpatium(item->lineWidth());
 
     ldata->noteWidth = 0.0;
     ldata->notePos = PointF();
 
     RectF bb;
 
-    mu::draw::FontMetrics fm(item->font(spatium));
+    FontMetrics fm(item->font(spatium));
 
     size_t n   = item->points().size();
     double x = ldata->noteWidth;
@@ -637,7 +645,7 @@ void SingleLayout::layout(Bend* item, const Context&)
             int idx = (pitch + 12) / 25;
             const char* l = Bend::label[idx];
             bb.unite(fm.boundingRect(RectF(x2, y2, 0, 0),
-                                     draw::AlignHCenter | draw::AlignBottom | draw::TextDontClip,
+                                     muse::draw::AlignHCenter | muse::draw::AlignBottom | muse::draw::TextDontClip,
                                      String::fromAscii(l)));
             y = y2;
         }
@@ -664,7 +672,7 @@ void SingleLayout::layout(Bend* item, const Context&)
             int idx = (item->points().at(pt + 1).pitch + 12) / 25;
             const char* l = Bend::label[idx];
             bb.unite(fm.boundingRect(RectF(x2, y2, 0, 0),
-                                     draw::AlignHCenter | draw::AlignBottom | draw::TextDontClip,
+                                     muse::draw::AlignHCenter | muse::draw::AlignBottom | muse::draw::TextDontClip,
                                      String::fromAscii(l)));
         } else {
             // down
@@ -775,6 +783,7 @@ void SingleLayout::layout(Chord* item, const Context& ctx)
     ChordLayout::computeUp(item, tctx);
     ChordLayout::layout(item, tctx);
     ChordLayout::layoutStem(item, tctx);
+    ChordLayout::layoutLedgerLines({ item });
 }
 
 void SingleLayout::layout(ChordLine* item, const Context& ctx)
@@ -819,17 +828,9 @@ void SingleLayout::layout(ChordLine* item, const Context& ctx)
         height = r.height();
         ldata->setBbox(x1, y1, width, height);
     } else {
-        RectF r = ctx.engravingFont()->bbox(ChordLine::WAVE_SYMBOLS, item->magS());
-        double angle = ChordLine::WAVE_ANGEL * M_PI / 180;
+        RectF r = ctx.engravingFont()->bbox(item->waveSym(), item->magS());
 
-        r.setHeight(r.height() + r.width() * sin(angle));
-
-        /// TODO: calculate properly the rect for wavy type
-        if (item->chordLineType() == ChordLineType::DOIT) {
-            r.setY(item->y() - r.height() * (item->onTabStaff() ? 1.25 : 1));
-        }
-
-        item->setbbox(r);
+        ldata->setBbox(r);
     }
 }
 
@@ -894,8 +895,8 @@ void SingleLayout::layout(FretDiagram* item, const Context& ctx)
 {
     FretDiagram::LayoutData* ldata = item->mutldata();
     double spatium  = item->spatium();
-    ldata->stringLw = (spatium * 0.08);
-    ldata->nutLw = ((item->fretOffset() || !item->showNut()) ? ldata->stringLw : spatium * 0.2);
+    ldata->stringLineWidth = (spatium * 0.08);
+    ldata->nutLineWidth = ((item->fretOffset() || !item->showNut()) ? ldata->stringLineWidth : spatium * 0.2);
     ldata->stringDist = (ctx.style().styleMM(Sid::fretStringSpacing));
     ldata->fretDist = (ctx.style().styleMM(Sid::fretFretSpacing));
     ldata->markerSize = (ldata->stringDist * 0.8);
@@ -907,12 +908,10 @@ void SingleLayout::layout(FretDiagram* item, const Context& ctx)
 
     // Allocate space for fret offset number
     if (item->fretOffset() > 0) {
-        mu::draw::Font scaledFont(item->font());
-        scaledFont.setPointSizeF(item->font().pointSizeF() * item->userMag());
+        Font scaledFont(item->fretNumFont());
+        scaledFont.setPointSizeF(item->fretNumFont().pointSizeF() * item->userMag());
 
-        double fretNumMag = ctx.style().styleD(Sid::fretNumMag);
-        scaledFont.setPointSizeF(scaledFont.pointSizeF() * fretNumMag);
-        mu::draw::FontMetrics fm2(scaledFont);
+        FontMetrics fm2(scaledFont);
         double numw = fm2.width(String::number(item->fretOffset() + 1));
         double xdiff = numw + ldata->stringDist * .4;
         w += xdiff;
@@ -929,7 +928,7 @@ void SingleLayout::layout(FretDiagram* item, const Context& ctx)
 
 void SingleLayout::layout(FSymbol* item, const Context&)
 {
-    item->setbbox(draw::FontMetrics::boundingRect(item->font(), item->toString()));
+    item->setbbox(FontMetrics::boundingRect(item->font(), item->toString()));
     item->setOffset(0.0, 0.0);
     item->setPos(0.0, 0.0);
 }
@@ -960,7 +959,7 @@ void SingleLayout::layout(GlissandoSegment* item, const Context&)
     }
 
     RectF r = RectF(0.0, 0.0, item->pos2().x(), item->pos2().y()).normalized();
-    double lw = item->glissando()->lineWidth() * .5;
+    double lw = item->absoluteFromSpatium(item->lineWidth()) * .5;
     item->setbbox(r.adjusted(-lw, -lw, lw, lw));
 }
 
@@ -978,6 +977,7 @@ void SingleLayout::layout(GradualTempoChangeSegment* item, const Context& ctx)
 void SingleLayout::layout(GuitarBend*, const Context&)
 {
     NOT_IMPLEMENTED;
+    //! NOTE: Bends can be removed from disallowed elements in NotationInteraction::dragCopyAllowed once this has been implemented
 }
 
 void SingleLayout::layout(GuitarBendSegment*, const Context&)
@@ -1099,7 +1099,7 @@ void SingleLayout::layout(HairpinSegment* item, const Context& ctx)
         if (!item->endText()->empty()) {
             r.unite(item->endText()->ldata()->bbox().translated(x + item->endText()->ldata()->bbox().width(), 0.0));
         }
-        double w = item->point(ctx.style().styleS(Sid::hairpinLineWidth));
+        double w = item->absoluteFromSpatium(ctx.style().styleS(Sid::hairpinLineWidth));
         item->setbbox(r.adjusted(-w * .5, -w * .5, w, w));
     }
 
@@ -1151,7 +1151,7 @@ void SingleLayout::layout(KeySig* item, const Context& ctx)
     if (item->isCustom() && !item->isAtonal()) {
         double accidentalGap = ctx.style().styleS(Sid::keysigAccidentalDistance).val();
         // add standard key accidentals first, if necessary
-        for (int i = 1; i <= abs(key) && abs(key) <= 7; ++i) {
+        for (int i = 1; i <= std::abs(key) && std::abs(key) <= 7; ++i) {
             bool drop = false;
             for (const CustDef& cd: item->customKeyDefs()) {
                 int degree = item->degInKey(cd.degree);
@@ -1259,7 +1259,9 @@ void SingleLayout::layout(KeySig* item, const Context& ctx)
 
 void SingleLayout::layout(LayoutBreak* item, const Context&)
 {
-    UNUSED(item);
+    FontMetrics metrics(item->font());
+    RectF bbox = metrics.boundingRect(item->iconCode());
+    item->mutldata()->setShape(Shape(bbox, item));
 }
 
 void SingleLayout::layout(LetRing* item, const Context& ctx)
@@ -1270,6 +1272,11 @@ void SingleLayout::layout(LetRing* item, const Context& ctx)
 void SingleLayout::layout(LetRingSegment* item, const Context& ctx)
 {
     layoutTextLineBaseSegment(item, ctx);
+}
+
+void SingleLayout::layout(Lyrics* item, const Context& ctx)
+{
+    layoutTextBase(static_cast<TextBase*>(item), ctx, item->mutldata());
 }
 
 void SingleLayout::layout(NoteHead* item, const Context& ctx)
@@ -1422,6 +1429,26 @@ void SingleLayout::layout(Spacer* item, const Context&)
 void SingleLayout::layout(StaffText* item, const Context& ctx)
 {
     layoutTextBase(item, ctx, item->mutldata());
+
+    if (item->hasSoundFlag()) {
+        RectF bbox = item->ldata()->bbox();
+        double iconHeight = bbox.height();
+        RectF iconBBox = RectF(bbox.x(), bbox.y(), iconHeight, iconHeight);
+        item->soundFlag()->mutldata()->setBbox(iconBBox);
+
+        double xMove = iconBBox.width() + iconBBox.width() / 2.0;
+        bbox.setWidth(bbox.width() + xMove);
+        item->setbbox(bbox);
+
+        layout(item->soundFlag(), ctx);
+
+        for (TextBlock& block : item->mutldata()->blocks) {
+            auto& fragments = block.fragments();
+            for (std::list<TextFragment>::iterator it = fragments.begin(); it != fragments.end(); ++it) {
+                it->pos.setX(it->pos.x() + xMove);
+            }
+        }
+    }
 }
 
 void SingleLayout::layout(StaffTypeChange* item, const Context& ctx)
@@ -1437,8 +1464,8 @@ void SingleLayout::layout(StringTunings* item, const Context& ctx)
 
     for (TextBlock& block : item->mutldata()->blocks) {
         for (TextFragment& fragment : block.fragments()) {
-            mu::draw::Font font = fragment.font(item);
-            if (font.type() != mu::draw::Font::Type::MusicSymbol) {
+            Font font = fragment.font(item);
+            if (font.type() != Font::Type::MusicSymbol) {
                 // HACK: the music symbol doesn't have a good baseline
                 // to go with text so we correct text here
                 const double baselineAdjustment = font.pointSizeF();
@@ -1462,7 +1489,19 @@ void SingleLayout::layout(SystemText* item, const Context& ctx)
 
 void SingleLayout::layout(SoundFlag* item, const Context& ctx)
 {
-    layoutTextBase(item, ctx, item->mutldata());
+    UNUSED(item);
+    UNUSED(ctx);
+}
+
+void SingleLayout::layout(Stem* item, const Context& ctx)
+{
+    LayoutContext tctx(ctx.dontUseScore());
+    TLayout::layoutStem(item, item->mutldata(), tctx.conf());
+}
+
+void SingleLayout::layout(Sticking* item, const Context& ctx)
+{
+    layoutTextBase(static_cast<TextBase*>(item), ctx, item->mutldata());
 }
 
 void SingleLayout::layout(TempoText* item, const Context& ctx)
@@ -1616,7 +1655,7 @@ void SingleLayout::layout(TremoloBar* item, const Context&)
     }
     ldata->polygon = polygon;
 
-    double w = item->lineWidth().val();
+    const double w = item->absoluteFromSpatium(item->lineWidth());
     ldata->setBbox(ldata->polygon.boundingRect().adjusted(-w, -w, w, w));
 }
 
@@ -1824,7 +1863,7 @@ void SingleLayout::layoutTextLineBaseSegment(TextLineBaseSegment* item, const Co
     }
 
     auto alignBaseLine = [tl](Text* text, PointF& pp1, PointF& pp2) {
-        PointF widthCorrection(0.0, tl->lineWidth() / 2);
+        PointF widthCorrection(0.0, tl->absoluteFromSpatium(tl->lineWidth()) / 2);
         switch (text->align().vertical) {
         case AlignV::TOP:
             pp1 += widthCorrection;
@@ -1898,7 +1937,8 @@ void SingleLayout::layoutTextLineBaseSegment(TextLineBaseSegment* item, const Co
         item->pointsRef()[1] = pp2;
         item->setLineLength(sqrt(PointF::dotProduct(pp2 - pp1, pp2 - pp1)));
 
-        item->setbbox(TextLineBaseSegment::boundingBoxOfLine(pp1, pp2, tl->lineWidth() / 2, tl->lineStyle() == LineType::DOTTED));
+        item->setbbox(TextLineBaseSegment::boundingBoxOfLine(pp1, pp2, tl->absoluteFromSpatium(tl->lineWidth()) / 2,
+                                                             tl->lineStyle() == LineType::DOTTED));
         return;
     }
 
@@ -1906,7 +1946,7 @@ void SingleLayout::layoutTextLineBaseSegment(TextLineBaseSegment* item, const Co
 
     double x1 = std::min(0.0, pp2.x());
     double x2 = std::max(0.0, pp2.x());
-    double y0 = -tl->lineWidth();
+    double y0 = -tl->absoluteFromSpatium(tl->lineWidth());
     double y1 = std::min(0.0, pp2.y()) + y0;
     double y2 = std::max(0.0, pp2.y()) - y0;
 
@@ -2003,12 +2043,12 @@ void SingleLayout::layoutTextLineBaseSegment(TextLineBaseSegment* item, const Co
         double endHookWidth = 0.0;
 
         if (tl->beginHookType() == HookType::HOOK_45) {
-            beginHookWidth = fabs(beginHookHeight * .4);
+            beginHookWidth = std::fabs(beginHookHeight * .4);
             pp1.rx() += beginHookWidth;
         }
 
         if (tl->endHookType() == HookType::HOOK_45) {
-            endHookWidth = fabs(endHookHeight * .4);
+            endHookWidth = std::fabs(endHookHeight * .4);
             pp2.rx() -= endHookWidth;
         }
 
@@ -2034,7 +2074,7 @@ void SingleLayout::layoutTextLineBaseSegment(TextLineBaseSegment* item, const Co
                     // For dashes lines, we extend the lines somewhat,
                     // so that the corner between them gets filled
                     bool checkAngle = tl->beginHookType() == HookType::HOOK_45 || tl->diagonal();
-                    extendLines(beginHookEndpoint, beginHookStartpoint, pp1, pp2, tl->lineWidth() * item->mag(), checkAngle);
+                    extendLines(beginHookEndpoint, beginHookStartpoint, pp1, pp2, tl->absoluteFromSpatium(tl->lineWidth()), checkAngle);
                 }
             }
         }
@@ -2058,7 +2098,7 @@ void SingleLayout::layoutTextLineBaseSegment(TextLineBaseSegment* item, const Co
 
                     // For dashes lines, we extend the lines somewhat,
                     // so that the corner between them gets filled
-                    extendLines(pp1, pp22, endHookStartpoint, endHookEndpoint, tl->lineWidth() * item->mag(), checkAngle);
+                    extendLines(pp1, pp22, endHookStartpoint, endHookEndpoint, tl->absoluteFromSpatium(tl->lineWidth()), checkAngle);
                 }
             }
 

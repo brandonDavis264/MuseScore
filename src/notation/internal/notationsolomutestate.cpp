@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2024 MuseScore BVBA and others
+ * Copyright (C) 2024 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -20,14 +20,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 #include "notationsolomutestate.h"
-#include "notation.h"
 
 using namespace mu;
 using namespace mu::notation;
+using namespace muse;
 
-Ret NotationSoloMuteState::read(const engraving::MscReader& reader, const io::path_t& pathPrefix)
+Ret NotationSoloMuteState::read(const engraving::MscReader& reader, const muse::io::path_t& pathPrefix)
 {
     ByteArray json = reader.readAudioSettingsJsonFile(pathPrefix);
 
@@ -41,9 +43,10 @@ Ret NotationSoloMuteState::read(const engraving::MscReader& reader, const io::pa
     for (const QJsonValue track : tracksArray) {
         QJsonObject trackObject = track.toObject();
 
-        ID partId = trackObject.value("partId").toString();
-        std::string instrumentId = trackObject.value("instrumentId").toString().toStdString();
-        InstrumentTrackId id = { partId, instrumentId };
+        InstrumentTrackId id = {
+            trackObject.value("partId").toString(),
+            trackObject.value("instrumentId").toString()
+        };
 
         QJsonObject soloMuteObj = trackObject.value("soloMuteState").toObject();
         SoloMuteState soloMuteState;
@@ -63,7 +66,7 @@ Ret NotationSoloMuteState::write(io::IODevice* out)
 
     for (auto pair : m_trackSoloMuteStatesMap) {
         QJsonObject currentTrack;
-        currentTrack["instrumentId"] = QString::fromStdString(pair.first.instrumentId);
+        currentTrack["instrumentId"] = pair.first.instrumentId.toQString();
         currentTrack["partId"] = pair.first.partId.toQString();
 
         QJsonObject soloMuteStateObject;
@@ -117,7 +120,7 @@ void NotationSoloMuteState::removeTrackSoloMuteState(const engraving::Instrument
     }
 }
 
-mu::async::Channel<InstrumentTrackId, INotationSoloMuteState::SoloMuteState> NotationSoloMuteState::trackSoloMuteStateChanged() const
+muse::async::Channel<InstrumentTrackId, INotationSoloMuteState::SoloMuteState> NotationSoloMuteState::trackSoloMuteStateChanged() const
 {
     return m_trackSoloMuteStateChanged;
 }

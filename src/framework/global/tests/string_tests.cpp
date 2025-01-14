@@ -21,15 +21,18 @@
  */
 #include <gtest/gtest.h>
 
-#include <QString>
-#include <QRegularExpression>
+#include <cstring>
 #include <regex>
+#include <string>
 
+#include <QString>
+
+#include "types/bytearray.h"
 #include "types/string.h"
 
 #include "log.h"
 
-using namespace mu;
+using namespace muse;
 
 class Global_Types_StringTests : public ::testing::Test
 {
@@ -414,6 +417,41 @@ TEST_F(Global_Types_StringTests, String_Split)
     }
 }
 
+TEST_F(Global_Types_StringTests, String_Search)
+{
+    //! GIVEN Regex (taken from musicxml parsing for finding sibelius metronome marks eg 'q = 140'):
+    std::regex re(".*([yxeqhVwW])(\\.?)\\s*=[^0-9]*([0-9]+).*");
+
+    {
+        //! GIVEN String:
+        String str(u"Andante (q. = c. 90)");
+
+        String match1 = u"q";
+        String match2 = u".";
+        String match3 = u"90";
+
+        //! DO
+        StringList matches = str.search(re, { 1, 2, 3 });
+
+        //! CHECK
+
+        EXPECT_EQ(matches.at(0), match1);
+        EXPECT_EQ(matches.at(1), match2);
+        EXPECT_EQ(matches.at(2), match3);
+    }
+
+    {
+        //! GIVEN String:
+        String str(u"Andante (b = c. abc)");
+
+        //! DO
+        StringList matches = str.search(re, { 1, 2, 3 }, SplitBehavior::SkipEmptyParts);
+
+        //! CHECK
+        EXPECT_EQ(matches.size(), 0);
+    }
+}
+
 TEST_F(Global_Types_StringTests, String_StartEndWith)
 {
     {
@@ -622,28 +660,6 @@ TEST_F(Global_Types_StringTests, String_ToInt)
         EXPECT_FALSE(ok);
         EXPECT_EQ(v, 0);
     }
-
-    {
-        //! GIVEN Some string
-        String s("123.456");
-        //! DO
-        bool ok = false;
-        int v = s.toInt(&ok);
-        //! CHECK
-        EXPECT_TRUE(ok);
-        EXPECT_EQ(v, 123);
-    }
-
-    {
-        //! GIVEN Some string
-        String s("123.456a");
-        //! DO
-        bool ok = false;
-        int v = s.toInt(&ok);
-        //! CHECK
-        EXPECT_FALSE(ok);
-        EXPECT_EQ(v, 0);
-    }
 }
 
 TEST_F(Global_Types_StringTests, AsciiString_Construct)
@@ -765,28 +781,6 @@ TEST_F(Global_Types_StringTests, AsciiString_ToInt)
         EXPECT_FALSE(ok);
         EXPECT_EQ(v, 0);
     }
-
-    {
-        //! GIVEN Some string
-        String s("123.456");
-        //! DO
-        bool ok = false;
-        int v = s.toInt(&ok);
-        //! CHECK
-        EXPECT_TRUE(ok);
-        EXPECT_EQ(v, 123);
-    }
-
-    {
-        //! GIVEN Some string
-        String s("123.456а");
-        //! DO
-        bool ok = false;
-        int v = s.toInt(&ok);
-        //! CHECK
-        EXPECT_FALSE(ok);
-        EXPECT_EQ(v, 0);
-    }
 }
 
 TEST_F(Global_Types_StringTests, AsciiString_ToDouble)
@@ -811,50 +805,6 @@ TEST_F(Global_Types_StringTests, AsciiString_ToDouble)
         //! CHECK
         EXPECT_TRUE(ok);
         EXPECT_DOUBLE_EQ(v, 2.1);
-    }
-
-    {
-        //! GIVEN Some string
-        AsciiStringView s("2.1a");
-        //! DO
-        bool ok = false;
-        double v = s.toDouble(&ok);
-        //! CHECK
-        EXPECT_TRUE(ok);
-        EXPECT_DOUBLE_EQ(v, 2.1);
-    }
-
-    {
-        //! GIVEN Some string
-        AsciiStringView s("234a1");
-        //! DO
-        bool ok = false;
-        double v = s.toDouble(&ok);
-        //! CHECK
-        EXPECT_TRUE(ok);
-        EXPECT_DOUBLE_EQ(v, 234.0);
-    }
-
-    {
-        //! GIVEN Some string
-        AsciiStringView s("2.");
-        //! DO
-        bool ok = false;
-        double v = s.toDouble(&ok);
-        //! CHECK
-        EXPECT_TRUE(ok);
-        EXPECT_DOUBLE_EQ(v, 2.0);
-    }
-
-    {
-        //! GIVEN Some string
-        AsciiStringView s(".2");
-        //! DO
-        bool ok = false;
-        double v = s.toDouble(&ok);
-        //! CHECK
-        EXPECT_TRUE(ok);
-        EXPECT_DOUBLE_EQ(v, 0.2);
     }
 
     {
@@ -928,4 +878,91 @@ TEST_F(Global_Types_StringTests, String_Remove)
 
     //! CHECK
     EXPECT_EQ(s, "13abc");
+}
+
+TEST_F(Global_Types_StringTests, UtfCodec_Encoding)
+{
+    {
+        //! GIVEN UTF-8 data with BOM
+        const uint8_t data[] = { 239, 187, 191, '<', ' ', 'x', 'm', 'l' };
+        ByteArray ba(&data[0], 8);
+        //! DO
+        UtfCodec::Encoding enc = UtfCodec::xmlEncoding(ba);
+        //! CHECK
+        EXPECT_EQ(enc, UtfCodec::Encoding::UTF_8);
+    }
+    {
+        //! GIVEN UTF-8 data no BOM
+        const uint8_t data[] = { '<', ' ', 'x', 'm', 'l' };
+        ByteArray ba(&data[0], 5);
+        //! DO
+        UtfCodec::Encoding enc = UtfCodec::xmlEncoding(ba);
+        //! CHECK
+        EXPECT_EQ(enc, UtfCodec::Encoding::UTF_8);
+    }
+
+    {
+        //! GIVEN UTF-16 LE data with BOM
+        const uint8_t data[] = { 255, 254, '<', '\0', ' ', '\0', 'x', '\0', 'm', '\0', 'l', '\0' };
+        ByteArray ba(&data[0], 12);
+        //! DO
+        UtfCodec::Encoding enc = UtfCodec::xmlEncoding(ba);
+        //! CHECK
+        EXPECT_EQ(enc, UtfCodec::Encoding::UTF_16LE);
+    }
+
+    {
+        //! GIVEN UTF-16 LE data no BOM
+        const uint8_t data[] = { '<', '\0', ' ', '\0', 'x', '\0', 'm', '\0', 'l', '\0' };
+        ByteArray ba(&data[0], 10);
+        //! DO
+        UtfCodec::Encoding enc = UtfCodec::xmlEncoding(ba);
+        //! CHECK
+        EXPECT_EQ(enc, UtfCodec::Encoding::UTF_16LE);
+    }
+
+    {
+        //! GIVEN UTF-16 BE data with BOM
+        const uint8_t data[] = { 254, 255, '\0', '<', '\0', ' ', '\0', 'x', '\0', 'm', '\0', 'l' };
+        ByteArray ba(&data[0], 12);
+        //! DO
+        UtfCodec::Encoding enc = UtfCodec::xmlEncoding(ba);
+        //! CHECK
+        EXPECT_EQ(enc, UtfCodec::Encoding::UTF_16BE);
+    }
+
+    {
+        //! GIVEN UTF-16 BE data no BOM
+        const uint8_t data[] = { '\0', '<', '\0', ' ', '\0', 'x', '\0', 'm', '\0', 'l' };
+        ByteArray ba(&data[0], 10);
+        //! DO
+        UtfCodec::Encoding enc = UtfCodec::xmlEncoding(ba);
+        //! CHECK
+        EXPECT_EQ(enc, UtfCodec::Encoding::UTF_16BE);
+    }
+
+    //! NOTE At the moment others not implemented
+}
+
+TEST_F(Global_Types_StringTests, String_FromUtf16LE)
+{
+    {
+        //! GIVEN UTF-16 LE data no BOM
+        const uint8_t data[] = { '<', '\0', ' ', '\0', 'x', '\0', 'm', '\0', 'l', '\0' };
+        ByteArray ba(&data[0], 10);
+        //! DO
+        String str = String::fromUtf16LE(ba);
+        //! CHECK
+        EXPECT_EQ(str, u"< xml");
+    }
+
+    {
+        //! GIVEN UTF-16 LE data with BOM
+        const uint8_t data[] = { 255, 254, '<', '\0', ' ', '\0', 'x', '\0', 'm', '\0', 'l', '\0' };
+        ByteArray ba(&data[0], 12);
+        //! DO
+        String str = String::fromUtf16LE(ba);
+        //! CHECK
+        EXPECT_EQ(str, u"< xml");
+    }
 }

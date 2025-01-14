@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -25,9 +25,10 @@
 
 #include <memory>
 
-#include "dom/measure.h"
-#include "dom/mscore.h"
-#include "types/types.h"
+#include "../../dom/measure.h"
+#include "../../dom/mscore.h"
+#include "../../types/types.h"
+
 #include "pitchwheelrenderer.h"
 #include "pausemap.h"
 #include "velocitymap.h"
@@ -80,6 +81,7 @@ static const std::set<OrnamentStyle> any;             // empty set has the speci
 static constexpr int _16th = Constants::DIVISION / 4;
 static constexpr int _32nd = _16th / 2;
 constexpr int SLIDE_DURATION = _32nd;
+constexpr int GRACE_BEND_DURATION = _16th;
 static const std::vector<OrnamentExcursion> excursions = {
     //  articulation type            set of  duration       body         repeatp      suffix
     //                               styles          prefix                    sustainp

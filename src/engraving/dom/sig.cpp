@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -225,6 +225,8 @@ bool SigEvent::operator==(const SigEvent& e) const
 //   add
 //---------------------------------------------------------
 
+const TimeSigFrac TimeSigMap::DEFAULT_TIME_SIGNATURE(4, 4);
+
 void TimeSigMap::add(int tick, const Fraction& f)
 {
     if (!f.isValid()) {
@@ -294,7 +296,7 @@ void TimeSigMap::normalize()
 
 const SigEvent& TimeSigMap::timesig(int tick) const
 {
-    static const SigEvent ev(TimeSigFrac(4, 4));
+    static const SigEvent ev(DEFAULT_TIME_SIGNATURE);
     if (empty()) {
         return ev;
     }

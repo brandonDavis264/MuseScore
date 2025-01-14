@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -27,8 +27,12 @@
 
 #include "view/widgets/editstyle.h"
 
+#include "engraving/dom/gradualtempochange.h"
+
 using namespace mu::notation;
-using namespace mu::uicomponents;
+using namespace muse;
+using namespace muse::uicomponents;
+using namespace muse::actions;
 
 void NotationContextMenuModel::loadItems(int elementType)
 {
@@ -60,6 +64,10 @@ MenuItemList NotationContextMenuModel::makeItemsByElementType(ElementType elemen
         return makeVerticalBoxItems();
     case ElementType::HBOX:
         return makeHorizontalBoxItems();
+    case ElementType::HAIRPIN_SEGMENT:
+        return makeHairpinItems();
+    case ElementType::GRADUAL_TEMPO_CHANGE_SEGMENT:
+        return makeGradualTempoChangeItems();
     default:
         break;
     }
@@ -112,12 +120,17 @@ MenuItemList NotationContextMenuModel::makeMeasureItems()
     items << makeSeparator();
 
     if (isDrumsetStaff()) {
-        items << makeMenuItem("edit-drumset");
+        items << makeMenuItem("customize-kit");
     }
 
     items << makeMenuItem("staff-properties");
     items << makeSeparator();
     items << makeMenu(TranslatableString("notation", "Insert measures"), makeInsertMeasuresItems());
+    if (globalContext()->currentNotation()->viewMode() == mu::notation::ViewMode::PAGE) {
+        items << makeMenu(TranslatableString("notation", "Move measures"), makeMoveMeasureItems());
+    }
+    items << makeMenuItem("make-into-system", TranslatableString("notation", "Create system from selection"));
+    items << makeSeparator();
     items << makeMenuItem("measure-properties");
 
     return items;
@@ -213,9 +226,9 @@ MenuItemList NotationContextMenuModel::makeElementItems()
         if (!pageCode.isEmpty()) {
             QString subPageCode = EditStyle::subPageCodeForElement(hitElement);
             if (!subPageCode.isEmpty()) {
-                item->setArgs(mu::actions::ActionData::make_arg2<QString, QString>(pageCode, subPageCode));
+                item->setArgs(ActionData::make_arg2<QString, QString>(pageCode, subPageCode));
             } else {
-                item->setArgs(mu::actions::ActionData::make_arg1<QString>(pageCode));
+                item->setArgs(ActionData::make_arg1<QString>(pageCode));
             }
         }
     }
@@ -233,6 +246,16 @@ MenuItemList NotationContextMenuModel::makeInsertMeasuresItems()
         makeSeparator(),
         makeMenuItem("insert-measures-at-start-of-score", TranslatableString("notation", "At start of score…")),
         makeMenuItem("append-measures", TranslatableString("notation", "At end of score…"))
+    };
+
+    return items;
+}
+
+MenuItemList NotationContextMenuModel::makeMoveMeasureItems()
+{
+    MenuItemList items {
+        makeMenuItem("move-measure-to-prev-system", TranslatableString("notation", "To previous system")),
+        makeMenuItem("move-measure-to-next-system", TranslatableString("notation", "To next system"))
     };
 
     return items;
@@ -274,6 +297,51 @@ MenuItemList NotationContextMenuModel::makeHorizontalBoxItems()
     MenuItemList items = makeElementItems();
     items << makeSeparator();
     items << makeMenu(TranslatableString("notation", "Add"), addMenuItems);
+
+    return items;
+}
+
+MenuItemList NotationContextMenuModel::makeHairpinItems()
+{
+    MenuItemList items = makeElementItems();
+
+    const EngravingItem* hitElement = hitElementContext().element;
+    if (!hitElement || !hitElement->isHairpinSegment() || !isSingleSelection()) {
+        return items;
+    }
+
+    items << makeSeparator();
+
+    const engraving::Hairpin* h = toHairpinSegment(hitElement)->hairpin();
+    ui::UiActionState snapPrevState = { true, h->snapToItemBefore() };
+    MenuItem* snapPrev = makeMenuItem("toggle-snap-to-previous");
+    snapPrev->setState(snapPrevState);
+    items << snapPrev;
+
+    ui::UiActionState snapNextState = { true, h->snapToItemAfter() };
+    MenuItem* snapNext = makeMenuItem("toggle-snap-to-next");
+    snapNext->setState(snapNextState);
+    items << snapNext;
+
+    return items;
+}
+
+MenuItemList NotationContextMenuModel::makeGradualTempoChangeItems()
+{
+    MenuItemList items = makeElementItems();
+
+    const EngravingItem* hitElement = hitElementContext().element;
+    if (!hitElement || !hitElement->isGradualTempoChangeSegment() || !isSingleSelection()) {
+        return items;
+    }
+
+    items << makeSeparator();
+
+    const engraving::GradualTempoChange* gtc = toGradualTempoChangeSegment(hitElement)->tempoChange();
+    ui::UiActionState snapNextState = { true, gtc->snapToItemAfter() };
+    MenuItem* snapNext = makeMenuItem("toggle-snap-to-next");
+    snapNext->setState(snapNextState);
+    items << snapNext;
 
     return items;
 }

@@ -20,39 +20,38 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_AUDIO_FLUIDSYNTH_H
-#define MU_AUDIO_FLUIDSYNTH_H
+#ifndef MUSE_AUDIO_FLUIDSYNTH_H
+#define MUSE_AUDIO_FLUIDSYNTH_H
 
-#include <cstdint>
-#include <functional>
-#include <list>
 #include <memory>
 #include <optional>
-#include <unordered_set>
 #include <vector>
 
-#include "modularity/ioc.h"
+#include "global/modularity/ioc.h"
 #include "midi/imidioutport.h"
 
 #include "../../abstractsynthesizer.h"
 #include "fluidsequencer.h"
-#include "soundmapping.h"
 
-namespace mu::audio::synth {
+namespace muse::audio::synth {
 struct Fluid;
 class FluidSynth : public AbstractSynthesizer
 {
-    INJECT(midi::IMidiOutPort, midiOutPort)
+    Inject<midi::IMidiOutPort> midiOutPort = { this };
+
 public:
-    FluidSynth(const audio::AudioSourceParams& params);
+    FluidSynth(const audio::AudioSourceParams& params, const modularity::ContextPtr& iocCtx);
 
     Ret addSoundFonts(const std::vector<io::path_t>& sfonts);
     void setPreset(const std::optional<midi::Program>& preset);
 
     std::string name() const override;
     AudioSourceType type() const override;
+
     void setupSound(const mpe::PlaybackSetupData& setupData) override;
     void setupEvents(const mpe::PlaybackData& playbackData) override;
+    const mpe::PlaybackData& playbackData() const override;
+
     void flushSound() override;
 
     bool isActive() const override;
@@ -101,12 +100,16 @@ private:
     Ret init();
     void createFluidInstance();
 
+    void allNotesOff();
+
+    bool processSequence(const FluidSequencer::EventSequence& sequence, const samples_t samples, float* buffer);
     bool handleEvent(const midi::Event& event);
 
     void toggleExpressionController();
 
     int setExpressionLevel(int level);
-    int setControllerValue(const midi::Event& event);
+    int setControllerValue(int channel, int ctrl, int value);
+    int setPitchBend(int channel, int pitchBend);
 
     std::shared_ptr<Fluid> m_fluid = nullptr;
 
@@ -117,9 +120,11 @@ private:
     std::optional<midi::Program> m_preset;
 
     KeyTuning m_tuning;
+
+    bool m_allNotesOffRequested = false;
 };
 
 using FluidSynthPtr = std::shared_ptr<FluidSynth>;
 }
 
-#endif //MU_AUDIO_FLUIDSYNTH_H
+#endif //MUSE_AUDIO_FLUIDSYNTH_H

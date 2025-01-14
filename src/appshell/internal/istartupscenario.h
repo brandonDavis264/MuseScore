@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -41,7 +41,8 @@ public:
     virtual const project::ProjectFile& startupScoreFile() const = 0;
     virtual void setStartupScoreFile(const std::optional<project::ProjectFile>& file) = 0;
 
-    virtual void run() = 0;
+    virtual void runOnSplashScreen() = 0;
+    virtual void runAfterSplashScreen() = 0;
     virtual bool startupCompleted() const = 0;
 };
 }

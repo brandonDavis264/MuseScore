@@ -25,13 +25,13 @@
 
 #include "ui/iinteractiveuriregister.h"
 #include "ui/iuiengine.h"
-#include "log.h"
-#include "settings.h"
+
 #include "modularity/ioc.h"
 #include "audio/isynthresolver.h"
 #include "audio/ifxresolver.h"
-#include "audio/iaudiopluginsscannerregister.h"
-#include "audio/iaudiopluginmetareaderregister.h"
+
+#include "audioplugins/iaudiopluginsscannerregister.h"
+#include "audioplugins/iaudiopluginmetareaderregister.h"
 
 #include "internal/vstconfiguration.h"
 #include "internal/vstpluginsregister.h"
@@ -45,12 +45,15 @@
 #include "view/vstieditorview.h"
 #include "view/vstfxeditorview.h"
 
-using namespace mu::vst;
-using namespace mu::modularity;
-using namespace mu::audio::synth;
-using namespace mu::audio::fx;
-using namespace mu::audio;
-using namespace mu::ui;
+#include "log.h"
+
+using namespace muse::vst;
+using namespace muse::modularity;
+using namespace muse::audio::synth;
+using namespace muse::audio::fx;
+using namespace muse::audio;
+using namespace muse::audioplugins;
+using namespace muse::ui;
 
 static std::shared_ptr<VstConfiguration> s_configuration = std::make_shared<VstConfiguration>();
 static std::shared_ptr<VstModulesRepository> s_pluginModulesRepo = std::make_shared<VstModulesRepository>();
@@ -77,16 +80,16 @@ void VSTModule::resolveImports()
 {
     auto ir = ioc()->resolve<IInteractiveUriRegister>(moduleName());
     if (ir) {
-        ir->registerUri(Uri("musescore://vsti/editor"),
+        ir->registerUri(Uri("muse://vsti/editor"),
                         ContainerMeta(ContainerType::QWidgetDialog, qRegisterMetaType<VstiEditorView>("VstiEditorView")));
 
-        ir->registerUri(Uri("musescore://vstfx/editor"),
+        ir->registerUri(Uri("muse://vstfx/editor"),
                         ContainerMeta(ContainerType::QWidgetDialog, qRegisterMetaType<VstFxEditorView>("VstFxEditorView")));
     }
 
     auto synthResolver = ioc()->resolve<ISynthResolver>(moduleName());
     if (synthResolver) {
-        synthResolver->registerResolver(AudioSourceType::Vsti, std::make_shared<VstiResolver>());
+        synthResolver->registerResolver(AudioSourceType::Vsti, std::make_shared<VstiResolver>(iocContext()));
     }
 
     auto fxResolver = ioc()->resolve<IFxResolver>(moduleName());
@@ -112,10 +115,10 @@ void VSTModule::registerResources()
 
 void VSTModule::registerUiTypes()
 {
-    ioc()->resolve<ui::IUiEngine>(moduleName())->addSourceImportPath(vst_QML_IMPORT);
+    ioc()->resolve<muse::ui::IUiEngine>(moduleName())->addSourceImportPath(muse_vst_QML_IMPORT);
 }
 
-void VSTModule::onInit(const framework::IApplication::RunMode&)
+void VSTModule::onInit(const IApplication::RunMode&)
 {
     s_configuration->init();
     s_pluginModulesRepo->init();

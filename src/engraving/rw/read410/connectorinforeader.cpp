@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -30,6 +30,7 @@
 #include "../../dom/chordrest.h"
 #include "../../dom/measure.h"
 #include "../../dom/note.h"
+#include "../../dom/noteline.h"
 #include "../../dom/tie.h"
 #include "../../dom/chord.h"
 #include "../../dom/staff.h"
@@ -260,15 +261,15 @@ void ConnectorInfoReader::readAddConnector(ChordRest* item, ConnectorInfoReader*
             spanner->setStartElement(item);
             if (pasteMode) {
                 item->score()->undoAddElement(spanner);
-                for (EngravingObject* ee : spanner->linkList()) {
-                    if (ee == spanner) {
+                for (EngravingObject* linkedSpanner : spanner->linkList()) {
+                    if (linkedSpanner == spanner) {
                         continue;
                     }
-                    Spanner* ls = toSpanner(ee);
+                    Spanner* ls = toSpanner(linkedSpanner);
                     ls->setTick(spanner->tick());
-                    for (EngravingObject* eee : item->linkList()) {
-                        ChordRest* cr = toChordRest(eee);
-                        if (cr->score() == eee->score() && cr->staffIdx() == ls->staffIdx()) {
+                    for (EngravingObject* linkedCR : item->linkList()) {
+                        ChordRest* cr = toChordRest(linkedCR);
+                        if (cr->score() == linkedSpanner->score() && cr->staffIdx() == ls->staffIdx()) {
                             ls->setTrack(cr->track());
                             if (ls->isSlur()) {
                                 ls->setStartElement(cr);
@@ -285,15 +286,15 @@ void ConnectorInfoReader::readAddConnector(ChordRest* item, ConnectorInfoReader*
             spanner->setTick2(item->tick());
             spanner->setEndElement(item);
             if (pasteMode) {
-                for (EngravingObject* ee : spanner->linkList()) {
-                    if (ee == spanner) {
+                for (EngravingObject* linkedSpanner : spanner->linkList()) {
+                    if (linkedSpanner == spanner) {
                         continue;
                     }
-                    Spanner* ls = static_cast<Spanner*>(ee);
+                    Spanner* ls = static_cast<Spanner*>(linkedSpanner);
                     ls->setTick2(spanner->tick2());
-                    for (EngravingObject* eee : item->linkList()) {
-                        ChordRest* cr = toChordRest(eee);
-                        if (cr->score() == eee->score() && cr->staffIdx() == ls->staffIdx()) {
+                    for (EngravingObject* linkedCR : item->linkList()) {
+                        ChordRest* cr = toChordRest(linkedCR);
+                        if (cr->score() == linkedSpanner->score() && cr->staffIdx() == ls->staffIdx()) {
                             ls->setTrack2(cr->track());
                             if (ls->type() == ElementType::SLUR) {
                                 ls->setEndElement(cr);
@@ -338,6 +339,7 @@ void ConnectorInfoReader::readAddConnector(Measure* item, ConnectorInfoReader* i
         Fraction spTick   = pasteMode ? lTick : (item->tick() + lTick);
         if (info->isStart()) {
             sp->setTrack(l.track());
+            sp->setTrack2(sp->track());
             sp->setTick(spTick);
             item->score()->addSpanner(sp);
         } else if (info->isEnd()) {
@@ -360,6 +362,7 @@ void ConnectorInfoReader::readAddConnector(Note* item, ConnectorInfoReader* info
     case ElementType::TEXTLINE:
     case ElementType::GLISSANDO:
     case ElementType::GUITAR_BEND:
+    case ElementType::NOTELINE:
     {
         Spanner* sp = toSpanner(info->connector());
         if (info->isStart()) {
@@ -385,10 +388,16 @@ void ConnectorInfoReader::readAddConnector(Note* item, ConnectorInfoReader* info
             sp->setTick2(item->tick());
             sp->setEndElement(item);
             if (sp->isTie()) {
-                item->setTieBack(toTie(sp));
+                Tie* tie = toTie(sp);
+                item->setTieBack(tie);
+                if (pasteMode) {
+                    tie->updatePossibleJumpPoints();
+                }
             } else {
-                if ((sp->isGlissando() || sp->isGuitarBend()) && item->explicitParent() && item->explicitParent()->isChord()) {
-                    toChord(item->explicitParent())->setEndsGlissandoOrGuitarBend(true);
+                bool isNoteAnchoredTextLine = sp->isNoteLine() && toNoteLine(sp)->enforceMinLength();
+                if ((sp->isGlissando() || sp->isGuitarBend() || isNoteAnchoredTextLine) && item->explicitParent()
+                    && item->explicitParent()->isChord()) {
+                    toChord(item->explicitParent())->setEndsNoteAnchoredLine(true);
                 }
                 item->addSpannerBack(sp);
             }

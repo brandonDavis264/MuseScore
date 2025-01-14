@@ -20,29 +20,25 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_AUDIO_ABSTRACTAUDIOENCODER_H
-#define MU_AUDIO_ABSTRACTAUDIOENCODER_H
+#ifndef MUSE_AUDIO_ABSTRACTAUDIOENCODER_H
+#define MUSE_AUDIO_ABSTRACTAUDIOENCODER_H
 
 #include <cstdio>
 #include <vector>
 #include <memory>
 
-#include "log.h"
-#include "io/path.h"
-#include "progress.h"
+#include "global/progress.h"
+#include "global/io/path.h"
 
 #include "audiotypes.h"
 
-namespace mu::audio::encode {
+namespace muse::audio::encode {
 class AbstractAudioEncoder
 {
 public:
     AbstractAudioEncoder() = default;
 
-    virtual ~AbstractAudioEncoder()
-    {
-        closeDestination();
-    }
+    virtual ~AbstractAudioEncoder() = default;
 
     virtual bool init(const io::path_t& path, const SoundTrackFormat& format, const samples_t totalSamplesNumber)
     {
@@ -61,6 +57,11 @@ public:
         return true;
     }
 
+    void deinit()
+    {
+        closeDestination();
+    }
+
     const SoundTrackFormat& format() const
     {
         return m_format;
@@ -69,7 +70,7 @@ public:
     virtual size_t encode(samples_t samplesPerChannel, const float* input) = 0;
     virtual size_t flush() = 0;
 
-    framework::Progress progress()
+    Progress progress()
     {
         return m_progress;
     }
@@ -124,7 +125,7 @@ protected:
     std::vector<unsigned char> m_outputBuffer;
 
     SoundTrackFormat m_format;
-    framework::Progress m_progress;
+    Progress m_progress;
 
     std::string m_locale;
 };
@@ -132,4 +133,4 @@ protected:
 using AbstractAudioEncoderPtr = std::unique_ptr<AbstractAudioEncoder>;
 }
 
-#endif // MU_AUDIO_ABSTRACTAUDIOENCODER_H
+#endif // MUSE_AUDIO_ABSTRACTAUDIOENCODER_H

@@ -20,31 +20,32 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_AUDIO_FLUIDSYNTHCREATOR_H
-#define MU_AUDIO_FLUIDSYNTHCREATOR_H
+#ifndef MUSE_AUDIO_FLUIDSYNTHCREATOR_H
+#define MUSE_AUDIO_FLUIDSYNTHCREATOR_H
 
 #include <optional>
 #include <unordered_map>
 
-#include "async/asyncable.h"
-#include "modularity/ioc.h"
-#include "audio/isoundfontrepository.h"
+#include "global/async/asyncable.h"
+#include "global/modularity/ioc.h"
 
+#include "isoundfontrepository.h"
 #include "isynthresolver.h"
 #include "fluidsynth.h"
 
-namespace mu::audio::synth {
-class FluidResolver : public ISynthResolver::IResolver, public async::Asyncable
+namespace muse::audio::synth {
+class FluidResolver : public ISynthResolver::IResolver, public muse::Injectable, public async::Asyncable
 {
-    INJECT(ISoundFontRepository, soundFontRepository)
+    muse::Inject<ISoundFontRepository> soundFontRepository = { this };
+
 public:
-    explicit FluidResolver();
+    explicit FluidResolver(const muse::modularity::ContextPtr& iocCtx);
 
     ISynthesizerPtr resolveSynth(const audio::TrackId trackId, const audio::AudioInputParams& params) const override;
     bool hasCompatibleResources(const audio::PlaybackSetupData& setup) const override;
 
     audio::AudioResourceMetaList resolveResources() const override;
-    audio::SoundPresetList resolveSoundPresets(const AudioInputParams& params) const override;
+    audio::SoundPresetList resolveSoundPresets(const AudioResourceMeta& resourceMeta) const override;
 
     void refresh() override;
     void clearSources() override;
@@ -62,4 +63,4 @@ private:
 };
 }
 
-#endif // MU_AUDIO_FLUIDSYNTHCREATOR_H
+#endif // MUSE_AUDIO_FLUIDSYNTHCREATOR_H

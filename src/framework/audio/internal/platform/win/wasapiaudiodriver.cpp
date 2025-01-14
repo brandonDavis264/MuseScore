@@ -22,14 +22,17 @@
 
 #include "wasapiaudiodriver.h"
 
-#include "log.h"
-#include "translation.h"
+#include "global/translation.h"
 
+#include "wasapitypes.h"
 #include "wasapiaudioclient.h"
 #include "audiodeviceslistener.h"
 
+#include "log.h"
+
 using namespace winrt;
-using namespace mu::audio;
+using namespace muse;
+using namespace muse::audio;
 
 static constexpr char DEFAULT_DEVICE_ID[] = "default";
 
@@ -136,6 +139,7 @@ bool WasapiAudioDriver::open(const Spec& spec, Spec* activeSpec)
 
     m_activeSpec = m_desiredSpec;
     m_activeSpec.sampleRate = s_data.wasapiClient->sampleRate();
+    m_activeSpec.samples = std::max(m_activeSpec.samples, static_cast<uint16_t>(minSupportedBufferSize()));
     *activeSpec = m_activeSpec;
 
     m_isOpened = true;
@@ -160,6 +164,11 @@ void WasapiAudioDriver::close()
 bool WasapiAudioDriver::isOpened() const
 {
     return m_isOpened;
+}
+
+const WasapiAudioDriver::Spec& WasapiAudioDriver::activeSpec() const
+{
+    return m_activeSpec;
 }
 
 AudioDeviceID WasapiAudioDriver::outputDevice() const
@@ -194,7 +203,7 @@ bool WasapiAudioDriver::resetToDefaultOutputDevice()
     return selectOutputDevice(DEFAULT_DEVICE_ID);
 }
 
-mu::async::Notification WasapiAudioDriver::outputDeviceChanged() const
+async::Notification WasapiAudioDriver::outputDeviceChanged() const
 {
     return m_outputDeviceChanged;
 }
@@ -206,12 +215,12 @@ AudioDeviceList WasapiAudioDriver::availableOutputDevices() const
 
     AudioDeviceList result;
 
-    result.push_back({ DEFAULT_DEVICE_ID, trc("audio", "System default") });
+    result.push_back({ DEFAULT_DEVICE_ID, muse::trc("audio", "System default") });
 
     // Get the string identifier of the audio renderer
     hstring AudioSelector = MediaDevice::GetAudioRenderSelector();
 
-    IAsyncOperation<DeviceInformationCollection> deviceRequest
+    winrt::Windows::Foundation::IAsyncOperation<DeviceInformationCollection> deviceRequest
         = DeviceInformation::FindAllAsync(AudioSelector, {});
 
     DeviceInformationCollection devices = nullptr;
@@ -230,7 +239,7 @@ AudioDeviceList WasapiAudioDriver::availableOutputDevices() const
     return result;
 }
 
-mu::async::Notification WasapiAudioDriver::availableOutputDevicesChanged() const
+async::Notification WasapiAudioDriver::availableOutputDevicesChanged() const
 {
     return m_availableOutputDevicesChanged;
 }
@@ -258,7 +267,7 @@ bool WasapiAudioDriver::setOutputDeviceBufferSize(unsigned int bufferSize)
     return result;
 }
 
-mu::async::Notification WasapiAudioDriver::outputDeviceBufferSizeChanged() const
+async::Notification WasapiAudioDriver::outputDeviceBufferSizeChanged() const
 {
     return m_outputDeviceBufferSizeChanged;
 }
@@ -267,13 +276,53 @@ std::vector<unsigned int> WasapiAudioDriver::availableOutputDeviceBufferSizes() 
 {
     std::vector<unsigned int> result;
 
-    unsigned int n = 4096;
-    while (n >= MINIMUM_BUFFER_SIZE) {
+    unsigned int n = MAXIMUM_BUFFER_SIZE;
+    unsigned int min = minSupportedBufferSize();
+
+    while (n >= min) {
         result.push_back(n);
         n /= 2;
     }
 
     return result;
+}
+
+unsigned int WasapiAudioDriver::outputDeviceSampleRate() const
+{
+    return m_activeSpec.sampleRate;
+}
+
+bool WasapiAudioDriver::setOutputDeviceSampleRate(unsigned int sampleRate)
+{
+    bool result = true;
+
+    if (isOpened()) {
+        close();
+
+        m_activeSpec.sampleRate = sampleRate;
+        result = open(m_activeSpec, &m_activeSpec);
+    } else {
+        m_desiredSpec.sampleRate = sampleRate;
+    }
+
+    m_outputDeviceSampleRateChanged.notify();
+
+    return result;
+}
+
+async::Notification WasapiAudioDriver::outputDeviceSampleRateChanged() const
+{
+    return m_outputDeviceSampleRateChanged;
+}
+
+std::vector<unsigned int> WasapiAudioDriver::availableOutputDeviceSampleRates() const
+{
+    return {
+        44100,
+        48000,
+        88200,
+        96000,
+    };
 }
 
 void WasapiAudioDriver::resume()
@@ -304,4 +353,20 @@ AudioDeviceID WasapiAudioDriver::defaultDeviceId() const
     }
 
     return result;
+}
+
+unsigned int WasapiAudioDriver::minSupportedBufferSize() const
+{
+    IF_ASSERT_FAILED(s_data.wasapiClient.get()) {
+        return MINIMUM_BUFFER_SIZE;
+    }
+
+    unsigned int minPeriod = s_data.wasapiClient->minPeriodInFrames();
+    unsigned int closestBufferSize = MINIMUM_BUFFER_SIZE;
+
+    while (closestBufferSize < minPeriod) {
+        closestBufferSize *= 2;
+    }
+
+    return closestBufferSize;
 }

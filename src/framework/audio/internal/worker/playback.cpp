@@ -19,35 +19,34 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#include "playback.h"
 
 #include <utility>
 
-#include "playback.h"
-
-#include "log.h"
-#include "async/async.h"
+#include "global/async/async.h"
 
 #include "internal/audiothread.h"
 #include "internal/audiosanitizer.h"
 
-#include "internal/worker/playerhandler.h"
+#include "internal/worker/player.h"
 #include "internal/worker/trackshandler.h"
 #include "internal/worker/audiooutputhandler.h"
 #include "internal/worker/tracksequence.h"
 
 #include "audioerrors.h"
 
-using namespace mu;
-using namespace mu::audio;
-using namespace mu::async;
+#include "log.h"
+
+using namespace muse;
+using namespace muse::audio;
+using namespace muse::async;
 
 void Playback::init()
 {
     ONLY_AUDIO_WORKER_THREAD;
 
-    m_playerHandlersPtr = std::make_shared<PlayerHandler>(this);
-    m_trackHandlersPtr = std::make_shared<TracksHandler>(this);
-    m_audioOutputPtr = std::make_shared<AudioOutputHandler>(this);
+    m_trackHandlersPtr = std::make_shared<TracksHandler>(this, iocContext());
+    m_audioOutputPtr = std::make_shared<AudioOutputHandler>(this, iocContext());
 }
 
 void Playback::deinit()
@@ -56,7 +55,6 @@ void Playback::deinit()
 
     m_sequences.clear();
 
-    m_playerHandlersPtr = nullptr;
     m_trackHandlersPtr = nullptr;
     m_audioOutputPtr = nullptr;
 
@@ -65,7 +63,7 @@ void Playback::deinit()
 
 bool Playback::isInited() const
 {
-    return m_playerHandlersPtr != nullptr;
+    return m_trackHandlersPtr != nullptr;
 }
 
 Promise<TrackSequenceId> Playback::addSequence()
@@ -75,7 +73,7 @@ Promise<TrackSequenceId> Playback::addSequence()
 
         TrackSequenceId newId = static_cast<TrackSequenceId>(m_sequences.size());
 
-        m_sequences.emplace(newId, std::make_shared<TrackSequence>(newId));
+        m_sequences.emplace(newId, std::make_shared<TrackSequence>(newId, iocContext()));
         m_sequenceAdded.send(newId);
 
         return resolve(std::move(newId));
@@ -126,11 +124,11 @@ Channel<TrackSequenceId> Playback::sequenceRemoved() const
     return m_sequenceRemoved;
 }
 
-IPlayerPtr Playback::player() const
+IPlayerPtr Playback::player(const TrackSequenceId id) const
 {
-    ONLY_AUDIO_MAIN_OR_WORKER_THREAD;
-
-    return m_playerHandlersPtr;
+    std::shared_ptr<Player> p = std::make_shared<Player>(this, id);
+    p->init();
+    return p;
 }
 
 ITracksPtr Playback::tracks() const

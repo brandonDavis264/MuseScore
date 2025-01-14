@@ -1,11 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore-CLA-applies
+ * MuseScore-Studio-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2021 MuseScore BVBA and others
+ * Copyright (C) 2021 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -68,19 +68,11 @@ EngravingObject::EngravingObject(const ElementType& type, EngravingObject* paren
         m_score = static_cast<Score*>(this);
     }
 
-    // gen EID
+    // reg to debug
     if (type != ElementType::SCORE) {
-        Score* s = score();
-        if (s) {
-            MasterScore* ms = s->masterScore();
-            if (ms) {
-                m_eid = ms->getEID()->newEID(m_type);
-            }
+        if (m_score && m_score->elementsProvider()) {
+            m_score->elementsProvider()->reg(this);
         }
-    }
-
-    if (elementsProvider()) {
-        elementsProvider()->reg(this);
     }
 }
 
@@ -100,19 +92,11 @@ EngravingObject::EngravingObject(const EngravingObject& se)
     }
     m_links = 0;
 
-    // gen EID
+    // reg to debug
     if (m_type != ElementType::SCORE) {
-        Score* s = score();
-        if (s) {
-            MasterScore* ms = s->masterScore();
-            if (ms) {
-                m_eid = ms->getEID()->newEID(m_type);
-            }
+        if (m_score && m_score->elementsProvider()) {
+            m_score->elementsProvider()->reg(this);
         }
-    }
-
-    if (elementsProvider()) {
-        elementsProvider()->reg(this);
     }
 }
 
@@ -131,7 +115,7 @@ EngravingObject::~EngravingObject()
         bool canMoveToDummy = !this->isType(ElementType::ROOT_ITEM)
                               && !this->isType(ElementType::DUMMY)
                               && !this->isType(ElementType::SCORE)
-                              && score()->dummy() != nullptr;
+                              && score()->rootItem() && score()->rootItem()->dummy();
 
         EngravingObjectList children = m_children;
         for (EngravingObject* c : children) {
@@ -147,8 +131,8 @@ EngravingObject::~EngravingObject()
         m_children.clear();
     }
 
-    if (elementsProvider()) {
-        elementsProvider()->unreg(this);
+    if (score() && score()->elementsProvider()) {
+        score()->elementsProvider()->unreg(this);
     }
 
     if (m_links) {
@@ -504,6 +488,10 @@ void EngravingObject::undoChangeProperty(Pid id, const PropertyValue& v, Propert
                 toEngravingItem(this)->manageExclusionFromParts(v.toBool());
             }
         }
+    } else if (id == Pid::VOICE_ASSIGNMENT) {
+        if (v.value<VoiceAssignment>() != VoiceAssignment::CURRENT_VOICE_ONLY) {
+            changeProperties(this, Pid::VOICE, 0, ps);
+        }
     }
     changeProperties(this, id, v, ps);
     if (id != Pid::GENERATED) {
@@ -518,7 +506,7 @@ void EngravingObject::undoChangeProperty(Pid id, const PropertyValue& v, Propert
 void EngravingObject::undoPushProperty(Pid id)
 {
     PropertyValue val = getProperty(id);
-    score()->undoStack()->push1(new ChangeProperty(this, id, val));
+    score()->undoStack()->pushWithoutPerforming(new ChangeProperty(this, id, val));
 }
 
 //---------------------------------------------------------
@@ -717,6 +705,21 @@ String EngravingObject::translatedTypeUserName() const
     return typeUserName().translated();
 }
 
+EID EngravingObject::eid() const
+{
+    return masterScore()->eidRegister()->EIDFromItem(this);
+}
+
+void EngravingObject::setEID(EID id) const
+{
+    masterScore()->eidRegister()->registerItemEID(id, this);
+}
+
+EID EngravingObject::assignNewEID() const
+{
+    return masterScore()->eidRegister()->newEIDForItem(this);
+}
+
 //---------------------------------------------------------
 //   isSLineSegment
 //---------------------------------------------------------
@@ -749,7 +752,6 @@ bool EngravingObject::isTextBase() const
            || type() == ElementType::PLAYTECH_ANNOTATION
            || type() == ElementType::CAPO
            || type() == ElementType::STRING_TUNINGS
-           || type() == ElementType::SOUND_FLAG
            || type() == ElementType::REHEARSAL_MARK
            || type() == ElementType::INSTRUMENT_CHANGE
            || type() == ElementType::FIGURED_BASS

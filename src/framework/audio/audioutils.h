@@ -20,13 +20,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MU_AUDIO_AUDIOUTILS_H
-#define MU_AUDIO_AUDIOUTILS_H
+#ifndef MUSE_AUDIO_AUDIOUTILS_H
+#define MUSE_AUDIO_AUDIOUTILS_H
 
 #include "audiotypes.h"
 #include "soundfonttypes.h"
 
-namespace mu::audio {
+namespace muse::audio {
 inline AudioResourceMeta makeReverbMeta()
 {
     AudioResourceMeta meta;
@@ -38,25 +38,9 @@ inline AudioResourceMeta makeReverbMeta()
     return meta;
 }
 
-inline AudioPluginType audioPluginTypeFromCategoriesString(const String& categoriesStr)
-{
-    static const std::vector<std::pair<String, AudioPluginType> > STRING_TO_PLUGIN_TYPE_LIST = {
-        { u"Instrument", AudioPluginType::Instrument },
-        { u"Fx", AudioPluginType::Fx },
-    };
-
-    for (auto it = STRING_TO_PLUGIN_TYPE_LIST.cbegin(); it != STRING_TO_PLUGIN_TYPE_LIST.cend(); ++it) {
-        if (categoriesStr.contains(it->first)) {
-            return it->second;
-        }
-    }
-
-    return AudioPluginType::Undefined;
-}
-
 inline String audioSourceName(const AudioInputParams& params)
 {
-    if (params.type() == mu::audio::AudioSourceType::MuseSampler) {
+    if (params.type() == AudioSourceType::MuseSampler) {
         return params.resourceMeta.attributeVal(u"museName");
     }
 
@@ -74,6 +58,19 @@ inline String audioSourceName(const AudioInputParams& params)
 
     return String::fromStdString(params.resourceMeta.id);
 }
+
+inline String audioSourceCategoryName(const AudioInputParams& params)
+{
+    if (params.type() == AudioSourceType::MuseSampler) {
+        return params.resourceMeta.attributeVal(u"museCategory");
+    }
+
+    if (params.resourceMeta.type == audio::AudioResourceType::FluidSoundfont) {
+        return params.resourceMeta.attributeVal(synth::SOUNDFONT_NAME_ATTRIBUTE);
+    }
+
+    return String::fromStdString(params.resourceMeta.id);
+}
 }
 
-#endif // MU_AUDIO_AUDIOUTILS_H
+#endif // MUSE_AUDIO_AUDIOUTILS_H
